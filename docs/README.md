@@ -1,10 +1,10 @@
 # better-opencode ドキュメント
 
-opencode v2（`dev` ブランチ）を出発点に、開発体験を強化したフォーク **better-opencode** の設計・ロードマップをまとめる場所です。
+opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を強化したフォーク **better-opencode** の設計・ロードマップをまとめる場所です。
 
 ## 開発方針
 
-- 上流（`anomalyco/opencode`）の `dev` を継続的に取り込み、差分を小さく保つ。
+- 上流（`anomalyco/opencode`）の `dev` ブランチを継続的に取り込み、差分を小さく保つ。
 - まずはブランディングと設定だけを分け、パッケージスコープ（`@opencode/*`）は当面変更しない。スコープ改名は上流マージを壊すため、機能が固まってから別途判断する。
 - 新しい振る舞い・エンドポイントは既存ルールに従って **experimental** から始める。
   - 設定は `experimental.*`
@@ -15,13 +15,13 @@ opencode v2（`dev` ブランチ）を出発点に、開発体験を強化した
 
 ## ブランチ
 
-- `main` … better-opencode の開発基準ブランチ（`dev` から作成済み）
-- `dev` … 上流 `anomalyco/opencode` のミラー。フォークのコミットは置かない
+- `main` … better-opencode の開発基準ブランチ（`upstream` から作成済み）
+- `upstream` … 上流 `anomalyco/opencode` の `dev` をそのまま保持するミラー。フォークのコミットは置かない
 - 作業ブランチは `main` から切り、最大3語のハイフン区切り（例: `code-index`, `session-search`）
-- 上流追従は `origin/dev` を `main` にマージして行う
+- 上流追従は `origin/upstream` を `main` にマージして行う
 - コミット / PR タイトルは `type(scope): summary`
 
-> リポジトリ直下の `AGENTS.md` は上流向けの記述を含むため、フォーク向けの基準（`main`）を冒頭に追記している。上流へ還元できる変更は `origin/dev` との差分が最小になるよう心がける。
+> リポジトリ直下の `AGENTS.md` は上流向けの記述を含むため、フォーク向けの基準（`main`）を冒頭に追記している。上流へ還元できる変更は `origin/upstream` との差分が最小になるよう心がける。
 
 開発手順の詳細は [development.md](development.md) を参照。
 

@@ -50,8 +50,8 @@ bun run dev:desktop      # デスクトップ
 | ブランチ | 用途 |
 | --- | --- |
 | `main` | better-opencode の開発基準。機能追加はここから分岐する |
-| `dev` | 上流 `anomalyco/opencode` のミラー。フォークのコミットを置かない |
-| `origin/dev` | 上流の `dev`。同期に使う |
+| `upstream` | 上流 `anomalyco/opencode` の `dev` を保持するミラー。フォークのコミットを置かない |
+| `origin/upstream` | 上流の `dev`。同期に使う |
 
 作業ブランチは `main` から切り、3語以内のハイフン区切りにする（例: `code-index`, `test-loop`, `session-search`）。`feat/` や `fix/` の接頭辞は使わない。
 
@@ -66,11 +66,11 @@ git worktree add ../better-opencode-code-index -b code-index main
 ```bash
 git fetch origin
 git switch main
-git merge origin/dev
+git merge origin/upstream
 ```
 
 - コンフリクトは「上流の構造 + フォークの機能」を保つように解消する。
-- `dev` は上流の参照用に保ち、書き換えない。
+- `upstream` は上流の参照用に保ち、書き換えない。
 - 大きな設計判断が変わった場合は `docs/roadmap.md` の意思決定ログに残す。
 
 ## 検証

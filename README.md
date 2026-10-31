@@ -9,8 +9,8 @@ A focused fork of [opencode](https://github.com/anomalyco/opencode) for develope
 Early development. The runtime is currently upstream opencode v2; fork-specific features are being built incrementally on `main`.
 
 - `main` … better-opencode development. Fork features land here.
-- `dev` … upstream mirror. Do not commit fork work here.
-- `origin/dev` … upstream `anomalyco/opencode` `dev`, used for synchronization.
+- `upstream` … upstream mirror. Do not commit fork work here.
+- `origin/upstream` … upstream `anomalyco/opencode` `dev`, used for synchronization.
 
 See the [roadmap](docs/roadmap.md) and the [feature proposals](docs/README.md). Most design notes are written in Japanese.
 
@@ -87,10 +87,10 @@ This fork does not use Changesets. Do not add `.changeset` files.
 ```bash
 git fetch origin
 git switch main
-git merge origin/dev
+git merge origin/upstream
 ```
 
-Resolve conflicts in favor of this fork's features while keeping upstream structure. Do not rewrite `dev`; it is the clean upstream reference.
+Resolve conflicts in favor of this fork's features while keeping upstream structure. Do not rewrite `upstream`; it is the clean upstream reference.
 
 ## Documentation
 

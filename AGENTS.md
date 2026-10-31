@@ -1,7 +1,7 @@
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit generated client files directly.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk` composes Client, Core, and Server.
 - This repository does not use Changesets. Do not add `.changeset` files; follow the existing release workflow instead.
-- This is the **better-opencode** fork. `main` is the development branch: base branches, worktrees, PRs, and diffs on it. `dev` mirrors upstream `anomalyco/opencode`; sync `origin/dev` into `main` and never commit fork work to `dev`.
+- This is the **better-opencode** fork. `main` is the development branch: base branches, worktrees, PRs, and diffs on it. `upstream` mirrors upstream `anomalyco/opencode`; sync `origin/upstream` into `main` and never commit fork work to `upstream`.
 - Keep the upstream rules below unless a fork note overrides them.
 
 ## Fork Scope

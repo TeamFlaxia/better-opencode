@@ -1,6 +1,6 @@
 # Contributing to better-opencode
 
-better-opencode is a fork of opencode. Upstream changes arrive on `dev`; fork work happens on `main`. Before starting, read:
+better-opencode is a fork of opencode. Upstream changes arrive on `upstream`; fork work happens on `main`. Before starting, read:
 
 - [docs/README.md](docs/README.md) — fork policy and current feature inventory
 - [docs/roadmap.md](docs/roadmap.md) — what is planned and in which order
@@ -14,7 +14,7 @@ Upstream-compatible fixes (bugs, performance, environment issues) are always wel
 
 ## Workflow
 
-1. Branch from `main`, not `dev`.
+1. Branch from `main`, not `upstream`.
 2. Use a short hyphenated name with at most three words, without type prefixes: `code-index`, `budget-guardrails`, `session-search`.
 3. Commit with conventional messages: `feat(core): ...`, `fix(tui): ...`, `docs: ...`, `refactor(server): ...`, `test(plugin): ...`.
 4. Run the checks that cover the packages you touched.
@@ -59,12 +59,12 @@ Tests must run from the package directory. Running `bun test` from the repositor
 
 ## Syncing upstream
 
-Never commit fork work to `dev`.
+Never commit fork work to `upstream`.
 
 ```bash
 git fetch origin
 git switch main
-git merge origin/dev
+git merge origin/upstream
 ```
 
 Resolve conflicts by keeping fork features on top of the upstream structure. If a conflict is ambiguous, stop and document the decision in `docs/roadmap.md` (decision log).
