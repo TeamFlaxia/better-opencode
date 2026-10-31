@@ -11,6 +11,7 @@ import { Link } from "../ui/link"
 import { DIALOG_LIST_INSET, DialogHeader, DialogLayout, useDialog } from "../ui/dialog"
 import { DialogSelect } from "../ui/dialog-select"
 import { useToast } from "../ui/toast"
+import { useI18n } from "../i18n"
 import {
   formatDollars,
   formatReset,
@@ -69,6 +70,7 @@ export function limitLabel(usage: ModelUsage | undefined, model: ModelInfo) {
 
 /** `/usage`: the models the workspace limits, with what each has left. */
 export function DialogUsage() {
+  const { t } = useI18n()
   const limits = useUsageLimits()
   const dialog = useDialog()
   const theme = useTheme().surface("dialog")
@@ -104,7 +106,10 @@ export function DialogUsage() {
             options={rows().map((row) => ({
               title: row.model.name,
               value: key(row.model),
-              footer: selected() === key(row.model) ? `${formatDollars(row.usage.left)} left` : undefined,
+              footer:
+                selected() === key(row.model)
+                  ? t("{{amount}} left", { amount: formatDollars(row.usage.left) })
+                  : undefined,
               footerColor: row.level === "out" || row.level === "reached" ? theme.text.feedback.error.base : undefined,
               onSelect: () => dialog.replace(() => <DialogUsageModel model={row.model} />),
             }))}
@@ -112,7 +117,7 @@ export function DialogUsage() {
             emptyView={
               <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
                 <text fg={theme.text.muted} wrapMode="word">
-                  No limits apply to your models. Paid models stop only if the workspace runs out of credits.
+                  {t("No limits apply to your models. Paid models stop only if the workspace runs out of credits.")}
                 </text>
               </box>
             }
@@ -122,13 +127,13 @@ export function DialogUsage() {
       <Match when={limits.info() === null}>
         <DialogLayout header={<DialogHeader title="Usage" />}>
           <text fg={theme.text.muted} wrapMode="word">
-            Sign in to OpenCode Console with /connect to see your workspace's usage limits.
+            {t("Sign in to OpenCode Console with /connect to see your workspace's usage limits.")}
           </text>
         </DialogLayout>
       </Match>
       <Match when={true}>
         <DialogLayout header={<DialogHeader title="Usage" />}>
-          <text fg={theme.text.muted}>Loading…</text>
+          <text fg={theme.text.muted}>{t("Loading…")}</text>
         </DialogLayout>
       </Match>
     </Switch>
@@ -137,6 +142,7 @@ export function DialogUsage() {
 
 /** Every limit on one model, the one setting what's left marked. */
 export function DialogUsageModel(props: { model: ModelInfo }) {
+  const { t } = useI18n()
   const limits = useUsageLimits()
   const theme = useTheme().surface("dialog")
   const usage = () => limits.usage(props.model)
@@ -154,24 +160,27 @@ export function DialogUsageModel(props: { model: ModelInfo }) {
         <DialogHeader
           titleView={
             <text fg={theme.text.base}>
-              <span style={{ fg: theme.text.muted }}>Usage › </span>
+              <span style={{ fg: theme.text.muted }}>{t("Usage ›")} </span>
               {props.model.name}
             </text>
           }
         />
       }
     >
-      <Show when={usage()} fallback={<text fg={theme.text.muted}>No limits apply to {props.model.name}.</text>}>
+      <Show
+        when={usage()}
+        fallback={<text fg={theme.text.muted}>{t("No limits apply to {{model}}.", { model: props.model.name })}</text>}
+      >
         {(value) => (
           <box gap={1}>
             <box>
               <text fg={short() ? theme.text.feedback.error.base : theme.text.base} attributes={TextAttributes.BOLD}>
-                {formatDollars(value().left)} remaining
+                {t("{{amount}} remaining", { amount: formatDollars(value().left) })}
               </text>
-              <text fg={theme.text.muted}>Resets {formatReset(value().resetsAt)}</text>
+              <text fg={theme.text.muted}>{t("Resets {{time}}", { time: formatReset(value().resetsAt) })}</text>
             </box>
             <box>
-              <text fg={theme.text.muted}>Limits</text>
+              <text fg={theme.text.muted}>{t("Limits")}</text>
               <For each={value().limits}>
                 {(item, index) => (
                   <box>
@@ -188,7 +197,10 @@ export function DialogUsageModel(props: { model: ModelInfo }) {
                       >
                         {index() === 0 ? "•" : "-"}{" "}
                       </span>
-                      {formatDollars(item.spent)} used of {formatDollars(item.budget.limit)}
+                      {t("{{spent}} used of {{limit}}", {
+                        spent: formatDollars(item.spent),
+                        limit: formatDollars(item.budget.limit),
+                      })}
                     </text>
                     <box paddingLeft={2}>
                       <text fg={theme.text.muted} wrapMode="word">
@@ -291,6 +303,7 @@ export function useLimitNotice(message: () => SessionMessageAssistant) {
 export function UsageLimitNotice(props: {
   notice: { title: string; body: string; key?: string; link?: { label: string; href: string } }
 }) {
+  const { t } = useI18n()
   const theme = useTheme()
   return (
     <box
@@ -309,7 +322,7 @@ export function UsageLimitNotice(props: {
           {(key) => (
             <>
               {" "}
-              <span style={{ fg: theme.text.base }}>{key()}</span> to continue.
+              <span style={{ fg: theme.text.base }}>{key()}</span> {t("to continue.")}
             </>
           )}
         </Show>

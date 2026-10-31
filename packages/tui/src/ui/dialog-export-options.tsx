@@ -3,6 +3,7 @@ import { useNewDesigns } from "../config"
 import { useTheme } from "../context/theme"
 import { DialogHeader, DialogLayout, type DialogContext } from "./dialog"
 import { DialogSelect, DialogSelectChoice } from "./dialog-select"
+import { useI18n } from "../i18n"
 import { createStore } from "solid-js/store"
 import { createMemo, createSignal, For, Show } from "solid-js"
 
@@ -126,6 +127,7 @@ function DialogExportOptionsList(props: DialogExportOptionsProps) {
 }
 
 function LegacyDialogExportOptions(props: DialogExportOptionsProps) {
+  const { t } = useI18n()
   const theme = useTheme().surface("dialog")
   // Same field styling as the question form: only the focused row is highlighted, and the
   // mark alone shows what's checked.
@@ -200,7 +202,7 @@ function LegacyDialogExportOptions(props: DialogExportOptionsProps) {
             onMouseUp={() => confirm("copy")}
           >
             <text fg={store.active === "copy" ? theme.text.action.primary.focused : theme.text.action.primary.base}>
-              Copy
+              {t("Copy")}
             </text>
           </box>
           <box
@@ -212,7 +214,7 @@ function LegacyDialogExportOptions(props: DialogExportOptionsProps) {
             onMouseUp={() => confirm("export")}
           >
             <text fg={store.active === "export" ? theme.text.action.primary.focused : theme.text.action.primary.base}>
-              Export
+              {t("Export")}
             </text>
           </box>
         </box>
@@ -220,7 +222,7 @@ function LegacyDialogExportOptions(props: DialogExportOptionsProps) {
     >
       <box gap={1}>
         <box flexDirection="row" gap={1}>
-          <text fg={theme.text.base}>Export as:</text>
+          <text fg={theme.text.base}>{t("Export as:")}</text>
           <box flexDirection="row" gap={1}>
             <For each={["markdown", "json"] as const}>
               {(format) => (

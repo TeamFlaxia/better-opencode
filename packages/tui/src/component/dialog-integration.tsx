@@ -35,6 +35,7 @@ import { DialogPrompt } from "../ui/dialog-prompt"
 import { DialogSelect } from "../ui/dialog-select"
 import { Link } from "../ui/link"
 import { useToast } from "../ui/toast"
+import { useI18n } from "../i18n"
 import { errorMessage } from "../util/error"
 import {
   formInitialValues,
@@ -99,6 +100,7 @@ export function connectionSummary(integration: IntegrationInfo) {
 export function DialogIntegration(
   props: { onConnected?: OnIntegrationConnected; integrationID?: string; autoConnect?: boolean } = {},
 ) {
+  const { t } = useI18n()
   const data = useData()
   const currentLocation = useLocation()
   const dialog = useDialog()
@@ -158,12 +160,12 @@ export function DialogIntegration(
       options={options()}
       emptyView={
         <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-          <text fg={theme.text.muted}>No integrations available</text>
+          <text fg={theme.text.muted}>{t("No integrations available")}</text>
         </box>
       }
       noMatchView={
         <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-          <text fg={theme.text.muted}>No integrations found</text>
+          <text fg={theme.text.muted}>{t("No integrations found")}</text>
         </box>
       }
     />
@@ -178,6 +180,7 @@ function manageConnections(
   onConnected?: OnIntegrationConnected,
 ) {
   dialog.replace(() => {
+    const { t } = useI18n()
     const data = useData()
     const client = useClient()
     const toast = useToast()
@@ -204,7 +207,7 @@ function manageConnections(
           ...(methods.length
             ? [
                 {
-                  title: "Add account",
+                  title: t("Add account"),
                   value: "add",
                   onSelect: () => selectMethod(current() ?? integration, methods, location, dialog, onConnected),
                 },
@@ -521,6 +524,7 @@ function CommandPending(props: {
 }
 
 function CommandView(props: { title: string; output: string; message: string }) {
+  const { t } = useI18n()
   const dialog = useDialog()
   const theme = useTheme().surface("dialog")
   const overlayTheme = useTheme()
@@ -539,7 +543,7 @@ function CommandView(props: { title: string; output: string; message: string }) 
             <text fg={overlayTheme.text.base}>{props.output.trim()}</text>
           </box>
         </DialogBleed>
-        <text fg={theme.text.muted}>{props.message}</text>
+        <text fg={theme.text.muted}>{t(props.message)}</text>
       </box>
     </DialogLayout>
   )
@@ -811,6 +815,7 @@ function OAuthView(props: {
   onCopy?: () => void
   onOpen?: () => void
 }) {
+  const { t } = useI18n()
   const theme = useTheme().surface("dialog")
   return (
     <DialogLayout
@@ -853,7 +858,7 @@ function OAuthView(props: {
             </box>
           )}
         </Show>
-        <text fg={theme.text.muted}>{props.message}</text>
+        <text fg={theme.text.muted}>{t(props.message)}</text>
       </box>
     </DialogLayout>
   )

@@ -18,6 +18,7 @@ import { useToast } from "../ui/toast"
 import { errorMessage } from "../util/error"
 import { credentialConnections } from "./dialog-integration"
 import { DialogModel } from "./dialog-model"
+import { useI18n } from "../i18n"
 import "./go-upsell-art"
 
 export const GO_URL = "https://opencode.ai/go"
@@ -42,6 +43,7 @@ export function DialogGoUpsell(props: {
   onSubscribe: () => void
   onDontShowAgain: () => void
 }) {
+  const { t } = useI18n()
   const dialog = useDialog()
   const dimensions = useTerminalDimensions()
   const theme = useTheme().surface("dialog")
@@ -152,10 +154,16 @@ export function DialogGoUpsell(props: {
           />
         </box>
       </Show>
-      <box zIndex={1} paddingLeft={inset()} paddingRight={inset()} paddingBottom={short() ? 0 : 1} gap={short() ? 0 : 1}>
+      <box
+        zIndex={1}
+        paddingLeft={inset()}
+        paddingRight={inset()}
+        paddingBottom={short() ? 0 : 1}
+        gap={short() ? 0 : 1}
+      >
         <box flexDirection="row" justifyContent="space-between" flexShrink={0}>
           <text attributes={TextAttributes.BOLD} fg={theme.text.base} bg={textBg()}>
-            Free limit reached
+            {t("Free limit reached")}
           </text>
           <text fg={theme.text.muted} bg={textBg()} onMouseUp={() => dialog.clear()}>
             esc
@@ -166,10 +174,11 @@ export function DialogGoUpsell(props: {
           fallback={
             <scrollbox maxHeight={bodyMaxHeight()} flexShrink={1}>
               <text fg={theme.text.muted} bg={textBg()} wrapMode="word">
-                You've used today's free messages.{props.reset ? ` Resets at ${props.reset}.` : ""}
+                {t("You've used today's free messages.")}
+                {props.reset ? ` ${t("Resets at {{time}}.", { time: props.reset })}` : ""}
               </text>
               <text fg={theme.text.muted} bg={textBg()} wrapMode="word">
-                OpenCode Go gives you reliable access to the best open-source models for $10/month.
+                {t("OpenCode Go gives you reliable access to the best open-source models for $10/month.")}
               </text>
               <Link href={GO_URL} fg={primary()} bg={textBg()} wrapMode="none" />
             </scrollbox>
@@ -177,10 +186,11 @@ export function DialogGoUpsell(props: {
         >
           <box>
             <text fg={theme.text.muted} bg={textBg()} wrapMode="word">
-              You've used today's free messages.{props.reset ? ` Resets at ${props.reset}.` : ""}
+              {t("You've used today's free messages.")}
+              {props.reset ? ` ${t("Resets at {{time}}.", { time: props.reset })}` : ""}
             </text>
             <text fg={theme.text.muted} bg={textBg()} wrapMode="word">
-              OpenCode Go gives you reliable access to the best open-source models for $10/month.
+              {t("OpenCode Go gives you reliable access to the best open-source models for $10/month.")}
             </text>
           </box>
           <box ref={setAnchor} height={7} paddingBottom={1} alignItems="center" justifyContent="flex-end">
@@ -221,7 +231,9 @@ function DialogGoUpsellConnect(props: { canContinue?: () => boolean; onSubscribe
   const [attempt, setAttempt] = createSignal<IntegrationAttempt>()
   const integration = createMemo(() => data.location.integration.list(location)?.find((item) => item.id === "opencode"))
   const method = createMemo(() =>
-    integration()?.methods.find((item): item is IntegrationOAuthMethod => item.type === "oauth" && item.id === "device"),
+    integration()?.methods.find(
+      (item): item is IntegrationOAuthMethod => item.type === "oauth" && item.id === "device",
+    ),
   )
 
   let started = false
