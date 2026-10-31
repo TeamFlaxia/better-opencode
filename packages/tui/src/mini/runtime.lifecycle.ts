@@ -9,6 +9,7 @@
 // Also wires SIGINT so Ctrl-c clears a live prompt draft first, then falls
 // back to the usual two-press exit sequence through RunFooter.requestExit().
 import path from "path"
+import { t } from "./i18n"
 import {
   CliRenderEvents,
   buildKittyKeyboardFlags,
@@ -219,7 +220,7 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
     agents: input.agents,
     references: input.references,
     agent: input.agent,
-    modelLabel: input.model ? formatModelLabel(input.model, input.variant) : "Default model",
+    modelLabel: input.model ? formatModelLabel(input.model, input.variant) : t("Default model"),
     model: input.model,
     variant: input.variant,
     first: input.first,

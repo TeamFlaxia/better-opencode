@@ -1,4 +1,5 @@
 /** @jsxImportSource @opentui/solid */
+import { t } from "./i18n"
 import { measureEditText, type BoxRenderable, type ScrollBoxRenderable, type TextareaRenderable } from "@opentui/core"
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
@@ -235,7 +236,7 @@ export function RunFormBody(props: {
       setState((previous) => formSetExternalReady(previous, field.key))
     } catch {
       setState((previous) => formSetExternalReady(previous, field.key))
-      setState((previous) => formSetError(previous, "Could not open the URL. Open it manually, then press enter."))
+      setState((previous) => formSetError(previous, t("Could not open the URL. Open it manually, then press enter.")))
     }
   }
 
@@ -326,7 +327,7 @@ export function RunFormBody(props: {
         <Show when={!unsupported() && !formSingle(props.request)}>
           <text fg={props.theme.muted} wrapMode="none" flexShrink={0}>
             {confirm()
-              ? "Review"
+              ? t("Review")
               : `${Math.min(state().field + 1, props.request.fields.length)}/${props.request.fields.length}`}
           </text>
         </Show>
@@ -374,7 +375,7 @@ export function RunFormBody(props: {
                   {value()}
                 </text>
                 <text width="100%" fg={props.theme.muted} flexShrink={0}>
-                  This request remains pending until you dismiss it.
+                  {t("This request remains pending until you dismiss it.")}
                 </text>
               </box>
             )}
@@ -394,10 +395,10 @@ export function RunFormBody(props: {
                   flexShrink={0}
                 >
                   {state().answers[field().key] === true
-                    ? "Acknowledged"
+                    ? t("Acknowledged")
                     : state().externalReady[field().key]
-                      ? "Press enter to acknowledge completion"
-                      : "Press enter to open the URL"}
+                      ? t("Press enter to acknowledge completion")
+                      : t("Press enter to open the URL")}
                 </text>
               </box>
             )}
@@ -599,16 +600,16 @@ export function RunFormBody(props: {
               {state().submitting
                 ? "submitting…"
                 : unsupported()
-                  ? "esc dismiss"
+                  ? t("esc dismiss")
                   : confirm()
-                    ? "enter submit   esc dismiss"
+                    ? t("enter submit   esc dismiss")
                     : editing()
-                      ? "enter save   esc dismiss"
+                      ? t("enter save   esc dismiss")
                       : externalField()
-                        ? `enter ${action()}   esc dismiss`
+                        ? t("enter {{action}}   esc dismiss", { action: action() })
                         : props.mono
-                          ? "up/down select   enter choose   tab next   esc dismiss"
-                          : "↑↓ select   enter choose   tab next   esc dismiss"}
+                          ? t("up/down select   enter choose   tab next   esc dismiss")
+                          : t("↑↓ select   enter choose   tab next   esc dismiss")}
             </text>
             <Show when={state().error}>
               <text fg={props.theme.error} wrapMode="none" truncate flexShrink={1}>
@@ -636,8 +637,8 @@ export function RunFormBody(props: {
           </Show>
           <Show when={!state().submitting && size().height >= 10}>
             <text fg={props.theme.muted} wrapMode="word" maxWidth="100%" flexShrink={0}>
-              {size().width >= 56 && rows().length > 0 && !state().editing ? "up/down select  tab next  " : ""}pgup/pgdn
-              scroll
+              {size().width >= 56 && rows().length > 0 && !state().editing ? t("up/down select  tab next  ") : ""}
+              pgup/pgdn scroll
             </text>
           </Show>
         </box>

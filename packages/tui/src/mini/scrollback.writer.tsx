@@ -1,4 +1,5 @@
 import { createScrollbackWriter, useRenderer } from "@opentui/solid"
+import { t } from "./i18n"
 import {
   MarkdownRenderable,
   TextAttributes,
@@ -256,7 +257,7 @@ export function RunEntryContent(props: {
       <Match when={todo_snapshot()}>
         <box width="100%" flexDirection="column" gap={1}>
           <text width="100%" wrapMode="word" fg={theme().block.muted}>
-            # Todos
+            {t("# Todos")}
           </text>
           <box width="100%" flexDirection="column" gap={0}>
             {todo_snapshot()!.items.map((item) => (
@@ -282,7 +283,7 @@ export function RunEntryContent(props: {
       <Match when={question_snapshot()}>
         <box width="100%" flexDirection="column" gap={1}>
           <text width="100%" wrapMode="word" fg={theme().block.muted}>
-            # Questions
+            {t("# Questions")}
           </text>
           <box width="100%" flexDirection="column" gap={1}>
             {question_snapshot()!.items.map((item) => (

@@ -15,3 +15,8 @@ OptimizedBuffer.prototype.getRealCharBytes = function (addLineBreaks) {
     return frames.get(this) ?? new Uint8Array()
   }
 }
+
+import { setMiniLocale } from "../src/mini/i18n"
+
+// Tests assert the original English copy; the app defaults to Japanese.
+setMiniLocale("en")

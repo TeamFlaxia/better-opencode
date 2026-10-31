@@ -1,3 +1,4 @@
+import { t } from "./i18n"
 // Footer layout
 //
 // Renders the footer region as a compact vertical stack:
@@ -401,7 +402,7 @@ export function RunFooterView(props: RunFooterViewProps) {
     if (exiting() || (busy() && armed())) {
       const key = exiting() ? clearShortcut() : interruptLabel()
       const action = exiting() ? "exit" : "stop"
-      if (!key) return exiting() ? "Exit pending" : "Stop pending"
+      if (!key) return exiting() ? t("Exit pending") : t("Stop pending")
       const phrases = [
         `Press ${key} again to ${exiting() ? "exit" : "interrupt"}`,
         `${key} again to ${exiting() ? "exit" : "interrupt"}`,
@@ -412,12 +413,12 @@ export function RunFooterView(props: RunFooterViewProps) {
     }
 
     if (notice()) return notice()
-    if (!footerDetails()) return shell() ? "Shell" : ""
+    if (!footerDetails()) return shell() ? t("Shell") : ""
     if (busy()) {
       if (stateStatus() === "reconnecting") return "reconnecting"
-      return interruptLabel() ? `${interruptLabel()} stop` : "Running"
+      return interruptLabel() ? t("{{label}} stop", { label: interruptLabel()! }) : t("Running")
     }
-    return stateStatus() || (shell() ? "Shell" : "")
+    return stateStatus() || (shell() ? t("Shell") : "")
   })
   const agentStatus = createMemo(() => {
     if (!footerDetails() || !prompt() || shell()) return undefined
@@ -473,7 +474,7 @@ export function RunFooterView(props: RunFooterViewProps) {
   const commandHint = createMemo(() => {
     if (!prompt() || takeover() || shell()) return
     if (command()) {
-      return { key: command(), label: "menu" }
+      return { key: command(), label: t("menu") }
     }
   })
   const statuslineLayout = createMemo(() => {
@@ -550,8 +551,8 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         id: "app.clear",
-        title: "Clear screen",
-        group: "System",
+        title: t("Clear screen"),
+        group: t("System"),
         run: clearScreen,
       },
     ],
@@ -562,14 +563,14 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         id: "command.palette.show",
-        title: "Open command palette",
-        group: "Prompt",
+        title: t("Open command palette"),
+        group: t("Prompt"),
         run: openCommand,
       },
       {
         id: "variant.cycle",
-        title: "Cycle model variant",
-        group: "Model",
+        title: t("Cycle model variant"),
+        group: t("Model"),
         run: props.onCycle,
       },
     ],
@@ -581,8 +582,8 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         id: "session.background",
-        title: "Background subagents",
-        group: "Session",
+        title: t("Background subagents"),
+        group: t("Session"),
         run: () => props.onBackground?.(),
       },
     ],
@@ -593,8 +594,8 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         id: "session.child.first",
-        title: "View subagents",
-        group: "Session",
+        title: t("View subagents"),
+        group: t("Session"),
         run: openSubagentMenu,
       },
     ],
@@ -605,8 +606,8 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         id: "session.queued_prompts",
-        title: "View pending prompts",
-        group: "Prompt",
+        title: t("View pending prompts"),
+        group: t("Prompt"),
         run: openQueuedMenu,
       },
     ],
@@ -622,8 +623,8 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         id: "composer.subagent.interrupt",
-        title: "Interrupt subagent",
-        group: "Session",
+        title: t("Interrupt subagent"),
+        group: t("Session"),
         run: () => {
           const current = selectedTab()
           if (current?.status !== "running") {

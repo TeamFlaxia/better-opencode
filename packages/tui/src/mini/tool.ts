@@ -1,3 +1,4 @@
+import { t } from "./i18n"
 // Per-tool display rules shared across `opencode run` output paths.
 //
 // Each known tool (shell, edit, write, subagent, etc.) has a ToolRule that controls
@@ -376,7 +377,7 @@ function runList(p: ToolProps): ToolInline {
   const dir = text(dict(p.input).path)
   return {
     icon: "→",
-    title: dir ? `List ${displayPath(p, dir)}` : "List",
+    title: dir ? t("List {{path}}", { path: displayPath(p, dir) }) : t("List"),
   }
 }
 
@@ -449,7 +450,7 @@ function runPatch(p: ToolProps): ToolInline {
   if (files === 0) {
     return {
       icon: "%",
-      title: "Patch",
+      title: t("Patch"),
     }
   }
 
@@ -462,7 +463,7 @@ function runPatch(p: ToolProps): ToolInline {
 function runTodo(p: ToolProps): ToolInline {
   return {
     icon: "#",
-    title: "Todos",
+    title: t("Todos"),
     mode: "block",
     body: parseTodos(p.frame.input.todos)
       .map((item) => `${todoMarker(item.status)} ${item.content}`)
@@ -481,7 +482,7 @@ function runQuestion(p: ToolProps): ToolInline {
 function runInvalid(p: ToolProps): ToolInline {
   return {
     icon: "✗",
-    title: "Invalid Tool",
+    title: t("Invalid Tool"),
     mode: "block",
     body: p.frame.status === "completed" ? p.frame.output : undefined,
   }
@@ -491,7 +492,7 @@ function runBatch(p: ToolProps): ToolInline {
   const calls = list(dict(p.input).tool_calls).length
   return {
     icon: "#",
-    title: calls > 0 ? `Batch ${calls} tool${calls === 1 ? "" : "s"}` : "Batch",
+    title: calls > 0 ? t("Batch {{count}} tools", { count: calls }) : t("Batch"),
     mode: "block",
     body: p.frame.status === "completed" ? p.frame.output : undefined,
   }

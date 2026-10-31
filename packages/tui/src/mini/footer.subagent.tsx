@@ -1,4 +1,5 @@
 /** @jsxImportSource @opentui/solid */
+import { t } from "./i18n"
 import type { ScrollBoxRenderable } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import "../component/spinner-renderable"
@@ -227,7 +228,7 @@ export function RunFooterSubagentBody(props: {
             rows()
           ) : (
             <text width="100%" fg={footer().muted} wrapMode="word" flexShrink={0}>
-              No subagent activity yet
+              {t("No subagent activity yet")}
             </text>
           )}
         </box>
@@ -235,7 +236,7 @@ export function RunFooterSubagentBody(props: {
       <Show when={!headerControls()}>
         <box width="100%" flexDirection="row" flexWrap="wrap" columnGap={1} flexShrink={0}>
           <text height={1} fg={footer().actionSecondaryText} wrapMode="none" flexShrink={0} onMouseUp={props.onClose}>
-            esc back
+            {t("esc back")}
           </text>
           <Show when={interruptHint()}>
             {(hint) => (
@@ -246,7 +247,7 @@ export function RunFooterSubagentBody(props: {
           </Show>
           <Show when={width() >= 56}>
             <text height={1} fg={footer().muted} wrapMode="none" flexShrink={0}>
-              pgup/pgdn scroll
+              {t("pgup/pgdn scroll")}
             </text>
             <Show when={props.total() > 1 && props.index() > 0}>
               <text
@@ -256,7 +257,7 @@ export function RunFooterSubagentBody(props: {
                 flexShrink={0}
                 onMouseUp={() => props.onCycle(1)}
               >
-                tab next {props.index()}/{props.total()}
+                {t("tab next")} {props.index()}/{props.total()}
               </text>
             </Show>
           </Show>

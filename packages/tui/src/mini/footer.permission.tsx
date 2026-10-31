@@ -1,3 +1,4 @@
+import { t } from "./i18n"
 // Permission UI body for the direct-mode footer.
 //
 // Renders inside the footer when the reducer pushes a FooterView of type
@@ -111,7 +112,7 @@ export function RejectField(props: {
       minHeight={1}
       maxHeight={3}
       wrapMode="word"
-      placeholder="Tell OpenCode what to do differently"
+      placeholder={t("Tell OpenCode what to do differently")}
       placeholderColor={props.theme.muted}
       textColor={props.theme.formfieldText}
       focusedTextColor={props.theme.formfieldFocusedText}
@@ -171,19 +172,19 @@ export function RunPermissionBody(props: {
   const controlsWidth = () => opts().reduce((total, option) => total + stringWidth(permissionLabel(option)) + 3, -1)
   const hint = () =>
     compact() && width() < 56
-      ? "pgup/pgdn scroll"
+      ? t("pgup/pgdn scroll")
       : `${props.mono ? "left/right" : "⇆"} select  enter confirm  esc ${stage() === "always" ? "cancel" : "reject"}`
   const inlineControls = () => controlsWidth() + stringWidth(hint()) + 1 <= width() - (compact() ? 0 : 5)
   const title = createMemo(() => {
     if (stage() === "always") {
-      return "Always allow"
+      return t("Always allow")
     }
 
     if (stage() === "reject") {
-      return width() < 24 ? "Reject" : "Reject permission"
+      return width() < 24 ? t("Reject") : t("Reject permission")
     }
 
-    return width() < 24 ? "Permission" : "Permission required"
+    return width() < 24 ? t("Permission") : t("Permission required")
   })
 
   createEffect(() => {
@@ -362,7 +363,7 @@ export function RunPermissionBody(props: {
                 when={!busy()}
                 fallback={
                   <text fg={props.theme.running} height={1} wrapMode="none" truncate flexShrink={0}>
-                    {compact() ? "Waiting…" : "Waiting for permission event…"}
+                    {compact() ? t("Waiting…") : t("Waiting for permission event…")}
                   </text>
                 }
               >
@@ -535,7 +536,7 @@ export function RunPermissionBody(props: {
             when={!busy()}
             fallback={
               <text fg={props.theme.running} height={1} wrapMode="none" truncate flexShrink={0}>
-                {compact() ? "Waiting…" : "Waiting for permission event…"}
+                {compact() ? t("Waiting…") : t("Waiting for permission event…")}
               </text>
             }
           >
@@ -551,7 +552,7 @@ export function RunPermissionBody(props: {
                   </>
                 }
               >
-                pgup/pgdn<span style={{ fg: props.theme.muted }}> scroll</span>
+                pgup/pgdn<span style={{ fg: props.theme.muted }}> {t("scroll")}</span>
               </Show>
             </text>
           </Show>
