@@ -6,6 +6,7 @@
     ".npmrc",
     ".github/actions/setup-bun/**",
     ".github/workflows/check-test.yml",
+    ".github/workflows/pr-check.yml",
     "package.json"
   ],
   "globalEnv": ["CI", "OPENCODE_DISABLE_SHARE"],

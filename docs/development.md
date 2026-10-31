@@ -92,6 +92,23 @@ bun run test
 - `bun check` と `bun run typecheck:tsc` が食い違う場合は `tsc` を正とする。
 - Changesets は使わない。
 
+## CI
+
+`.github/workflows/pr-check.yml` が `main` 向け PR と `main` への push で動く。GitHub ホストの `ubuntu-latest` を使い、次の3ジョブを並列で実行する。
+
+| ジョブ | 内容 |
+| --- | --- |
+| `check` | `bun run lint`、`bun run typecheck:tsc`、変更ファイルの lint、生成クライアント / OpenAPI の差分確認 |
+| `test` | 変更の影響を受けるパッケージのユニットテスト（`bun turbo test --affected`） |
+| `build` | CLI / app が依存するワークスペースライブラリのビルド（`--affected`） |
+
+- ドラフト PR ではジョブをスキップする。`ready_for_review` で再実行される。
+- 同じ PR への追加 push は古い実行をキャンセルする。
+- `workflow_dispatch` では影響範囲を絞らず全テスト・全ビルドを実行する。
+- 上流由来の `check.yml` / `check-test.yml` は upstream ブランチ向けで、フォークの `main` では動かない（`check-test.yml` は PR トリガーを `upstream` に限定済み）。
+
+ブランチ保護で `check` / `test` / `build` を必須チェックにすると、PR のマージ前に検証を強制できる。
+
 ## 機能を追加する場所
 
 | 追加するもの | 場所 |

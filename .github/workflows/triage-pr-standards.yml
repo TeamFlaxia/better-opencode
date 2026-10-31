@@ -2,6 +2,8 @@ name: triage-pr-standards
 
 on:
   pull_request_target:
+    # Upstream triage only. Fork pull requests target main and have no .github/TEAM_MEMBERS.
+    branches: [upstream]
     types: [opened, edited, synchronize]
 
 jobs:

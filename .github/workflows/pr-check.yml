@@ -1,0 +1,128 @@
+name: pr-check
+
+# Pull-request gate for the better-opencode fork. The upstream workflows in check.yml and check-test.yml target
+# upstream branches and Blacksmith runners, so this workflow uses GitHub-hosted runners and main as the base.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  check:
+    name: check
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # lint:changed diffs against the merge's first parent.
+          fetch-depth: 2
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Lint
+        run: bun run lint
+
+      # CI uses the official TypeScript compiler, matching the upstream check job.
+      - name: Typecheck
+        run: bun run typecheck:tsc
+
+      - name: Lint changed files
+        if: github.event_name == 'pull_request'
+        run: bun run lint:changed HEAD^1
+
+      - name: Check generated client
+        working-directory: packages/client
+        run: bun run check:generated
+
+      - name: Check generated OpenAPI document
+        working-directory: packages/protocol
+        run: bun run check:generated
+
+  test:
+    name: test
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Pull requests diff against the merge's first parent; pushes need the commit before the push.
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Ensure ripgrep
+        # core's search tests use the system rg when present and otherwise download it, which the test harness blocks.
+        run: command -v rg >/dev/null || (sudo apt-get update && sudo apt-get install -y ripgrep)
+
+      - name: Configure git identity
+        run: |
+          git config --global user.email "ci@better-opencode.local"
+          git config --global user.name "better-opencode CI"
+
+      - name: Run unit tests
+        timeout-minutes: 35
+        env:
+          GITHUB_ACTIONS: "false"
+          TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
+          TURBO_SCM_HEAD: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # A manual run and the first push to a new branch have no usable diff base, so run every suite.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            bun turbo test --concurrency=2
+          elif [ "${{ github.event_name }}" = "push" ] && { [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; }; then
+            bun turbo test --concurrency=2
+          else
+            bun turbo test --affected --concurrency=2
+          fi
+
+  build:
+    name: build
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      # Unit tests import workspace sources, so this only checks that the libraries the CLI and app depend on build.
+      - name: Build affected workspace libraries
+        timeout-minutes: 25
+        env:
+          TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
+          TURBO_SCM_HEAD: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            bun turbo build --concurrency=2 --filter='@opencode/cli^...' --filter='@opencode/app^...'
+          elif [ "${{ github.event_name }}" = "push" ] && { [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; }; then
+            bun turbo build --concurrency=2 --filter='@opencode/cli^...' --filter='@opencode/app^...'
+          else
+            bun turbo build --affected --concurrency=2 --filter='@opencode/cli^...' --filter='@opencode/app^...'
+          fi

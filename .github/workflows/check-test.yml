@@ -6,6 +6,8 @@ on:
       - dev
       - beta
   pull_request:
+    # Upstream CI only. The fork's pull requests target main and run .github/workflows/pr-check.yml.
+    branches: [upstream]
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
