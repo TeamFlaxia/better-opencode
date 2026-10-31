@@ -301,7 +301,9 @@ const ja: Record<string, string> = {
   "Open settings": "設定を開く",
   "Ask a side question": "サイド質問をする",
   "Open a session first": "先にセッションを開いてください",
+  "{{count}} subagent": "{{count}} サブエージェント",
   "{{count}} subagents": "{{count}} サブエージェント",
+  "{{count}} shell": "{{count}} シェル",
   "{{count}} shells": "{{count}} シェル",
   agents: "エージェント",
   commands: "コマンド",
@@ -319,7 +321,7 @@ const ja: Record<string, string> = {
 
 const Context = createContext<TuiI18n>({
   locale: (): TuiLocale => "en",
-  t: (source) => source,
+  t: (source, params) => translate("en", source, params),
 })
 
 export type TuiI18n = {

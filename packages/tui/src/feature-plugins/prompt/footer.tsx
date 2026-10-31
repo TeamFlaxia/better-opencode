@@ -27,14 +27,14 @@ export function PromptFooter(props: {
     const count = props.context.data.session
       .family(props.sessionID)
       .filter((id) => id !== props.sessionID && props.context.data.session.status(id) === "running").length
-    return count ? t("{{count}} subagents", { count }) : undefined
+    return count ? t(count === 1 ? "{{count}} subagent" : "{{count}} subagents", { count }) : undefined
   })
   const shells = createMemo(() => {
     if (!props.sessionID) return 0
     const count = props.context.data.shell
       .list(props.context.location)
       .filter((shell) => shell.metadata.sessionID === props.sessionID).length
-    return count ? t("{{count}} shells", { count }) : undefined
+    return count ? t(count === 1 ? "{{count}} shell" : "{{count}} shells", { count }) : undefined
   })
   const status = createMemo(() => {
     if (!props.sessionID) return []
