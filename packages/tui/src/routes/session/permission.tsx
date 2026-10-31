@@ -8,6 +8,7 @@ import { SplitBorder } from "../../ui/border"
 import { useData } from "../../context/data"
 import { filetype } from "../../util/filetype"
 import { permissionAlwaysLines, permissionOptionLabel, permissionPresentation } from "../../util/permission"
+import { useI18n } from "../../i18n"
 import { getScrollAcceleration } from "../../util/scroll"
 import { useConfig, useCursorStyle } from "../../config"
 import { Keymap } from "../../context/keymap"
@@ -111,6 +112,7 @@ function EditBody(props: { file?: string; diff?: string; patch?: string }) {
 }
 
 export function PermissionPrompt(props: { request: PermissionRequest; directory?: string }) {
+  const { t } = useI18n()
   const data = useData()
   const toast = useToast()
   const [store, setStore] = createStore({
@@ -201,7 +203,7 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
             <box flexDirection="column" gap={0}>
               <box flexDirection="row" gap={1} flexShrink={0}>
                 <text fg={theme.text.feedback.warning.base}>{"△"}</text>
-                <text fg={theme.text.base}>Permission required</text>
+                <text fg={theme.text.base}>{t("Permission required")}</text>
               </box>
               <Show when={props.request.action !== "shell" && current.title}>
                 <box flexDirection="row" gap={1} paddingLeft={2} flexShrink={0}>
@@ -216,7 +218,7 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
 
           const body = (
             <SessionQuestion
-              title="Permission required"
+              title={t("Permission required")}
               semanticLabel={permissionSemanticLabel(props.request.action, current.title)}
               instance={props.request.id}
               header={header()}
@@ -232,11 +234,11 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
               options={
                 props.request.save?.length
                   ? {
-                      once: permissionOptionLabel("once"),
-                      always: permissionOptionLabel("always"),
-                      reject: permissionOptionLabel("reject"),
+                      once: t(permissionOptionLabel("once")),
+                      always: t(permissionOptionLabel("always")),
+                      reject: t(permissionOptionLabel("reject")),
                     }
-                  : { once: permissionOptionLabel("once"), reject: permissionOptionLabel("reject") }
+                  : { once: t(permissionOptionLabel("once")), reject: t(permissionOptionLabel("reject")) }
               }
               escapeKey="reject"
               fullscreen
