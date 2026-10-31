@@ -148,12 +148,14 @@ jobs:
           mkdir -p dist/release
           for dir in packages/cli/dist/cli-*; do
             target="${dir#packages/cli/dist/cli-}"
-            if [[ "$target" == windows-* ]]; then
-              (cd "$dir/bin" && zip -X -q "$GITHUB_WORKSPACE/dist/release/opencode-${VERSION}-${target}.zip" opencode.exe)
-            else
+            if [[ "$target" == linux-* ]]; then
               tar --mtime=@0 --owner=0 --group=0 --numeric-owner \
                 -czf "dist/release/opencode-${VERSION}-${target}.tar.gz" \
                 -C "$dir/bin" opencode
+            elif [[ "$target" == windows-* ]]; then
+              (cd "$dir/bin" && zip -X -q "$GITHUB_WORKSPACE/dist/release/opencode-${VERSION}-${target}.zip" opencode.exe)
+            else
+              (cd "$dir/bin" && zip -X -q "$GITHUB_WORKSPACE/dist/release/opencode-${VERSION}-${target}.zip" opencode)
             fi
           done
           (cd dist/release && sha256sum * > SHA256SUMS.txt)
@@ -174,6 +176,13 @@ jobs:
     permissions:
       contents: write
     steps:
+      # gh release --generate-notes walks the tag history, so the publish job needs a git checkout.
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+          fetch-depth: 0
+
       - name: Download release files
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -183,6 +192,7 @@ jobs:
       - name: Create or update the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare.outputs.tag }}
           PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
         run: |
