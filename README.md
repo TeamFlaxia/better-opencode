@@ -1,114 +1,99 @@
-<p align="center">
-  <a href="https://opencode.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="OpenCode logo">
-    </picture>
-  </a>
-</p>
-<p align="center">The open source AI coding agent.</p>
-<p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/@opencode/cli"><img alt="npm" src="https://img.shields.io/npm/v/@opencode/cli?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/release.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/release.yml?style=flat-square&branch=dev" /></a>
-</p>
+# better-opencode
 
-<p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
-  <a href="README.ko.md">한국어</a> |
-  <a href="README.de.md">Deutsch</a> |
-  <a href="README.es.md">Español</a> |
-  <a href="README.fr.md">Français</a> |
-  <a href="README.it.md">Italiano</a> |
-  <a href="README.da.md">Dansk</a> |
-  <a href="README.ja.md">日本語</a> |
-  <a href="README.pl.md">Polski</a> |
-  <a href="README.ru.md">Русский</a> |
-  <a href="README.bs.md">Bosanski</a> |
-  <a href="README.ar.md">العربية</a> |
-  <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a> |
-  <a href="README.th.md">ไทย</a> |
-  <a href="README.tr.md">Türkçe</a> |
-  <a href="README.uk.md">Українська</a> |
-  <a href="README.bn.md">বাংলা</a> |
-  <a href="README.gr.md">Ελληνικά</a> |
-  <a href="README.vi.md">Tiếng Việt</a>
-</p>
+A focused fork of [opencode](https://github.com/anomalyco/opencode) for developers who want the coding agent to understand the codebase, respect a budget, and verify its own work.
 
-[![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
+> better-opencode is an independent fork and is not affiliated with Anomaly Innovations. OpenCode is a trademark of Anomaly Innovations, Inc. The fork keeps the upstream runtime and the `@opencode/*` package namespace so that upstream changes can be merged continuously.
 
----
+## Status
 
-### Installation
+Early development. The runtime is currently upstream opencode v2; fork-specific features are being built incrementally on `main`.
+
+- `main` … better-opencode development. Fork features land here.
+- `dev` … upstream mirror. Do not commit fork work here.
+- `origin/dev` … upstream `anomalyco/opencode` `dev`, used for synchronization.
+
+See the [roadmap](docs/roadmap.md) and the [feature proposals](docs/README.md). Most design notes are written in Japanese.
+
+## What we are building
+
+| Area | Proposal | Status |
+| --- | --- | --- |
+| Code understanding | Local symbol index, references, call graph, impact analysis (`code_index`) | Proposed |
+| Verification | Related-test selection, automatic test runs, failures fed back to the agent | Proposed |
+| Safety | Named checkpoints and one-command restore of files and conversation position | Proposed |
+| Cost control | Session / daily token and cost budgets with soft warnings and hard stops | Proposed |
+| Parallelism | Worktree-isolated subagents with a consolidated diff review | Proposed |
+| Incremental | Session search and export, prompt-injection defenses, role-based model routing | Proposed |
+
+Details: [docs/features](docs/features/).
+
+## Development
+
+Requirements: Bun 1.4 or newer.
 
 ```bash
-# YOLO
-curl -fsSL https://opencode.ai/v2/install | bash
-
-# Package managers
-npm i -g @opencode/cli@latest      # or bun/pnpm/yarn
-brew install anomalyco/tap/opencode-v2 # macOS and Linux (recommended, always up to date)
-brew install opencode              # macOS and Linux (official brew formula, updated less)
-sudo pacman -S opencode            # Arch Linux (Stable)
-paru -S opencode-beta              # Arch Linux (Latest from AUR)
-mise use -g opencode               # Any OS
-nix run github:anomalyco/opencode  # Nix
+bun install
+bun run dev            # V2 CLI and TUI against the local build
+bun run dev:live       # development TUI against the installed opencode service
+bun run check          # lint + typecheck
 ```
 
-> [!TIP]
-> Remove versions older than 0.1.x before installing.
-
-### Desktop App (BETA)
-
-OpenCode is also available as a desktop application. Download it from [opencode.ai/download](https://opencode.ai/download).
-
-| Platform              | Download                           |
-| --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `opencode-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `opencode-desktop-mac-x64.dmg`     |
-| Windows               | `opencode-desktop-win-x64.exe`     |
-| Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
+Tests run from the package that owns them, never from the repository root:
 
 ```bash
-# macOS (Homebrew)
-brew install --cask opencode-desktop
+cd packages/core
+bun run test
+bun typecheck
 ```
 
-#### Installation Directory
+Other interfaces:
 
-The install script installs OpenCode to `$HOME/.opencode/bin`.
+```bash
+bun run dev:web
+bun run dev:desktop
+```
 
-### Agents
+See [docs/development.md](docs/development.md) for the repository layout, the upstream sync workflow, and the rules for adding features.
 
-OpenCode includes two built-in agents you can switch between with the `Tab` key.
+## Working on the fork
 
-- **build** - Default, full-access agent for development work
-- **plan** - Read-only agent for analysis and code exploration
-  - Denies file edits by default
-  - Asks permission before running bash commands
-  - Ideal for exploring unfamiliar codebases or planning changes
+Create a short feature branch from `main`:
 
-Also included is a **general** subagent for complex searches and multistep tasks.
-This is used internally and can be invoked using `@general` in messages.
+```bash
+git switch main
+git switch -c code-index
+```
 
-Learn more about [agents](https://opencode.ai/v2/docs/agents).
+Use conventional commit and PR titles such as `feat(core): add symbol index` or `docs: update roadmap`.
 
-### Documentation
+New behavior starts experimental:
 
-For more info on how to configure OpenCode, [**head over to our docs**](https://opencode.ai/v2/docs).
+- configuration under `experimental.*`
+- HTTP under `/api/experimental/...` with `experimental.<group>.<method>` identifiers
+- SDK methods as `client.experimental.<group>.<method>`
 
-### Contributing
+Follow the dependency direction `Schema` → `Core` / `Protocol` → `Server`. Client code must not import `Core` or `Server`. After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`.
 
-If you're interested in contributing to OpenCode, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
+This fork does not use Changesets. Do not add `.changeset` files.
 
-### Building on OpenCode
+## Keeping up with upstream
 
-If you are working on a project that's related to OpenCode and is using "opencode" as part of its name, for example "opencode-dashboard" or "opencode-mobile", please add a note to your README to clarify that it is not built by the OpenCode team and is not affiliated with us in any way.
+```bash
+git fetch origin
+git switch main
+git merge origin/dev
+```
 
----
+Resolve conflicts in favor of this fork's features while keeping upstream structure. Do not rewrite `dev`; it is the clean upstream reference.
 
-**Join our community** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+## Documentation
+
+- [docs/README.md](docs/README.md) — fork policy, current feature inventory, proposal index
+- [docs/roadmap.md](docs/roadmap.md) — priorities, phases, metrics
+- [docs/development.md](docs/development.md) — setup, branch workflow, upstream sync, verification
+- [docs/features](docs/features/) — individual feature designs
+- [AGENTS.md](AGENTS.md) — implementation and style rules
+
+## License
+
+MIT. See [LICENSE](LICENSE).

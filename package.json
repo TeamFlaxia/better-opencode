@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "opencode",
-  "description": "AI-powered development tool",
+  "name": "better-opencode",
+  "description": "A focused fork of opencode for code intelligence, cost guardrails, and verification loops",
   "version": "2.2.5",
   "private": true,
   "type": "module",
@@ -132,10 +132,6 @@
     "@opencode/plugin": "workspace:*",
     "@opencode/script": "workspace:*",
     "typescript": "catalog:"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/anomalyco/opencode"
   },
   "license": "MIT",
   "prettier": {

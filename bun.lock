@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "opencode",
+      "name": "better-opencode",
       "dependencies": {
         "@opencode/plugin": "workspace:*",
         "@opencode/script": "workspace:*",

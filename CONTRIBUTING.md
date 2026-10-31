@@ -1,112 +1,80 @@
-# Contributing to OpenCode
+# Contributing to better-opencode
 
-The changes most likely to be accepted are:
+better-opencode is a fork of opencode. Upstream changes arrive on `dev`; fork work happens on `main`. Before starting, read:
 
-- Bug fixes
-- Additional LSPs and formatters
-- LLM performance improvements
-- Environment-specific fixes
-- Missing standard behavior
-- Documentation improvements
+- [docs/README.md](docs/README.md) — fork policy and current feature inventory
+- [docs/roadmap.md](docs/roadmap.md) — what is planned and in which order
+- [AGENTS.md](AGENTS.md) — implementation, style, and verification rules
 
-UI and core product features require design review before implementation. If you are unsure whether a change fits, ask a maintainer or choose an issue labeled [`help wanted`](https://github.com/anomalyco/opencode/issues?q=is%3Aissue%20state%3Aopen%20label%3Ahelp-wanted), [`good first issue`](https://github.com/anomalyco/opencode/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22), [`bug`](https://github.com/anomalyco/opencode/issues?q=is%3Aissue%20state%3Aopen%20label%3Abug), or [`perf`](https://github.com/anomalyco/opencode/issues?q=is%3Aopen%20is%3Aissue%20label%3A%22perf%22).
+## Choose work
 
-Want to take on an issue? Leave a comment and a maintainer may assign it unless it is already being worked on.
+Prefer items already described in `docs/features` or `docs/roadmap.md`. New product ideas should be written up as a short proposal in `docs/features` before implementation, so the scope and the affected packages are clear.
 
-> [!NOTE]
-> PRs that ignore these guardrails will likely be closed.
+Upstream-compatible fixes (bugs, performance, environment issues) are always welcome. Keep the diff small so it can be synced or upstreamed later.
 
-## Adding Providers
+## Workflow
 
-New providers should rarely require OpenCode changes. Add the provider to [models.dev](https://github.com/anomalyco/models.dev) first.
-
-## Development
-
-OpenCode requires Bun 1.3 or newer. From the repository root:
+1. Branch from `main`, not `dev`.
+2. Use a short hyphenated name with at most three words, without type prefixes: `code-index`, `budget-guardrails`, `session-search`.
+3. Commit with conventional messages: `feat(core): ...`, `fix(tui): ...`, `docs: ...`, `refactor(server): ...`, `test(plugin): ...`.
+4. Run the checks that cover the packages you touched.
+5. Open the PR against `main`.
 
 ```bash
-bun install
-bun dev [directory]
+git switch main
+git switch -c code-index
 ```
 
-`bun dev` runs the V2 CLI and TUI. Pass a directory to open another project, or `.` to open this repository.
+## Checks
 
-To test a development TUI against your installed OpenCode V2 background service and live sessions:
+From the repository root:
 
 ```bash
-bun run dev:live [directory]
+bun run check
 ```
 
-For web development, run the backend and app in separate terminals. Other interfaces have root scripts:
-
-```bash
-bun dev serve --port 4096
-bun run dev:web
-bun run dev:desktop
-bun run dev:www
-```
-
-### Packages
-
-- `packages/schema`: shared wire and storage contracts
-- `packages/core`: domain behavior and persistence
-- `packages/protocol`: public API definitions
-- `packages/server`: HTTP server and runtime composition
-- `packages/client`: generated TypeScript clients
-- `packages/cli`: command-line entrypoint and service lifecycle
-- `packages/tui`: terminal interface
-- `packages/app`: shared web interface
-- `packages/desktop`: Electron desktop application
-- `packages/plugin`: plugin API
-
-### Verification
-
-Run typechecks, and tests where defined, from the affected package rather than the repository root:
+During iteration, run the package-level commands instead of the full suite:
 
 ```bash
 cd packages/core
-bun run test
 bun typecheck
+bun run test
 ```
 
-Follow package-specific instructions in nearby `AGENTS.md` files. After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`; never edit generated client files directly.
+Tests must run from the package directory. Running `bun test` from the repository root is blocked on purpose.
 
-Follow the repository [style guide](./AGENTS.md).
+- After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client` and commit the generated files.
+- Do not edit generated client files by hand.
+- When `bun check` and `bun run typecheck:tsc` disagree, the official TypeScript compiler is the source of truth.
+- No Changesets. This repository follows its own release workflow.
 
-## Pull Requests
+## Fork rules
 
-### Link Issues When Required
+- Keep the `@opencode/*` package namespace. Renaming packages breaks upstream merges; revisit only when the fork stops tracking upstream.
+- Keep the dependency direction: `Schema` → `Core` / `Protocol` → `Server`. `Client` may depend on `Schema` and `Protocol`, never `Core` or `Server`.
+- New behavior starts experimental: `experimental.*` config, `/api/experimental/...` routes, `experimental.<group>.<method>` identifiers, and `experimental.*` plugin hooks.
+- Keep durable session events minimal; derive state in projections instead of repeating it.
+- Use Bun APIs where possible and avoid `any`, `try`/`catch` for control flow, and speculative abstractions.
+- Read the relevant skill in `.opencode/skills` before writing tests (`unit-tests`, `tui-tests`, `app-e2e-tests`, `component-tests`).
 
-Bug fixes, chores, and tests must reference an existing issue. Documentation, refactor, and feature PRs are exempt from the automated linked-issue check. When required, use `Fixes #123` or `Closes #123` in the PR description.
+## Syncing upstream
 
-Before implementing new functionality, open a feature request describing the problem, why it belongs in OpenCode, and your proposed approach if you have one. Wait for design approval before opening the implementation PR.
+Never commit fork work to `dev`.
 
-Base branches on `dev` and complete the provided pull request template.
+```bash
+git fetch origin
+git switch main
+git merge origin/dev
+```
 
-### Keep It Focused
+Resolve conflicts by keeping fork features on top of the upstream structure. If a conflict is ambiguous, stop and document the decision in `docs/roadmap.md` (decision log).
 
-- Keep PRs small and focused.
-- Explain the problem and why the change fixes it.
-- Check whether the functionality already exists.
-- For UI changes, include before-and-after screenshots or video.
-- For logic changes, explain what you tested and how a reviewer can verify it.
+## Documentation
 
-### Keep It Brief
+User-facing behavior changes need a matching note in `docs/`:
 
-Long, AI-generated PR descriptions and issues may be ignored. Write a short explanation in your own words. If the change cannot be explained briefly, the PR may be too large.
+- design or scope change → the relevant `docs/features/*.md`
+- priority or phase change → `docs/roadmap.md`
+- workflow or tooling change → `docs/development.md`
 
-### Use Conventional Titles
-
-Use `type(scope): summary`. Supported types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`. The scope is optional.
-
-Examples:
-
-- `docs: update contributing guide`
-- `fix(tui): restore scroll position`
-- `feat(app): add workspace search`
-
-## Issues
-
-Bug reports and feature requests must use their issue templates. Blank issues are not allowed; ask support and how-to questions in the [Discord community](https://discord.gg/opencode).
-
-Automated checks flag missing templates, placeholder text, AI-generated walls of text, and missing meaningful content. You have two hours to correct a flagged issue before it closes automatically. Ask a maintainer if an issue was flagged incorrectly.
+Write in the style of the surrounding document. Feature documents currently use Japanese; code, identifiers, and commands stay in English.

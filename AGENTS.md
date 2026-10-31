@@ -1,7 +1,14 @@
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit generated client files directly.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk` composes Client, Core, and Server.
 - This repository does not use Changesets. Do not add `.changeset` files; follow the existing release workflow instead.
-- The default branch is `dev`. Base branches and worktrees on `origin/dev`, target PRs at `dev`, and diff against `origin/dev` unless told otherwise.
+- This is the **better-opencode** fork. `main` is the development branch: base branches, worktrees, PRs, and diffs on it. `dev` mirrors upstream `anomalyco/opencode`; sync `origin/dev` into `main` and never commit fork work to `dev`.
+- Keep the upstream rules below unless a fork note overrides them.
+
+## Fork Scope
+
+- Keep `@opencode/*` package names, the `opencode` binary name, config paths, and `OPENCODE_*` environment variables. A full rename is deferred to a dedicated rebrand branch.
+- Documentation and repository metadata use better-opencode. User-facing runtime strings, desktop product names, and model provider names stay upstream so they are not confused with the OpenCode provider.
+- Feature proposals, decisions, and the roadmap live in `docs/`. Add new behavior as experimental first.
 
 ## Live TUI Testing
 

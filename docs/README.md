@@ -16,11 +16,14 @@ opencode v2（`dev` ブランチ）を出発点に、開発体験を強化した
 ## ブランチ
 
 - `main` … better-opencode の開発基準ブランチ（`dev` から作成済み）
+- `dev` … 上流 `anomalyco/opencode` のミラー。フォークのコミットは置かない
 - 作業ブランチは `main` から切り、最大3語のハイフン区切り（例: `code-index`, `session-search`）
 - 上流追従は `origin/dev` を `main` にマージして行う
 - コミット / PR タイトルは `type(scope): summary`
 
-> リポジトリ直下の `AGENTS.md` は上流向けに「`origin/dev` を基準」と書かれている。このフォークでは `main` を基準にするが、上流へ還元できる変更は `origin/dev` との差分が最小になるよう心がける。
+> リポジトリ直下の `AGENTS.md` は上流向けの記述を含むため、フォーク向けの基準（`main`）を冒頭に追記している。上流へ還元できる変更は `origin/dev` との差分が最小になるよう心がける。
+
+開発手順の詳細は [development.md](development.md) を参照。
 
 ## 現在の機能棚卸し（重複提案を避けるため）
 
