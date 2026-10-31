@@ -1,0 +1,198 @@
+name: release-tag
+
+# Publishing a tag like v2.2.5 or v2.2.5-better.1 builds the CLI for every supported target and
+# creates a GitHub Release with the archives and checksums. This is a fork-local workflow; the
+# upstream release.yml is not used here.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release, for example v2.2.5-better.1"
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  prepare:
+    name: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      channel: ${{ steps.tag.outputs.channel }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Resolve and validate the tag
+        id: tag
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag '$TAG' must look like v2.2.5 or v2.2.5-better.1"
+            exit 1
+          fi
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Tag '$TAG' is not on main; release from a commit merged into main"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "channel=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "channel=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+  verify:
+    name: verify
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Ensure ripgrep
+        run: command -v rg >/dev/null || (sudo apt-get update && sudo apt-get install -y ripgrep)
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck:tsc
+
+      - name: Check generated client
+        working-directory: packages/client
+        run: bun run check:generated
+
+      - name: Check generated OpenAPI document
+        working-directory: packages/protocol
+        run: bun run check:generated
+
+      - name: Configure git identity
+        run: |
+          git config --global user.email "ci@better-opencode.local"
+          git config --global user.name "better-opencode CI"
+
+      - name: Run all unit tests
+        timeout-minutes: 35
+        env:
+          GITHUB_ACTIONS: "false"
+        run: bun turbo test --concurrency=2
+
+  build:
+    name: build
+    needs: [prepare, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Fetch models catalog
+        continue-on-error: true
+        run: bun packages/core/script/update-models-snapshot.ts .cache/models-catalog/api.json
+
+      - name: Build CLI binaries
+        working-directory: packages/cli
+        env:
+          OPENCODE_VERSION: ${{ needs.prepare.outputs.version }}
+          OPENCODE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+          BUN_COMPILE_RELEASE: bun-v1.4.4
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f "$GITHUB_WORKSPACE/.cache/models-catalog/api.json" ]; then
+            export OPENCODE_MODELS_SNAPSHOT="$GITHUB_WORKSPACE/.cache/models-catalog/api.json"
+          fi
+          bun run build
+
+      - name: Package release archives
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          rm -rf dist/release
+          mkdir -p dist/release
+          for dir in packages/cli/dist/cli-*; do
+            target="${dir#packages/cli/dist/cli-}"
+            if [[ "$target" == windows-* ]]; then
+              (cd "$dir/bin" && zip -X -q "$GITHUB_WORKSPACE/dist/release/opencode-${VERSION}-${target}.zip" opencode.exe)
+            else
+              tar --mtime=@0 --owner=0 --group=0 --numeric-owner \
+                -czf "dist/release/opencode-${VERSION}-${target}.tar.gz" \
+                -C "$dir/bin" opencode
+            fi
+          done
+          (cd dist/release && sha256sum * > SHA256SUMS.txt)
+          ls -lh dist/release
+
+      - name: Upload release files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-files
+          path: dist/release
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: publish
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release files
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-files
+          path: dist/release
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          args=(--title "$TAG" --generate-notes)
+          if [ "$PRERELEASE" = "true" ]; then
+            args+=(--prerelease)
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/release/* --clobber
+          else
+            gh release create "$TAG" dist/release/* "${args[@]}"
+          fi

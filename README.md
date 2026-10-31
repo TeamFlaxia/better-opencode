@@ -92,6 +92,17 @@ git merge origin/upstream
 
 Resolve conflicts in favor of this fork's features while keeping upstream structure. Do not rewrite `upstream`; it is the clean upstream reference.
 
+## Releases
+
+Push a tag to build the CLI for every supported target and publish a GitHub Release:
+
+```bash
+git tag v2.2.5-better.1
+git push origin v2.2.5-better.1
+```
+
+Tags must look like `v<major>.<minor>.<patch>[-prerelease]` and point to a commit on `main`. See [docs/development.md](docs/development.md#リリース) for the jobs and the asset layout.
+
 ## Documentation
 
 - [docs/README.md](docs/README.md) — fork policy, current feature inventory, proposal index

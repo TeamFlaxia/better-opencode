@@ -109,6 +109,27 @@ bun run test
 
 ブランチ保護で `check` / `test` / `build` を必須チェックにすると、PR のマージ前に検証を強制できる。
 
+## リリース
+
+`v` で始まるタグを push すると `.github/workflows/release-tag.yml` が動作する。
+
+```bash
+git switch main
+git pull
+git tag v2.2.5-better.1
+git push origin v2.2.5-better.1
+```
+
+- タグは `v<major>.<minor>.<patch>[-prerelease]` の形式のみ受け付ける。
+- `-` を含むタグは GitHub Release 上で prerelease として扱う。
+- タグのコミットが `main` の祖先であることを確認する（`main` 以外からのリリースを防ぐ）。
+- `verify` … lint、`typecheck:tsc`、生成物の差分確認、全ユニットテスト
+- `build` … 12ターゲット分の CLI バイナリをビルドし、Linux は `tar.gz`、macOS / Windows は `zip` にまとめる
+- `publish` … `SHA256SUMS.txt` と一緒に GitHub Release を作成する。既存 Release にはアセットを上書きアップロードする
+- 手動で再実行する場合は `workflow_dispatch` に既存タグを指定する
+
+現時点のリリース対象は CLI のみ。デスクトップアプリの署名付きインストーラと npm publish は含まない。
+
 ## 機能を追加する場所
 
 | 追加するもの | 場所 |
