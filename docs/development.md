@@ -144,6 +144,31 @@ git push origin v2.2.5-better.1
 
 新しい振る舞いは experimental から始める。設定は `experimental.*`、HTTP は `/api/experimental/...`、SDK は `client.experimental.*`。
 
+## 日本語化
+
+デスクトップ / Web UI の日本語訳は次の2ファイルにある。
+
+| 対象 | ファイル |
+| --- | --- |
+| アプリ本体・設定画面・デスクトップメニュー | `packages/app/src/runtime/i18n/ja.ts` |
+| 共有 UI（セッション表示、レビュー、ダイアログなど） | `packages/ui/src/i18n/ja.ts` |
+
+- 英語辞書（`en.ts`）の全キーを持ち、`{{name}}` などのプレースホルダーをそのまま保持する。
+- 新しい UI 文字列を追加したら、対応する `ja.ts` にも追加する。未訳のキーは英語にフォールバックする。
+- 辞書の形は `packages/app/src/runtime/i18n/language.test.ts` で検証される。
+- 表示言語は OS の言語に従う。手動で切り替える場合は **Settings → General → Language → 日本語**。
+- TUI には独自の i18n 基盤がまだないため、現時点では英語のまま。
+
+変更後の確認:
+
+```bash
+cd packages/app
+bun test --conditions=solid --isolate --preload ../ui/test/solid-jsx.ts --preload ./happydom.ts \
+  src/runtime/i18n/language.test.ts src/runtime/i18n/desktop-native.test.ts
+bun typecheck
+cd ../ui && bun typecheck
+```
+
 ## ブランディングの境界
 
 現時点では **ドキュメントとリポジトリメタデータだけを better-opencode に合わせる**。
