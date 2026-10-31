@@ -29,7 +29,13 @@ Details: [docs/features](docs/features/).
 
 ## Development
 
-Requirements: Bun 1.4 or newer.
+Requirements: Bun 1.4.4 (pinned in `.bun-version`). To install it:
+
+```bash
+curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.4"
+```
+
+Then install dependencies and start the dev TUI:
 
 ```bash
 bun install

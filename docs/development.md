@@ -2,13 +2,14 @@
 
 ## 前提
 
-- Bun 1.4 以上（`packageManager` は `bun@1.4.4`）
+- Bun 1.4.4（`.bun-version` で固定、`packageManager` も `bun@1.4.4`）
 - Git
 - 任意: インストール済みの `opencode`（`bun run dev:live` を使う場合）
 
-## セットアップ
+初回は Bun を導入してから依存をインストールする。
 
 ```bash
+curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.4"
 bun install
 ```
 
