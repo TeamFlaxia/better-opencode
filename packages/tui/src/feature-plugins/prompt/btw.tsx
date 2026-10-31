@@ -8,6 +8,7 @@ import { useClipboard } from "../../context/clipboard"
 import { Keymap } from "../../context/keymap"
 import { useTheme, useThemes } from "../../context/theme"
 import { usePlugin } from "../../plugin/context"
+import { useI18n } from "../../i18n"
 import { DIALOG_INSET, DialogBleed, DialogFooter, DialogHeader, DialogLayout } from "../../ui/dialog"
 import { useToast } from "../../ui/toast"
 import { getScrollAcceleration } from "../../util/scroll"
@@ -42,6 +43,7 @@ export default Plugin.define({
     context.ui.slot({
       append: "app",
       render() {
+        const { t } = useI18n()
         const toast = useToast()
         // Dialogs render beside PluginProvider, so Answer cannot call usePlugin().
         const plugins = usePlugin()
@@ -58,11 +60,11 @@ export default Plugin.define({
               async run(input) {
                 const route = context.ui.router.current()
                 if (route.type !== "session") {
-                  toast.show({ message: "Open a session first", variant: "warning" })
+                  toast.show({ message: t("Open a session first"), variant: "warning" })
                   return
                 }
                 const question =
-                  input?.trim() || (await context.ui.dialog.prompt({ title: "/btw", placeholder: "Ask anything" }))
+                  input?.trim() || (await context.ui.dialog.prompt({ title: "/btw", placeholder: t("Ask anything") }))
                 if (!question) return
                 setPending((count) => count + 1)
                 await context.client.session

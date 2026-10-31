@@ -247,6 +247,9 @@ export const Info = Schema.Struct({
   experimental: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)).annotate({
     description: "Experimental features that may change or be removed at any time",
   }),
+  language: Schema.optional(Schema.Literals(["ja", "en"])).annotate({
+    description: "Interface language; better-opencode defaults to Japanese",
+  }),
   animations: Schema.optional(Schema.Boolean).annotate({ description: "Enable interface animations" }),
   highlights: Schema.optional(Schema.Boolean).annotate({
     description: "Show the release highlights once after OpenCode updates",
@@ -303,6 +306,7 @@ export function resolve(
 
   return {
     ...input,
+    language: input.language ?? "ja",
     attention: {
       notifications: input.attention?.notifications ?? false,
       sound: input.attention?.sound ?? false,

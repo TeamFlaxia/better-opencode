@@ -125,7 +125,7 @@ S。
 
 - `packages/core/src/session/compaction.ts`（要約の再利用）
 - `packages/tui/src/feature-plugins/`（コマンド）
-- `packages/gui-plugins/src/btw/`（UI の参考）
+- `packages/tui/src/feature-plugins/prompt/btw.tsx`（UI の参考）
 
 ### 規模
 

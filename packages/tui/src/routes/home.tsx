@@ -15,6 +15,7 @@ import { useTheme } from "../context/theme"
 import { useUpdateNotification } from "../context/update-notification"
 import { useExit } from "../context/exit"
 import { FadeInText } from "../component/fade-in-text"
+import { useI18n } from "../i18n"
 
 let once = false
 const placeholder = {
@@ -23,6 +24,7 @@ const placeholder = {
 }
 
 export function Home() {
+  const { t } = useI18n()
   const route = useRouteData("home")
   const promptRef = usePromptRef()
   const [ref, setRef] = createSignal<PromptRef | undefined>()
@@ -99,7 +101,14 @@ export function Home() {
         <box height={1} flexShrink={0} />
         <UpdateNotification width={logoWidth()} />
         <box width="100%" maxWidth={75} zIndex={1000} paddingTop={1} flexShrink={0} position="relative">
-          <Prompt ref={bind} placeholders={placeholder} disabled={forms().length > 0} />
+          <Prompt
+            ref={bind}
+            placeholders={{
+              normal: placeholder.normal.map((value) => t(value)),
+              shell: placeholder.shell.map((value) => t(value)),
+            }}
+            disabled={forms().length > 0}
+          />
         </box>
         <box flexGrow={1} minHeight={0} />
       </box>

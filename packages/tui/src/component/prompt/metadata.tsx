@@ -4,6 +4,7 @@ import { createMemo, Show } from "solid-js"
 import { useTheme } from "../../context/theme"
 import { Locale } from "../../util/locale"
 import { stringWidth } from "../../util/string-width"
+import { useI18n } from "../../i18n"
 
 export function PromptMetadataRow(props: {
   mode: "normal" | "shell"
@@ -20,10 +21,11 @@ export function PromptMetadataRow(props: {
   modelAlpha: number
   variantAlpha: number
 }) {
+  const { t } = useI18n()
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   const layout = createMemo(() => {
-    if (props.mode === "shell") return { agent: props.agent ?? "Shell", model: "" }
+    if (props.mode === "shell") return { agent: props.agent ?? t("Shell"), model: "" }
     return promptMetadataLayout({
       width: Math.max(0, dimensions().width - (dimensions().width < 44 ? 9 : 13)),
       terminalWidth: dimensions().width,
@@ -46,7 +48,7 @@ export function PromptMetadataRow(props: {
           {(agent) => <text fg={fade(props.highlight, props.agentAlpha)}>{agent()}</text>}
         </Show>
         <Show when={props.mode === "normal" && layout().auto}>
-          <text fg={fade(theme.text.muted, props.agentAlpha)}>auto</text>
+          <text fg={fade(theme.text.muted, props.agentAlpha)}>{t("auto")}</text>
         </Show>
         <Show when={props.mode === "normal" && layout().model}>
           <box flexDirection="row" gap={1} flexGrow={1} flexShrink={1} minWidth={0}>

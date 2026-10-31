@@ -6,7 +6,7 @@ A focused fork of [opencode](https://github.com/anomalyco/opencode) for develope
 
 ## Status
 
-Early development. The runtime is currently upstream opencode v2; fork-specific features are being built incrementally on `main`.
+Early development. better-opencode is a TUI-first fork: the desktop app and web UI are intentionally removed so the terminal interface is the only client. The runtime is currently upstream opencode v2; fork-specific features are being built incrementally on `main`.
 
 - `main` … better-opencode development. Fork features land here.
 - `upstream` … upstream mirror. Do not commit fork work here.
@@ -50,13 +50,6 @@ Tests run from the package that owns them, never from the repository root:
 cd packages/core
 bun run test
 bun typecheck
-```
-
-Other interfaces:
-
-```bash
-bun run dev:web
-bun run dev:desktop
 ```
 
 See [docs/development.md](docs/development.md) for the repository layout, the upstream sync workflow, and the rules for adding features.

@@ -95,6 +95,7 @@ import { ArgsProvider, useArgs, type Args } from "./context/args"
 import { openUrl } from "@opencode/util/open"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
 import { Config, ConfigProvider, useConfig } from "./config"
+import { TuiI18nProvider } from "./i18n"
 import { newSessionLocation } from "./config/new-session-location"
 import { UpdateNotificationProvider, useUpdateNotification, type UpdateSource } from "./context/update-notification"
 import { PluginProvider, usePlugin, type PackageSource } from "./plugin/context"
@@ -391,7 +392,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                       service={input.config}
                                       options={{ terminalSuspend: process.platform !== "win32" }}
                                     >
-                                      <Keymap.Provider>
+                                      <TuiI18nProvider>
+                                        <Keymap.Provider>
                                         <ToastProvider>
                                           <RouteProvider
                                             initialRoute={
@@ -457,7 +459,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                             </ClientProvider>
                                           </RouteProvider>
                                         </ToastProvider>
-                                      </Keymap.Provider>
+                                        </Keymap.Provider>
+                                      </TuiI18nProvider>
                                     </ConfigProvider>
                                   </ArgsProvider>
                                 </ClipboardProvider>

@@ -31,11 +31,6 @@ export default $config({
     }
   },
   async run() {
-    if ($app.stage === "beta") {
-      const { createWebApp } = await import("./infra/webapp.js")
-      return { WebAppUrl: createWebApp("beta.opencode.ai").url }
-    }
-
     const stage = await import("./infra/stage.js")
     await import("./infra/app.js")
     const stats = stage.deployAws ? await import("./infra/stats.js") : undefined

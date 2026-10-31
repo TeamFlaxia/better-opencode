@@ -1,8 +1,14 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/oxc-project.github.io/refs/heads/json-schema/src/public/.oxlintrc.schema.json",
   "jsPlugins": [
-    { "name": "anti-slop", "specifier": "./script/oxlint/anti-slop/index.ts" },
-    { "name": "anti-slop-effect", "specifier": "./script/oxlint/anti-slop/effect/index.ts" }
+    {
+      "name": "anti-slop",
+      "specifier": "./script/oxlint/anti-slop/index.ts"
+    },
+    {
+      "name": "anti-slop-effect",
+      "specifier": "./script/oxlint/anti-slop/effect/index.ts"
+    }
   ],
   "categories": {
     "correctness": "off",
@@ -25,12 +31,8 @@
   "overrides": [
     {
       "files": [
-        "packages/app/**",
-        "packages/desktop/**",
-        "packages/gui-plugins/**",
         "packages/plugin/src/gui/**",
-        "packages/ui/**",
-        "packages/session-ui/**"
+        "packages/ui/**"
       ],
       "rules": {
         "oxc/no-accumulating-spread": "warn",
@@ -56,11 +58,7 @@
     },
     {
       "files": [
-        "packages/app/**",
-        "packages/desktop/**",
-        "packages/gui-plugins/**",
-        "packages/plugin/src/gui/**",
-        "packages/session-ui/**"
+        "packages/plugin/src/gui/**"
       ],
       "rules": {
         "anti-slop-effect/no-manual-effect-error-tag": "warn",
@@ -71,83 +69,10 @@
       }
     },
     {
-      "files": ["packages/gui-plugins/src/*.ts", "packages/gui-plugins/src/*.tsx"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "solid-js",
-                "importNames": ["createEffect", "createRenderEffect", "createComputed"],
-                "message": "GUI plugin code runs side effects through the SDK: createKeyed(source, fn, { otherwise }) per provider generation or value, createMemo or a plain function for derived values, createLatest for async data, createVisitState for per-visit state, and the handler for logic a user action causes. An escape hatch needs an oxlint-disable comment with a reason."
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["packages/gui-plugins/src/*/**"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "paths": [
-              {
-                "name": "solid-js",
-                "importNames": ["createEffect", "createRenderEffect", "createComputed"],
-                "message": "GUI plugin code runs side effects through the SDK: createKeyed(source, fn, { otherwise }) per provider generation or value, createMemo or a plain function for derived values, createLatest for async data, createVisitState for per-visit state, and the handler for logic a user action causes. An escape hatch needs an oxlint-disable comment with a reason."
-              }
-            ],
-            "patterns": [
-              {
-                "regex": "^@opencode/(app|desktop)(/|$)",
-                "message": "GUI plugins never import the app or desktop packages. Use the SDK."
-              },
-              {
-                "regex": "^@/",
-                "message": "GUI plugins never import app internals. Use the SDK."
-              },
-              {
-                "group": ["../*/*", "!../*/contract"],
-                "message": "Import another built-in plugin only through its contract.ts."
-              },
-              {
-                "regex": "\\.css$",
-                "message": "Import CSS with ?inline and contribute it with ctx.add(Style, css)."
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["packages/plugin/src/gui/**"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "regex": "^@opencode/(app|desktop)(/|$)",
-                "message": "The GUI SDK never imports the app or desktop packages; the hosts implement it."
-              },
-              {
-                "regex": "^@opencode/gui-plugins(/|$)",
-                "message": "The GUI SDK never imports the built-in plugins; they import the SDK."
-              },
-              {
-                "regex": "^@/",
-                "message": "The GUI SDK never imports app internals."
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["packages/codemode/src/interpreter/**", "packages/codemode/src/stdlib/**"],
+      "files": [
+        "packages/codemode/src/interpreter/**",
+        "packages/codemode/src/stdlib/**"
+      ],
       "rules": {
         "no-restricted-imports": [
           "error",

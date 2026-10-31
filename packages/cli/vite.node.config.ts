@@ -25,28 +25,6 @@ function rawTextPlugin(modelsSnapshot?: string): Plugin {
   }
 }
 
-/** The web UI archive's SEA asset key. The prelude leaves it in place, and the server reads it from SEA memory. */
-export const appArchiveAsset = "app-archive.bin"
-
-function appAssetsPlugin(): Plugin {
-  return {
-    name: "opencode:app-assets",
-    resolveId(id) {
-      if (id === "virtual:opencode-app-assets") return "\0virtual:opencode-app-assets"
-    },
-    load(id) {
-      if (id !== "\0virtual:opencode-app-assets") return
-      return `import { readFileSync } from "node:fs"
-import path from "node:path"
-import { getRawAsset, isSea } from "node:sea"
-export default () =>
-  isSea()
-    ? new Uint8Array(getRawAsset(${JSON.stringify(appArchiveAsset)}))
-    : readFileSync(path.join(process.env.OPENCODE_NODE_ASSETS_DIR, ${JSON.stringify(appArchiveAsset)}))`
-    },
-  }
-}
-
 function runtimeRequirePlugin(): Plugin {
   return {
     name: "opencode:runtime-require",
@@ -216,7 +194,6 @@ const __ocPersistentPty = ${JSON.stringify(opencodePtyAsset)}
 if (__ocIsSea()) {
   const __ocPtySpawnHelper = ${JSON.stringify(nodePtySpawnHelper)}
   for (const __ocKey of __ocAssetKeys()) {
-    if (__ocKey === ${JSON.stringify(appArchiveAsset)}) continue
     const __ocTarget = __ocPath.join(__ocAssetRoot, __ocKey)
     if (__ocExists(__ocTarget)) continue
     __ocMkdir(__ocPath.dirname(__ocTarget), { recursive: true })
@@ -260,7 +237,6 @@ export function mainConfig(input: NodeBuildInput): UserConfig {
   return defineConfig({
     root: dir,
     plugins: [
-      appAssetsPlugin(),
       rawTextPlugin(input.modelsSnapshot),
       runtimeRequirePlugin(),
       fffNodePlugin(),

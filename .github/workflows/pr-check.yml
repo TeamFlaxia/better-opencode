@@ -1,7 +1,7 @@
 name: pr-check
 
-# Pull-request gate for the better-opencode fork. The upstream workflows in check.yml and check-test.yml target
-# upstream branches and Blacksmith runners, so this workflow uses GitHub-hosted runners and main as the base.
+# Pull-request gate for the better-opencode fork. Upstream CI targets upstream branches and Blacksmith runners,
+# so this workflow uses GitHub-hosted runners and main as the base.
 
 on:
   pull_request:
@@ -120,9 +120,9 @@ jobs:
           BEFORE: ${{ github.event.before }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            bun turbo build --concurrency=2 --filter='@opencode/cli^...' --filter='@opencode/app^...'
+            bun turbo build --concurrency=2 --filter='@opencode/cli^...'
           elif [ "${{ github.event_name }}" = "push" ] && { [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; }; then
-            bun turbo build --concurrency=2 --filter='@opencode/cli^...' --filter='@opencode/app^...'
+            bun turbo build --concurrency=2 --filter='@opencode/cli^...'
           else
-            bun turbo build --affected --concurrency=2 --filter='@opencode/cli^...' --filter='@opencode/app^...'
+            bun turbo build --affected --concurrency=2 --filter='@opencode/cli^...'
           fi

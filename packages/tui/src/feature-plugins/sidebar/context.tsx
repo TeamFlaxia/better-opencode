@@ -1,6 +1,7 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { createMemo, Show } from "solid-js"
 import { contextUsage } from "../../util/session"
+import { useI18n } from "../../i18n"
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -8,6 +9,7 @@ const money = new Intl.NumberFormat("en-US", {
 })
 
 export function SidebarContext(props: { context: Plugin.Context; sessionID: string }) {
+  const { t } = useI18n()
   const theme = props.context.theme
   const msg = createMemo(() => props.context.data.session.message.list(props.sessionID))
   const session = createMemo(() => props.context.data.session.get(props.sessionID))
@@ -21,20 +23,20 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
     <Show when={state() || cost() > 0}>
       <box>
         <text fg={theme.text.base}>
-          <b>Context</b>
+          <b>{t("Context")}</b>
         </text>
         <Show when={state()}>
           {(value) => (
             <>
-              <text fg={theme.text.muted}>{value().tokens.toLocaleString()} tokens</text>
+              <text fg={theme.text.muted}>{t("{{tokens}} tokens", { tokens: value().tokens.toLocaleString() })}</text>
               <Show when={value().percent !== undefined}>
-                <text fg={theme.text.muted}>{value().percent}% used</text>
+                <text fg={theme.text.muted}>{t("{{percent}}% used", { percent: value().percent ?? 0 })}</text>
               </Show>
             </>
           )}
         </Show>
         <Show when={cost() > 0}>
-          <text fg={theme.text.muted}>{money.format(cost())} spent</text>
+          <text fg={theme.text.muted}>{t("{{cost}} spent", { cost: money.format(cost()) })}</text>
         </Show>
       </box>
     </Show>

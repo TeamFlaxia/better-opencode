@@ -55,7 +55,7 @@ Tests must run from the package directory. Running `bun test` from the repositor
 - New behavior starts experimental: `experimental.*` config, `/api/experimental/...` routes, `experimental.<group>.<method>` identifiers, and `experimental.*` plugin hooks.
 - Keep durable session events minimal; derive state in projections instead of repeating it.
 - Use Bun APIs where possible and avoid `any`, `try`/`catch` for control flow, and speculative abstractions.
-- Read the relevant skill in `.opencode/skills` before writing tests (`unit-tests`, `tui-tests`, `app-e2e-tests`, `component-tests`).
+- Read the relevant skill in `.opencode/skills` before writing tests (`unit-tests`, `tui-tests`).
 
 ## Syncing upstream
 

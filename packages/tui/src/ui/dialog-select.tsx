@@ -21,6 +21,7 @@ import {
 import { Locale } from "../util/locale"
 import { getScrollAcceleration } from "../util/scroll"
 import { useConfig, useCursorStyle, useNewDesigns } from "../config"
+import { useI18n } from "../i18n"
 import { moveSelection, reconcileSelection } from "./select-controller"
 
 export interface DialogSelectProps<T> {
@@ -141,6 +142,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   type VisibleAction = (Action & { label: string }) | FooterHint
 
   const dialog = useDialog()
+  const { t } = useI18n()
   const theme = useTheme().surface("dialog")
   const config = useConfig().data
   const cursorStyle = useCursorStyle()
@@ -478,40 +480,40 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       commands: [
         {
           id: "dialog.select.prev",
-          title: "Previous item",
-          group: "Dialog",
+          title: t("Previous item"),
+          group: t("Dialog"),
           run() {
             move(-1)
           },
         },
         {
           id: "dialog.select.next",
-          title: "Next item",
-          group: "Dialog",
+          title: t("Next item"),
+          group: t("Dialog"),
           run() {
             move(1)
           },
         },
         {
           id: "dialog.select.page_up",
-          title: "Page up",
-          group: "Dialog",
+          title: t("Page up"),
+          group: t("Dialog"),
           run() {
             move(-10)
           },
         },
         {
           id: "dialog.select.page_down",
-          title: "Page down",
-          group: "Dialog",
+          title: t("Page down"),
+          group: t("Dialog"),
           run() {
             move(10)
           },
         },
         {
           id: "dialog.select.home",
-          title: "First item",
-          group: "Dialog",
+          title: t("First item"),
+          group: t("Dialog"),
           run() {
             if (props.locked) return
             moveTo(0)
@@ -519,8 +521,8 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         },
         {
           id: "dialog.select.end",
-          title: "Last item",
-          group: "Dialog",
+          title: t("Last item"),
+          group: t("Dialog"),
           run() {
             if (props.locked) return
             moveTo(flat().length - 1)
@@ -528,15 +530,15 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         },
         {
           id: "dialog.select.submit",
-          title: "Select item",
-          group: "Dialog",
+          title: t("Select item"),
+          group: t("Dialog"),
           run: submit,
         },
         ...visible.map((item) => ({
           id: item.command,
           // Resolved without a selection so moving through the list does not rebuild the layer.
           title: typeof item.title === "function" ? item.title(undefined) : item.title,
-          group: "Dialog",
+          group: t("Dialog"),
           bind: item.bind,
           run: () => trigger(item),
         })),
@@ -545,8 +547,8 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           ? [
               {
                 bind: "escape",
-                title: "Back",
-                group: "Dialog",
+                title: t("Back"),
+                group: t("Dialog"),
                 run: () => {
                   if (renderer.getSelection()) {
                     renderer.clearSelection()
@@ -561,14 +563,14 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           ? [
               {
                 bind: "alt+up",
-                title: "Previous section",
-                group: "Dialog",
+                title: t("Previous section"),
+                group: t("Dialog"),
                 run: () => moveSection(-1),
               },
               {
                 bind: "alt+down",
-                title: "Next section",
-                group: "Dialog",
+                title: t("Next section"),
+                group: t("Dialog"),
                 run: () => moveSection(1),
               },
             ]
@@ -684,7 +686,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           r.focus()
         }, 1)
       }}
-      placeholder={(searchInTitle() ? props.titlePlaceholder : undefined) ?? props.placeholder ?? "Search"}
+      placeholder={t((searchInTitle() ? props.titlePlaceholder : undefined) ?? props.placeholder ?? "Search")}
       placeholderColor={theme.text.muted}
     />
   )
@@ -748,7 +750,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
               fallback={
                 props.emptyView ?? (
                   <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-                    <text fg={theme.text.muted}>No items available</text>
+                    <text fg={theme.text.muted}>{t("No items available")}</text>
                   </box>
                 )
               }
@@ -877,12 +879,13 @@ export function DialogSelectChoice(props: { value: string; active: boolean; open
 }
 
 function DialogSelectCategory(props: { title: string; first: boolean }) {
+  const { t } = useI18n()
   const theme = useTheme().surface("dialog")
   const newDesigns = useNewDesigns()
   return (
     <box paddingTop={props.first ? 0 : 1} paddingLeft={DIALOG_LIST_INSET - (newDesigns() ? 0 : 1)}>
       <text fg={newDesigns() ? theme.text.muted : theme.hue.accent[200]} attributes={TextAttributes.BOLD}>
-        {props.title}
+        {t(props.title)}
       </text>
     </box>
   )
@@ -904,6 +907,7 @@ function DialogSelectRow(props: {
   activeBackground?: RGBA
   activeColor?: RGBA
 }) {
+  const { t } = useI18n()
   const theme = useTheme().surface("dialog")
   const newDesigns = useNewDesigns()
   const text = createMemo(() => {
@@ -953,17 +957,19 @@ function DialogSelectRow(props: {
       >
         {props.titleView ??
           (props.truncateTitle === false
-            ? props.title
+            ? t(props.title)
             : props.truncateTitle === "left"
-              ? Locale.truncateLeft(props.title, props.titleWidth ?? 61)
-              : Locale.truncate(props.title, props.titleWidth ?? 61))}
+              ? Locale.truncateLeft(t(props.title), props.titleWidth ?? 61)
+              : Locale.truncate(t(props.title), props.titleWidth ?? 61))}
         <Show when={props.description}>
-          <span style={{ fg: secondary() }}>{" " + props.description}</span>
+          <span style={{ fg: secondary() }}>{" " + t(props.description ?? "")}</span>
         </Show>
       </text>
       <Show when={props.footer}>
         <box flexShrink={0} marginRight={props.footerOverhang ? -props.footerOverhang : undefined}>
-          <text fg={props.active || !props.footerColor ? secondary() : props.footerColor}>{props.footer}</text>
+          <text fg={props.active || !props.footerColor ? secondary() : props.footerColor}>
+            {typeof props.footer === "string" ? t(props.footer) : props.footer}
+          </text>
         </box>
       </Show>
     </box>

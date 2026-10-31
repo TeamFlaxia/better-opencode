@@ -9,6 +9,17 @@ import { CommandMap, Definitions } from "../src/config/v1/keybind"
 
 const decodeInfo = Schema.decodeUnknownSync(Info)
 
+test("defaults the interface language to Japanese", () => {
+  expect(resolve({}, { terminalSuspend: true }).language).toBe("ja")
+  expect(resolve({ language: "en" }, { terminalSuspend: true }).language).toBe("en")
+  expect(decodeInfo({ language: "en" })).toEqual({ language: "en" })
+  expect(() => decodeInfo({ language: "fr" })).toThrow()
+})
+
+test("exposes the language setting", () => {
+  expect(settings.find((setting) => setting.path.join(".") === "language")?.values).toEqual(["ja", "en"])
+})
+
 test("validates the explicit diff source defaults", () => {
   for (const source of ["branch", "committed", "working", "turn"] as const) {
     expect(decodeInfo({ diffs: { source } })).toEqual({ diffs: { source } })

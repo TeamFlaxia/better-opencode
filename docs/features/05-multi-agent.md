@@ -19,9 +19,9 @@
 | サブエージェント | `packages/core/src/tool/plugin/subagent.ts`, `session/subagent-job.ts`, `subagent-completion.ts` |
 | worktree | `packages/core/src/worktree.ts`, `worktree/strategies.ts` |
 | セッション配置 | `packages/core/src/location.ts`, `session/` |
-| 差分 / レビュー | `packages/core/src/session/diff.ts`, `packages/gui-plugins/src/review/` |
+| 差分 / レビュー | `packages/core/src/session/diff.ts`, `packages/tui/src/feature-plugins/system/diff-viewer.tsx` |
 | 実行コーディネータ | `packages/core/src/session/run-coordinator.ts` |
-| ゴール | `packages/gui-plugins/src/goal/`, `packages/schema/src/goal.ts` |
+| ゴール | `packages/tui/src/feature-plugins/prompt/goal.tsx`, `packages/schema/src/goal.ts` |
 
 ## 仕様
 
@@ -64,7 +64,7 @@
 ### UI
 
 - TUI: `/orchestrate` で計画の確認、進捗一覧、結果の選択。
-- デスクトップ / Web: `review` プラグインに「Orchestration」タブを追加し、タスクごとの差分を並べる。
+- TUI: 差分ビューアにタスクごとの差分を並べ、採用 / 破棄を選べるようにする。
 - 子セッションへは既存のセッションタブから移動できる。
 
 ## アーキテクチャ
@@ -89,7 +89,7 @@ orchestrate(goal, tasks)
 3. 差分収集と適用ポリシーを実装。失敗時のロールバックをテスト。
 4. `orchestrate` ツールと experimental HTTP を追加。
 5. TUI の進捗ビューとレビュー導線を追加。
-6. GUI の `review` プラグインに統合タブを追加。
+6. TUI の差分ビューアに統合ビューを追加。
 
 ## リスクと代替案
 

@@ -18,6 +18,7 @@ import { DialogSessionRename } from "./dialog-session-rename"
 import { Spinner } from "./spinner"
 import { errorMessage } from "../util/error"
 import { useSessionTabs } from "../context/session-tabs"
+import { useI18n } from "../i18n"
 import { useStorage } from "../context/storage"
 import { useConfig, useNewDesigns } from "../config"
 import { withTimestampedFallback } from "@opencode/util/session-title-fallback"
@@ -25,6 +26,7 @@ import { projectName } from "../util/project"
 import { useLocation } from "../context/location"
 
 export function DialogSessionList() {
+  const { t } = useI18n()
   const dialog = useDialog()
   const route = useRoute()
   const data = useData()
@@ -111,14 +113,16 @@ export function DialogSessionList() {
   const searchState = createMemo(() => {
     const query = filter().trim()
     if (query !== search().trim() || searchResults.loading)
-      return { message: query ? "Searching sessions…" : "Loading sessions…", error: false }
+      return { message: query ? t("Searching sessions…") : t("Loading sessions…"), error: false }
     const result = searchResults()
     if (result?.query === query && result.error)
       return {
-        message: query ? "Could not search sessions. Change the search to try again." : "Could not load sessions.",
+        message: query
+          ? t("Could not search sessions. Change the search to try again.")
+          : t("Could not load sessions."),
         error: true,
       }
-    return { message: query ? "No sessions found" : "No sessions available", error: false }
+    return { message: query ? t("No sessions found") : t("No sessions available"), error: false }
   })
 
   const quickSwitchHint = createMemo(() => {
@@ -186,30 +190,32 @@ export function DialogSessionList() {
       .filter((session) => !session.parentID && !pinnedSet.has(session.id))
       .map((session) => {
         const date = new Date(session.time.updated).toDateString()
-        return option(session, date === today ? "Today" : date)
+        return option(session, date === today ? t("Today") : date)
       })
 
-    return [...pinned.map((sessionID) => option(sessionMap.get(sessionID)!, "Pinned")), ...remaining]
+    return [...pinned.map((sessionID) => option(sessionMap.get(sessionID)!, t("Pinned"))), ...remaining]
   })
 
   onMount(() => dialog.setSize("large"))
 
   return (
     <DialogSelect
-      title="Sessions"
+      title={t("Sessions")}
       titleView={
         <box flexDirection="row">
           <text fg={theme.text.base} attributes={TextAttributes.BOLD}>
-            Sessions
+            {t("Sessions")}
           </text>
           <Show when={!allProjects() && currentProjectName()}>
-            <text fg={theme.text.muted}> for {currentProjectName()}</text>
+            <text fg={theme.text.muted}> {t("for {{project}}", { project: currentProjectName() })}</text>
           </Show>
         </box>
       }
       searchInTitle
       titlePlaceholder={
-        !allProjects() && currentProjectName() ? `Search sessions in ${currentProjectName()}` : "Search sessions"
+        !allProjects() && currentProjectName()
+          ? t("Search sessions in {{project}}", { project: currentProjectName() })
+          : t("Search sessions")
       }
       options={options()}
       skipFilter={true}
@@ -221,7 +227,7 @@ export function DialogSessionList() {
       bindings={[
         {
           bind: "ctrl+a",
-          title: allProjects() ? "Show current directory sessions" : "Show all project sessions",
+          title: allProjects() ? t("Show current directory sessions") : t("Show all project sessions"),
           group: "Dialog",
           run: () => {
             void updatePrefs((draft) => {

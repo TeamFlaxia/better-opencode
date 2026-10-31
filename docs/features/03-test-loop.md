@@ -19,7 +19,7 @@
 | ツール出力の切り詰め | `packages/core/src/tool-output.ts` |
 | ジョブ | `packages/core/src/job.ts`, `job/` |
 | 設定 | `packages/schema/src/config/` |
-| テスト規約のスキル | `.opencode/skills/unit-tests`, `tui-tests`, `app-e2e-tests`, `component-tests` |
+| テスト規約のスキル | `.opencode/skills/unit-tests`, `tui-tests` |
 
 ## 仕様
 

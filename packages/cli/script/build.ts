@@ -10,7 +10,6 @@ import { createSolidTransformPlugin } from "@opentui/solid/bun-plugin"
 import type { BunPlugin } from "bun"
 import pkg from "../package.json"
 import { discoverPluginRuntimeSpecifiers, pluginRuntimeLoaderCode } from "@opencode/plugin/runtime-modules"
-import { buildAppArchive } from "./app-assets"
 import { verifyArtifact, verifySimulationGraph } from "./verify-artifact"
 import { resolveOpencodePty } from "./opencode-pty"
 import { NativeArch } from "../../../script/native-arch"
@@ -31,7 +30,6 @@ const singleFlag = process.argv.includes("--single")
 const baselineFlag = process.argv.includes("--baseline")
 const requestedTarget = process.env.OPENCODE_TARGET
 const skipInstall = process.argv.includes("--skip-install")
-const skipWebUi = process.argv.includes("--skip-web-ui")
 const solidPlugin = createSolidTransformPlugin()
 const highlights = Script.preview ? undefined : embed(process.env.OPENCODE_RELEASE_NOTES)
 const releaseAssets = new Map<string, Promise<Map<string, string>>>()
@@ -72,24 +70,6 @@ if (!targets.length) throw new Error(`Unknown build target: ${requestedTarget}`)
 // Bun 1.4.4 skips native packages for the other libc by default, but the musl targets need them.
 if (!skipInstall)
   await $`bun install --os="*" --cpu="*" --libc="*" @opentui/core@${pkg.dependencies["@opentui/core"]} @opencode/pty@${pkg.dependencies["@opencode/pty"]}`
-const appArchive = path.join(dir, ".cache", "bun-app-archive.bin")
-await Bun.write(appArchive, await buildAppArchive(Script.channel, { skipBuild: skipWebUi }))
-const appAssetsPlugin: BunPlugin = {
-  name: "opencode-app-assets",
-  setup(build) {
-    build.onResolve({ filter: /^virtual:opencode-app-assets$/ }, () => ({
-      path: "opencode-app-assets",
-      namespace: "opencode",
-    }))
-    build.onLoad({ filter: /^opencode-app-assets$/, namespace: "opencode" }, () => ({
-      loader: "js",
-      // Embedded as a file, not a string: its bytes go into the executable once and unencoded.
-      contents: `import { readFileSync } from "node:fs"
-import archive from ${JSON.stringify(appArchive.replaceAll("\\", "/"))} with { type: "file" }
-export default () => readFileSync(archive)`,
-    }))
-  },
-}
 const pluginRuntimeEntries = discoverPluginRuntimeSpecifiers()
 const pluginRuntimeModulesSource = [
   "export const resolveHostPackageRoots = () => []",
@@ -161,7 +141,6 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
     entrypoints: ["./src/index.ts", "./src/photon-worker.ts"],
     tsconfig: "./tsconfig.json",
     plugins: [
-      appAssetsPlugin,
       solidPlugin,
       parcelWatcherPlugin,
       opencodePtyPlugin,

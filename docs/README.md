@@ -35,10 +35,10 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 | 実行制御 | 実行キュー、再開、最大ステップ、リトライ、モデルフォールバック | `packages/core/src/session/runner/`, `run-coordinator.ts` |
 | 作業環境 | worktree、スナップショット、diff、VCS 連携 | `packages/core/src/worktree.ts`, `snapshot.ts`, `vcs/` |
 | ツール | read / write / edit / patch / glob / grep / shell / webfetch / websearch / subagent / skill / todo | `packages/core/src/tool/plugin/` |
-| 自動化 | スケジュール実行、ゴール（`/goal`）、サイド質問（`/btw`） | `packages/core/src/schedule.ts`, `packages/gui-plugins/src/goal`, `btw` |
+| 自動化 | スケジュール実行、ゴール（`/goal`）、サイド質問（`/btw`） | `packages/core/src/schedule.ts`, `packages/tui/src/feature-plugins/prompt/goal.tsx`, `btw.tsx` |
 | 安全性 | パーミッション、管理ポリシー、使用量上限（Console ワークスペース） | `packages/core/src/permission/`, `managed-policy.ts`, `usage-limits.ts` |
-| UI | TUI（タブ、ワークスペース、テーマ、音声、統計）、デスクトップ、Web | `packages/tui/`, `packages/desktop/`, `packages/app/` |
-| 拡張 | サーバープラグイン / TUI プラグイン / GUI プラグイン、MCP | `packages/plugin/`, `packages/gui-plugins/`, `packages/core/src/mcp/` |
+| UI | TUI（タブ、ワークスペース、テーマ、音声、統計）。デスクトップ / Web UI は削除済み | `packages/tui/` |
+| 拡張 | サーバープラグイン / TUI プラグイン、MCP | `packages/plugin/`, `packages/core/src/mcp/` |
 
 このため本ドキュメントの提案は「既存機能の焼き直し」ではなく、**コード理解・コスト制御・検証・並列化・履歴の資産化**という5本の柱に絞っている。
 

@@ -21,8 +21,6 @@ bun install
 bun run dev              # ローカルビルドの CLI / TUI
 bun run dev:live         # インストール済み opencode サービスに接続
 bun run dev:live /path   # 対象ディレクトリを指定
-bun run dev:web          # Web UI
-bun run dev:desktop      # デスクトップ
 ```
 
 `dev:live` は `opencode service status` でサーバーを探し、`opencode service get password` の資格情報を注入する。TUI のストレージチャネルは `dev` を使うため、インストール済みクライアントとタブ状態が揃う。
@@ -39,9 +37,7 @@ bun run dev:desktop      # デスクトップ
 | `packages/server` | HTTP サーバーとランタイム合成 |
 | `packages/client` | 生成クライアント |
 | `packages/cli` | CLI とサービスライフサイクル |
-| `packages/tui` | ターミナル UI |
-| `packages/app` | Web UI |
-| `packages/desktop` | Electron デスクトップ |
+| `packages/tui` | ターミナル UI（唯一のクライアント） |
 | `packages/plugin` | プラグイン API |
 | `docs/` | このフォークの設計・ロードマップ |
 
@@ -128,7 +124,7 @@ git push origin v2.2.5-better.1
 - `publish` … `SHA256SUMS.txt` と一緒に GitHub Release を作成する。既存 Release にはアセットを上書きアップロードする
 - 手動で再実行する場合は `workflow_dispatch` に既存タグを指定する
 
-現時点のリリース対象は CLI のみ。デスクトップアプリの署名付きインストーラと npm publish は含まない。
+現時点のリリース対象は CLI のみ。npm publish は含まない。
 
 ## 機能を追加する場所
 
@@ -140,33 +136,26 @@ git push origin v2.2.5-better.1
 | HTTP API | `packages/protocol/src/groups/` + `packages/server/src/handlers/` |
 | TUI | `packages/tui/src/feature-plugins/`、`packages/tui/src/component/` |
 | TUI プラグイン | `packages/plugin/src/tui/` |
-| GUI プラグイン | `packages/gui-plugins/src/` |
 
 新しい振る舞いは experimental から始める。設定は `experimental.*`、HTTP は `/api/experimental/...`、SDK は `client.experimental.*`。
 
 ## 日本語化
 
-デスクトップ / Web UI の日本語訳は次の2ファイルにある。
+TUI の日本語訳は `packages/tui/src/i18n/index.tsx` の `ja` 辞書にある。
 
-| 対象 | ファイル |
-| --- | --- |
-| アプリ本体・設定画面・デスクトップメニュー | `packages/app/src/runtime/i18n/ja.ts` |
-| 共有 UI（セッション表示、レビュー、ダイアログなど） | `packages/ui/src/i18n/ja.ts` |
-
-- 英語辞書（`en.ts`）の全キーを持ち、`{{name}}` などのプレースホルダーをそのまま保持する。
-- 新しい UI 文字列を追加したら、対応する `ja.ts` にも追加する。未訳のキーは英語にフォールバックする。
-- 辞書の形は `packages/app/src/runtime/i18n/language.test.ts` で検証される。
-- 表示言語は OS の言語に従う。手動で切り替える場合は **Settings → General → Language → 日本語**。
-- TUI には独自の i18n 基盤がまだないため、現時点では英語のまま。
+- キーは英語の原文そのもの。`t("Settings")` のように呼び出す。
+- 未訳の文字列は英語のまま表示されるため、翻訳を少しずつ追加できる。
+- `{{name}}` などのプレースホルダーは `t("...", { name })` で渡す。
+- 既定の表示言語は日本語。`tui.json` の `language` を `"en"` にすると英語へ切り替わる。
+- 設定画面では **Settings → Language** からも切り替えられる。
+- `DialogHeader` / `DialogSelect` はタイトル・説明・カテゴリを自動で翻訳するので、個別のダイアログに毎回 `t` を足す必要はない。
 
 変更後の確認:
 
 ```bash
-cd packages/app
-bun test --conditions=solid --isolate --preload ../ui/test/solid-jsx.ts --preload ./happydom.ts \
-  src/runtime/i18n/language.test.ts src/runtime/i18n/desktop-native.test.ts
+cd packages/tui
 bun typecheck
-cd ../ui && bun typecheck
+bun test --timeout 30000 test/cli/tui/dialog-select.test.tsx test/config.test.tsx
 ```
 
 ## ブランディングの境界
@@ -178,10 +167,11 @@ cd ../ui && bun typecheck
 - `@opencode/*` のパッケージスコープ
 - `opencode` バイナリ名、設定ディレクトリ、環境変数（`OPENCODE_*`）
 - 上流のモデルプロバイダ名（`OpenCode` / `Anomaly / OpenCode`）
-- デスクトップの productName と i18n 文言
-- `.github/workflows` のリリース設定（上流のまま保持）
+- `.github/workflows` の上流由来リリース設定（フォークのリリースは `release-tag.yml`）
 
 これらは上流とのマージコストと、モデルプロバイダ名との混同を避けるための判断。全面改名は機能が固まった後に別ブランチで行う。
+
+デスクトップアプリと Web UI は削除済み。UI の変更は TUI のみを対象にする。
 
 ## 困ったとき
 

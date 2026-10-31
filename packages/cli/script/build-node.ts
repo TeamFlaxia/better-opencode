@@ -10,9 +10,8 @@ import { Script } from "@opencode/script"
 import { embed } from "@opencode/script/highlights"
 import pkg from "../package.json"
 import { collectNodeAssets, copyNodeAssets, hashNodeAssets, seaAssetMap } from "./node-assets"
-import { appArchiveAsset, mainConfig } from "../vite.node.config"
+import { mainConfig } from "../vite.node.config"
 import { nodeExecArgv, nodeTarget, type NodeTarget } from "../src/node/target"
-import { buildAppArchive } from "./app-assets"
 import { verifyArtifact } from "./verify-artifact"
 import { NativeArch } from "../../../script/native-arch"
 import { bundledModelsSnapshot } from "../../core/script/models-snapshot"
@@ -30,10 +29,7 @@ if (outdir === path.join(dir, "dist-node")) {
 const bundleOnly = process.argv.includes("--bundle-only")
 const single = process.argv.includes("--single")
 const skipInstall = process.argv.includes("--skip-install")
-const appArchiveOnly = process.argv.includes("--app-archive-only")
 const highlights = Script.preview ? undefined : embed(process.env.OPENCODE_RELEASE_NOTES)
-const requestedArchive = process.env.OPENCODE_APP_ARCHIVE
-const archivePath = requestedArchive ? path.resolve(dir, requestedArchive) : undefined
 const requested = process.env.OPENCODE_TARGET
 const allTargets = [
   nodeTarget("linux", "arm64"),
@@ -50,12 +46,6 @@ const targets = requested
 
 process.chdir(dir)
 if (!skipInstall) run(process.execPath, ["install", "--os=*", "--cpu=*"])
-if (appArchiveOnly) {
-  if (!archivePath) throw new Error("--app-archive-only requires OPENCODE_APP_ARCHIVE")
-  await mkdir(path.dirname(archivePath), { recursive: true })
-  await writeFile(archivePath, await buildAppArchive(Script.channel))
-  process.exit(0)
-}
 if (targets.length === 0) {
   if (requested === "darwin-x64") throw new Error("Node 26.4 SEA does not support macOS x64")
   throw new Error(`Unknown Node target: ${requested}`)
@@ -64,7 +54,6 @@ if (!bundleOnly && targets.some((target) => target.platform === "darwin" && targ
   throw new Error("Node 26.4 SEA does not support macOS x64")
 }
 const modelsSnapshot = await bundledModelsSnapshot()
-const appArchive = archivePath ? await Bun.file(archivePath).bytes() : await buildAppArchive(Script.channel)
 if (!bundleOnly) await rm(outdir, { recursive: true, force: true })
 const builder =
   !bundleOnly || targets.some((target) => target.platform === process.platform && target.arch === process.arch)
@@ -104,7 +93,6 @@ for (const target of targets) {
     target,
   }
   await copyNodeAssets(assets)
-  await writeFile(path.join("dist-node", "assets", appArchiveAsset), appArchive)
   await build(mainConfig(input))
   await assertTextImportsInlined("dist-node/opencode.mjs")
   if (bundleOnly) await verifyArtifact("dist-node/opencode.mjs")

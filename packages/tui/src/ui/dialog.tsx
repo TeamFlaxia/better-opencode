@@ -19,6 +19,7 @@ import { createStore } from "solid-js/store"
 import { useToast } from "./toast"
 import { useClipboard } from "../context/clipboard"
 import { useConfig, useNewDesigns } from "../config"
+import { useI18n } from "../i18n"
 import { copy, copyOnSelectRelease } from "../util/selection"
 
 export type DialogSize = "medium" | "large" | "xlarge"
@@ -101,13 +102,16 @@ export function DialogHeader(
   }>,
 ) {
   const dialog = useDialog()
+  const { t } = useI18n()
   const theme = useTheme().surface("dialog")
   const newDesigns = useNewDesigns()
+  const title = () => (typeof props.title === "string" ? t(props.title) : props.title)
+  const description = () => (props.description ? t(props.description) : undefined)
   const row = () => (
     <box flexDirection="row" justifyContent="space-between" gap={props.gap}>
       {props.titleView ?? (
         <text attributes={newDesigns() ? undefined : TextAttributes.BOLD} fg={theme.text.base}>
-          {props.title}
+          {title()}
         </text>
       )}
       {props.children}
@@ -121,11 +125,11 @@ export function DialogHeader(
     </box>
   )
   return (
-    <Show when={newDesigns() && props.description} fallback={row()}>
+    <Show when={newDesigns() && description()} fallback={row()}>
       <box>
         {row()}
         <text fg={theme.text.muted} wrapMode="word">
-          {props.description}
+          {description()}
         </text>
       </box>
     </Show>

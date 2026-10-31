@@ -6,6 +6,7 @@ import { TextAttributes } from "@opentui/core"
 import { useInteractivity } from "../../context/interactivity"
 import { stringWidth } from "../../util/string-width"
 import { createGoal, GoalStatus } from "./goal"
+import { useI18n } from "../../i18n"
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -18,6 +19,7 @@ export function PromptFooter(props: {
   mode: "normal" | "shell"
   showDetails: boolean
 }) {
+  const { t } = useI18n()
   const dimensions = useTerminalDimensions()
   const [liveHovered, setLiveHovered] = createSignal(false)
   const subagents = createMemo(() => {
@@ -25,14 +27,14 @@ export function PromptFooter(props: {
     const count = props.context.data.session
       .family(props.sessionID)
       .filter((id) => id !== props.sessionID && props.context.data.session.status(id) === "running").length
-    return count ? `${count} subagent${count === 1 ? "" : "s"}` : undefined
+    return count ? t("{{count}} subagents", { count }) : undefined
   })
   const shells = createMemo(() => {
     if (!props.sessionID) return 0
     const count = props.context.data.shell
       .list(props.context.location)
       .filter((shell) => shell.metadata.sessionID === props.sessionID).length
-    return count ? `${count} shell${count === 1 ? "" : "s"}` : undefined
+    return count ? t("{{count}} shells", { count }) : undefined
   })
   const status = createMemo(() => {
     if (!props.sessionID) return []
@@ -60,7 +62,7 @@ export function PromptFooter(props: {
     return promptFooterLayout({
       width: Math.max(0, dimensions().width - 8),
       usage: status(),
-      shortcuts: command ? [`${command} commands`] : [],
+      shortcuts: command ? [`${command} ${t("commands")}`] : [],
     })
   })
 
@@ -113,7 +115,7 @@ export function PromptFooter(props: {
               flexShrink={0}
             >
               {shortcut("agent.cycle")}{" "}
-              <span style={interactive() ? { fg: props.context.theme.text.muted } : {}}>agents</span>
+              <span style={interactive() ? { fg: props.context.theme.text.muted } : {}}>{t("agents")}</span>
             </text>
           </Match>
         </Switch>
@@ -125,7 +127,7 @@ export function PromptFooter(props: {
             flexShrink={0}
           >
             {shortcut("command.palette.show")}{" "}
-            <span style={interactive() ? { fg: props.context.theme.text.muted } : {}}>commands</span>
+            <span style={interactive() ? { fg: props.context.theme.text.muted } : {}}>{t("commands")}</span>
           </text>
         </Show>
       </Match>
