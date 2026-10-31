@@ -959,6 +959,10 @@ const ja: Record<string, string> = {
   "Ask anything, / for commands, @ for context...": "何でも聞いてください。/ でコマンド、@ でコンテキスト...",
   "Default model": "デフォルトモデル",
   menu: "メニュー",
+  "Tab position": "タブの位置",
+  "Whether tabs sit above the session or in a side rail": "タブをセッションの上に置くか、横のレールに置くか",
+  top: "上",
+  side: "横",
 }
 
 const Context = createContext<TuiI18n>({

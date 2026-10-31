@@ -190,7 +190,7 @@ test("reflows held tabs when the pointer leaves the strip", async () => {
         </ConfigProvider>
       </TestTuiContexts>
     ),
-    { width: 60, height: 2 },
+    { width: 60, height: 3 },
   )
 
   try {
@@ -205,7 +205,7 @@ test("reflows held tabs when the pointer leaves the strip", async () => {
 
     await app.renderOnce()
     const held = app.captureCharFrame().split("\n")[0] ?? ""
-    await app.mockMouse.moveTo(0, 1)
+    await app.mockMouse.moveTo(0, 2)
     await app.waitForFrame((frame) => (frame.split("\n")[0] ?? "").indexOf("Third") < held.indexOf("Third"))
     await app.mockMouse.moveTo(20, 0)
     await app.waitForFrame((frame) => Array.from(frame.split("\n")[0] ?? "")[20] === "✕")

@@ -180,13 +180,14 @@ export const settings: Setting[] = [
     labels: ["current directory", "global"],
   },
   {
-    title: "Layout",
+    title: "Tab position",
     category: "Tabs",
     path: ["tabs", "layout"],
-    description: "Whether tabs run along the top or down the side",
+    description: "Whether tabs sit above the session or in a side rail",
     default: "horizontal",
     values: ["horizontal", "vertical"],
-    keywords: ["sidebar", "orientation", "left"],
+    labels: ["top", "side"],
+    keywords: ["sidebar", "orientation", "left", "top", "side", "rail"],
   },
   {
     title: "Indicators",

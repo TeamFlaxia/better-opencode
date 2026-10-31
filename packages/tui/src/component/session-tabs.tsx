@@ -1515,7 +1515,7 @@ function HorizontalSessionTabs(props: {
   return (
     <box
       ref={(element) => (strip = element)}
-      height={1}
+      height={2}
       flexShrink={0}
       position="relative"
       flexDirection="row"
