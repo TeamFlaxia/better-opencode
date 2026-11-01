@@ -72,7 +72,7 @@ test("compact rail renders and controls session tabs", async () => {
         .map((line) => line.slice(0, 5)),
     ).toEqual([
       "▄▄▄▄▄",
-      "  ⌕  ",
+      "  🔍 ",
       "▄▄▄▄▄",
       "  F  ",
       "▀▀▀▀▀",

@@ -47,8 +47,8 @@ export function SessionTabsRailControls(props: {
         }}
         onMouseDragEnd={() => (pressed = false)}
       >
-        <text width={1} height={1} fg={theme.text.action.secondary.base} selectable={false} wrapMode="none">
-          ⌕
+        <text width={2} height={1} fg={theme.text.action.secondary.base} selectable={false} wrapMode="none">
+          🔍
         </text>
       </box>
       <text
