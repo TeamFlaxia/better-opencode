@@ -498,8 +498,8 @@ test("vertical session tabs switch to horizontal below readable content width", 
   await setup.waitForFrame((frame) => frame.split("\n")[1].slice(0, 42).includes(session.title))
 
   setup.resize(100, 30)
-  await setup.waitForFrame((frame) => frame.split("\n")[0].includes(session.title))
-  expect(setup.captureCharFrame()).not.toContain("⌕")
+  await setup.waitForFrame((frame) => frame.split("\n")[1].slice(0, 10).trim() === "⌕")
+  expect(setup.captureCharFrame().split("\n")[0]).not.toContain(session.title)
   setup.resize(120, 30)
   await setup.waitForFrame((frame) => frame.split("\n")[1].slice(0, 42).includes(session.title))
 })
@@ -536,8 +536,8 @@ test("narrow vertical session tabs collapse to a compact rail with the terminal"
   await setup.waitForFrame((frame) => frame.split("\n")[1].slice(0, 10).trim() === "⌕")
 
   setup.resize(68, 30)
-  await setup.waitForFrame((frame) => frame.split("\n")[0].includes(session.title))
-  expect(setup.captureCharFrame()).not.toContain("⌕")
+  await setup.waitForFrame((frame) => frame.split("\n")[1].slice(0, 10).trim() === "⌕")
+  expect(setup.captureCharFrame().split("\n")[0]).not.toContain(session.title)
   setup.resize(80, 30)
   await setup.waitForFrame((frame) => frame.split("\n")[1].slice(0, 10).trim() === "⌕")
 })
@@ -1389,10 +1389,10 @@ test("ctrl+c dismisses autocomplete and shell mode before exiting", async () => 
 
 test.skipIf(process.platform === "win32").each(["manual", "select"] as const)(
   "selection copy and pane management respect %s mode in the prompt and terminal pane",
-    async (copy) => {
-      await using state = await tmpdir()
-      const setup = await createTestRenderer({ width: 100, height: 30, kittyKeyboard: true })
-      await setup.renderer.setupTerminal()
+  async (copy) => {
+    await using state = await tmpdir()
+    const setup = await createTestRenderer({ width: 100, height: 30, kittyKeyboard: true })
+    await setup.renderer.setupTerminal()
     setup.renderer.start()
     const ready = Promise.withResolvers<void>()
     const session = {
@@ -1988,9 +1988,7 @@ test("free usage limit offers OpenCode Go once per 24h, transitions Subscribe to
   setup.mockInput.pressEnter()
   await setup.waitForFrame((frame) => frame.includes("GOGO-1234"))
   expect(openSpy).toHaveBeenCalledWith("https://opencode.ai/go")
-  expect(oauthRequests).toEqual([
-    { methodID: "device", answer: { server: "https://opencode.ai/console" } },
-  ])
+  expect(oauthRequests).toEqual([{ methodID: "device", answer: { server: "https://opencode.ai/console" } }])
   const connectFrame = setup.captureCharFrame()
   expect(connectFrame).toContain("OpenCode Console account")
   expect(connectFrame).not.toContain("Enter Go API key")
@@ -2279,7 +2277,13 @@ test("free usage limit Subscribe handles mid-auth/mid-sync Escape, sync failure,
     created: 6,
     type: "session.step.started",
     durable: { aggregateID: session.id, seq: 6, version: 1 },
-    data: { sessionID: session.id, assistantMessageID: "msg_free_assistant_expired", agent: "build", model, started: 6 },
+    data: {
+      sessionID: session.id,
+      assistantMessageID: "msg_free_assistant_expired",
+      agent: "build",
+      model,
+      started: 6,
+    },
   })
   setup.events.emit({
     id: "evt_free_limit_expired_fail",
@@ -2846,4 +2850,3 @@ test.each([44, 100])(
   },
   15_000,
 )
-

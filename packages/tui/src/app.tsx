@@ -78,7 +78,12 @@ import { DialogAgent } from "./component/dialog-agent"
 import { DialogSessionList } from "./component/dialog-session-list"
 import { DialogOpen, DialogOpenKey, moveOpenSession } from "./component/dialog-open"
 import { SessionTabs } from "./component/session-tabs"
-import { clampSessionTabsWidth, sessionTabsFitVertically, SESSION_SIDEBAR_WIDTH } from "./ui/layout"
+import {
+  clampSessionTabsWidth,
+  sessionTabsFitVertically,
+  SESSION_SIDEBAR_WIDTH,
+  SESSION_TABS_COMPACT_WIDTH,
+} from "./ui/layout"
 import { createPaneResize } from "./ui/pane-resize"
 import { PaneResizeHandle } from "./ui/pane-resize-handle"
 import { clickedLink } from "./ui/link"
@@ -394,71 +399,71 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                     >
                                       <TuiI18nProvider>
                                         <Keymap.Provider>
-                                        <ToastProvider>
-                                          <RouteProvider
-                                            initialRoute={
-                                              input.args.continue
-                                                ? {
-                                                    type: "session",
-                                                    sessionID: "dummy",
-                                                  }
-                                                : undefined
-                                            }
-                                          >
-                                            <ClientProvider
-                                              api={api}
-                                              url={input.server.endpoint.url}
-                                              headers={headers}
-                                              service={service}
+                                          <ToastProvider>
+                                            <RouteProvider
+                                              initialRoute={
+                                                input.args.continue
+                                                  ? {
+                                                      type: "session",
+                                                      sessionID: "dummy",
+                                                    }
+                                                  : undefined
+                                              }
                                             >
-                                              <PermissionProvider>
-                                                <DataProvider directory={directory}>
-                                                  <LocationProvider>
-                                                    <SessionTabsProvider>
-                                                      <SessionTerminalsProvider>
-                                                        <ThemeProvider
-                                                          mode={mode}
-                                                          source={createThemeSource(global.config)}
-                                                        >
-                                                          <ThemeErrorToast />
-                                                          <ClientMcp />
-                                                          <LocalProvider>
-                                                            <PromptStashProvider>
-                                                              <DialogProvider>
-                                                                <FrecencyProvider>
-                                                                  <PromptHistoryProvider>
-                                                                    <PromptRefProvider>
-                                                                      <EditorContextProvider>
-                                                                        <AttentionProvider>
-                                                                          <UpdateNotificationProvider
-                                                                            updater={input.updater}
-                                                                          >
-                                                                            <PanelProvider>
-                                                                              <PluginProvider
-                                                                                packages={input.packages}
-                                                                                directories={pluginDirectories}
-                                                                              >
-                                                                                <App />
-                                                                              </PluginProvider>
-                                                                            </PanelProvider>
-                                                                          </UpdateNotificationProvider>
-                                                                        </AttentionProvider>
-                                                                      </EditorContextProvider>
-                                                                    </PromptRefProvider>
-                                                                  </PromptHistoryProvider>
-                                                                </FrecencyProvider>
-                                                              </DialogProvider>
-                                                            </PromptStashProvider>
-                                                          </LocalProvider>
-                                                        </ThemeProvider>
-                                                      </SessionTerminalsProvider>
-                                                    </SessionTabsProvider>
-                                                  </LocationProvider>
-                                                </DataProvider>
-                                              </PermissionProvider>
-                                            </ClientProvider>
-                                          </RouteProvider>
-                                        </ToastProvider>
+                                              <ClientProvider
+                                                api={api}
+                                                url={input.server.endpoint.url}
+                                                headers={headers}
+                                                service={service}
+                                              >
+                                                <PermissionProvider>
+                                                  <DataProvider directory={directory}>
+                                                    <LocationProvider>
+                                                      <SessionTabsProvider>
+                                                        <SessionTerminalsProvider>
+                                                          <ThemeProvider
+                                                            mode={mode}
+                                                            source={createThemeSource(global.config)}
+                                                          >
+                                                            <ThemeErrorToast />
+                                                            <ClientMcp />
+                                                            <LocalProvider>
+                                                              <PromptStashProvider>
+                                                                <DialogProvider>
+                                                                  <FrecencyProvider>
+                                                                    <PromptHistoryProvider>
+                                                                      <PromptRefProvider>
+                                                                        <EditorContextProvider>
+                                                                          <AttentionProvider>
+                                                                            <UpdateNotificationProvider
+                                                                              updater={input.updater}
+                                                                            >
+                                                                              <PanelProvider>
+                                                                                <PluginProvider
+                                                                                  packages={input.packages}
+                                                                                  directories={pluginDirectories}
+                                                                                >
+                                                                                  <App />
+                                                                                </PluginProvider>
+                                                                              </PanelProvider>
+                                                                            </UpdateNotificationProvider>
+                                                                          </AttentionProvider>
+                                                                        </EditorContextProvider>
+                                                                      </PromptRefProvider>
+                                                                    </PromptHistoryProvider>
+                                                                  </FrecencyProvider>
+                                                                </DialogProvider>
+                                                              </PromptStashProvider>
+                                                            </LocalProvider>
+                                                          </ThemeProvider>
+                                                        </SessionTerminalsProvider>
+                                                      </SessionTabsProvider>
+                                                    </LocationProvider>
+                                                  </DataProvider>
+                                                </PermissionProvider>
+                                              </ClientProvider>
+                                            </RouteProvider>
+                                          </ToastProvider>
                                         </Keymap.Provider>
                                       </TuiI18nProvider>
                                     </ConfigProvider>
@@ -614,8 +619,11 @@ function App() {
   }
   const terminalTitleEnabled = () => config.data.terminal?.title ?? true
   const pasteSummaryEnabled = () => config.data.prompt?.paste !== "full"
-  const tabsVertical = () =>
-    config.data.tabs.layout === "vertical" && sessionTabsFitVertically(dimensions().width, tabsResize.size())
+  const tabsVertical = () => config.data.tabs.layout === "vertical"
+  const tabsExpanded = () => tabsVertical() && sessionTabsFitVertically(dimensions().width, tabsResize.size())
+  // A vertical bar stays on the left when the terminal gets narrow; it collapses to the compact rail
+  // instead of moving to the top, so the user's chosen position does not change under them.
+  const tabsWidth = () => (tabsExpanded() ? tabsResize.size() : SESSION_TABS_COMPACT_WIDTH)
   const tabsAvailable = () => sessionTabs.enabled() && sessionTabs.tabs().length > 0 && route.data.type !== "plugin"
   const fullscreenPanel = () =>
     route.data.type === "session" &&
@@ -625,7 +633,7 @@ function App() {
   const verticalTabsVisible = () => tabsVisible() && tabsVertical()
 
   // Measure the prospective split layout, even while full-screen hides the tabs.
-  createEffect(() => panels.setWidth(dimensions().width - (tabsAvailable() && tabsVertical() ? tabsResize.size() : 0)))
+  createEffect(() => panels.setWidth(dimensions().width - (tabsAvailable() && tabsVertical() ? tabsWidth() : 0)))
   createEffect(() => {
     const current = panels.current()
     if (!current || (route.data.type === "session" && route.data.sessionID === current.sessionID)) return
@@ -1434,7 +1442,7 @@ function App() {
         onMouseUp={tabsResize.onMouseUp}
       >
         <Show when={verticalTabsVisible()}>
-          <SessionTabs orientation="vertical" width={tabsResize.size()} />
+          <SessionTabs orientation="vertical" width={tabsWidth()} />
         </Show>
         <box flexGrow={1} minWidth={0} flexDirection="column">
           <Show when={plugins.ready()}>
@@ -1449,10 +1457,7 @@ function App() {
                 <Match when={route.data.type === "session"}>
                   <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
                     {(sessionID) => (
-                      <SessionFrame
-                        sessionID={sessionID}
-                        verticalTabsWidth={verticalTabsVisible() ? tabsResize.size() : 0}
-                      />
+                      <SessionFrame sessionID={sessionID} verticalTabsWidth={verticalTabsVisible() ? tabsWidth() : 0} />
                     )}
                   </Show>
                 </Match>
@@ -1468,8 +1473,8 @@ function App() {
             <Slot path="app" />
           </Show>
         </box>
-        <Show when={verticalTabsVisible()}>
-          <PaneResizeHandle resize={tabsResize} left={tabsResize.size() - 1} />
+        <Show when={verticalTabsVisible() && tabsExpanded()}>
+          <PaneResizeHandle resize={tabsResize} left={tabsWidth() - 1} />
         </Show>
       </box>
       <Show when={devtools() && !(route.data.type === "plugin" && route.data.id === "opencode.stats")}>
