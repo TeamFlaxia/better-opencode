@@ -101,7 +101,7 @@ bun run test
 - ドラフト PR ではジョブをスキップする。`ready_for_review` で再実行される。
 - 同じ PR への追加 push は古い実行をキャンセルする。
 - `workflow_dispatch` では影響範囲を絞らず全テスト・全ビルドを実行する。
-- 上流由来の `check.yml` / `check-test.yml` は upstream ブランチ向けで、フォークの `main` では動かない（`check-test.yml` は PR トリガーを `upstream` に限定済み）。
+- 上流由来のリリース・デプロイ・トリアージ workflow は削除済み。現在の CI は `pr-check.yml`、`release-tag.yml`、`check-process-daemon.yml` のみ。
 
 ブランチ保護で `check` / `test` / `build` を必須チェックにすると、PR のマージ前に検証を強制できる。
 
