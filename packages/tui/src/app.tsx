@@ -1492,6 +1492,7 @@ function App() {
           <SessionTabs
             orientation="vertical"
             width={tabsWidth()}
+            onActivate={() => setVcsOpen(false)}
             footer={
               vcsDockVisible() ? (
                 <VcsDock orientation="vertical" width={tabsWidth()} onOpen={() => setVcsOpen(true)} />
@@ -1507,7 +1508,7 @@ function App() {
                   when={vcsDockRight()}
                   fallback={
                     <box flexDirection="column" flexShrink={0}>
-                      <SessionTabs width={tabsWidthForDock()} />
+                      <SessionTabs width={tabsWidthForDock()} onActivate={() => setVcsOpen(false)} />
                       <Show when={vcsDockBelow()}>
                         <VcsDock orientation="below" onOpen={() => setVcsOpen(true)} />
                       </Show>
@@ -1516,7 +1517,7 @@ function App() {
                 >
                   <box flexDirection="row" flexShrink={0}>
                     <box flexGrow={1} minWidth={0}>
-                      <SessionTabs width={tabsWidthForDock()} />
+                      <SessionTabs width={tabsWidthForDock()} onActivate={() => setVcsOpen(false)} />
                     </box>
                     <VcsDock orientation="right" width={VCS_DOCK_WIDTH} onOpen={() => setVcsOpen(true)} />
                   </box>

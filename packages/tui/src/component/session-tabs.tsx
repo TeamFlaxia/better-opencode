@@ -512,6 +512,7 @@ export function SessionTabs(
     orientation?: "horizontal" | "vertical"
     width?: number
     footer?: JSX.Element
+    onActivate?: (sessionID: string) => void
   } = {},
 ) {
   const config = useConfig().data
@@ -527,6 +528,7 @@ export function SessionTabs(
           numbers={(props.indicators ?? config.tabs.indicators) === "numbers"}
           width={props.width}
           footer={props.footer}
+          onActivate={props.onActivate}
         />
       </Match>
       <Match when={true}>
@@ -537,6 +539,7 @@ export function SessionTabs(
           unreadMarker={props.unreadMarker}
           numbers={(props.indicators ?? config.tabs.indicators) === "numbers"}
           width={props.width}
+          onActivate={props.onActivate}
         />
       </Match>
     </Switch>
@@ -551,6 +554,7 @@ function VerticalSessionTabs(props: {
   unreadMarker?: TabUnreadMarker
   width?: number
   footer?: JSX.Element
+  onActivate?: (sessionID: string) => void
 }) {
   const tabs: SessionTabsController = props.controller ?? useSessionTabs()
   const data = props.controller ? undefined : useData()
@@ -667,11 +671,13 @@ function VerticalSessionTabs(props: {
   const release = () => {
     const source = dragging()
     if (!source) return
+    const clicked = !didDrag
     if (didDrag) suppressClick = true
     setDragging(undefined)
     const pending = preview()
     if (pending?.sessionID === source) tabs.move(pending.sessionID, pending.index)
     tabs.select(source)
+    if (clicked) props.onActivate?.(source)
   }
 
   const drag = (event: MouseEvent) => {
@@ -1195,6 +1201,7 @@ function HorizontalSessionTabs(props: {
   unreadMarker?: TabUnreadMarker
   numbers: boolean
   width?: number
+  onActivate?: (sessionID: string) => void
 }) {
   const tabs = props.controller ?? useSessionTabs()
   const data = props.controller ? undefined : useData()
@@ -1410,12 +1417,14 @@ function HorizontalSessionTabs(props: {
   const release = () => {
     const source = dragging()
     if (!source) return
+    const clicked = !didDrag
     if (didDrag) suppressClick = true
     setDragging(undefined)
     const pending = preview()
     if (pending?.sessionID === source) tabs.move(pending.sessionID, pending.index)
     if (source === NEW_SESSION_TAB.sessionID) return
     tabs.select(source)
+    if (clicked) props.onActivate?.(source)
   }
 
   const drag = (event: MouseEvent) => {

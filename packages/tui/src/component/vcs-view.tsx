@@ -358,6 +358,8 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
 
   useKeyboard((event) => {
     if (dialog.stack.length > 0) return
+    // Let modified shortcuts reach the global keymap, e.g. ctrl+tab for session tabs.
+    if (event.ctrl || event.meta || event.option || event.super || event.hyper || event.shift) return
     const kind = active()?.kind
     const key = event.name
     const handled = () => {

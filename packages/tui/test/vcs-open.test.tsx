@@ -152,3 +152,99 @@ test(`switching ${layout} tabs with the mouse leaves the version control view`, 
   )
 }, 20000)
 }
+
+test("ctrl+tab switches session tabs while the version control view is open", async () => {
+  const first = session("ses_vcs_tab_key_a", "First key tab")
+  const second = session("ses_vcs_tab_key_b", "Second key tab")
+  const message = (text: string) => ({
+    data: [{ id: `msg_${text}`, type: "user", text, time: { created: 1 } }],
+    cursor: {},
+  })
+  await using setup = await createAppFixture({
+    width: 110,
+    height: 30,
+    args: { sessionID: first.id },
+    config: { animations: false, tabs: { mode: "on", layout: "horizontal" }, experimental: { "vcs-dock": true } },
+    fetch: (url) => {
+      if (url.pathname === "/api/location") return json(location)
+      if (url.pathname === "/api/session") return json({ data: [first, second], cursor: {} })
+      if (url.pathname === `/api/session/${first.id}`) return json({ data: first })
+      if (url.pathname === `/api/session/${second.id}`) return json({ data: second })
+      if (url.pathname === `/api/session/${first.id}/message`) return json(message("Key conversation A"))
+      if (url.pathname === `/api/session/${second.id}/message`) return json(message("Key conversation B"))
+      if (/^\/api\/session\/[^/]+\/(inbox|permission|form)$/.test(url.pathname)) return json({ data: [] })
+      if (url.pathname === "/api/agent")
+        return json({ location, data: [{ id: "build", mode: "primary", hidden: false, permissions: [] }] })
+      if (url.pathname === "/api/provider") return json({ location, data: [{ id: "provider", name: "Provider" }] })
+      if (url.pathname === "/api/model")
+        return json({ location, data: [{ id: "model", providerID: "provider", name: "Model", variants: [] }] })
+    },
+  })
+  await setup.ready
+  await setup.waitForFrame((frame) => frame.includes("Key conversation A"))
+  setup.events.emit({
+    id: "evt_key_select_second",
+    created: 2,
+    type: "tui.session.select",
+    data: { sessionID: second.id },
+    location: { directory },
+  })
+  await setup.waitForFrame((frame) => frame.includes("Key conversation B"))
+  setup.events.emit({
+    id: "evt_key_select_first",
+    created: 3,
+    type: "tui.session.select",
+    data: { sessionID: first.id },
+    location: { directory },
+  })
+  await setup.waitForFrame((frame) => frame.includes("Key conversation A"))
+
+  setup.mockInput.pressKey("x", { ctrl: true })
+  setup.mockInput.pressKey("v")
+  await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
+
+  setup.mockInput.pressTab({ ctrl: true })
+  await setup.waitForFrame(
+    (frame) => frame.includes("Key conversation B") && !frame.includes("No Git, jj, or Mercurial repository"),
+  )
+}, 20000)
+
+test("clicking the active conversation tab closes the version control view", async () => {
+  const only = session("ses_vcs_active_tab", "Active conversation tab")
+  const message = (text: string) => ({
+    data: [{ id: `msg_${text}`, type: "user", text, time: { created: 1 } }],
+    cursor: {},
+  })
+  await using setup = await createAppFixture({
+    width: 110,
+    height: 30,
+    args: { sessionID: only.id },
+    config: { animations: false, tabs: { mode: "on", layout: "vertical" }, experimental: { "vcs-dock": true } },
+    fetch: (url) => {
+      if (url.pathname === "/api/location") return json(location)
+      if (url.pathname === "/api/session") return json({ data: [only], cursor: {} })
+      if (url.pathname === `/api/session/${only.id}`) return json({ data: only })
+      if (url.pathname === `/api/session/${only.id}/message`) return json(message("Active conversation"))
+      if (/^\/api\/session\/[^/]+\/(inbox|permission|form)$/.test(url.pathname)) return json({ data: [] })
+      if (url.pathname === "/api/agent")
+        return json({ location, data: [{ id: "build", mode: "primary", hidden: false, permissions: [] }] })
+      if (url.pathname === "/api/provider") return json({ location, data: [{ id: "provider", name: "Provider" }] })
+      if (url.pathname === "/api/model")
+        return json({ location, data: [{ id: "model", providerID: "provider", name: "Model", variants: [] }] })
+    },
+  })
+  await setup.ready
+  await setup.waitForFrame((frame) => frame.includes("Active conversation"))
+
+  setup.mockInput.pressKey("x", { ctrl: true })
+  setup.mockInput.pressKey("v")
+  await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
+
+  const rows = setup.captureCharFrame().split("\n")
+  const row = rows.findIndex((line) => line.includes("Active conversation tab"))
+  expect(row).toBeGreaterThanOrEqual(0)
+  await setup.mockMouse.click(rows[row]!.indexOf("Active conversation tab") + 2, row)
+  await setup.waitForFrame(
+    (frame) => frame.includes("Active conversation") && !frame.includes("No Git, jj, or Mercurial repository"),
+  )
+}, 20000)
