@@ -37,14 +37,22 @@ jj:
 - Create a new change
 - Squash into the parent
 - Abandon the current change
+- Split selected files into a new change
+- Edit an existing change by revset
 - Set a bookmark
 - Fetch and push with the Git backend
 
 Git:
 
 - Review changes
-- Commit all changes with a message
+- Commit staged changes with a message
+- Stage everything and commit in one action
+- Stage or unstage selected files
 - Fetch, pull, and push
+
+The file picker is a multi-select list: `space` toggles the current file, `a`
+toggles all files, `enter` confirms, and `esc` cancels. Confirming without an
+explicit selection uses the highlighted file.
 
 Actions run from the session directory. Git credential prompts are disabled, so a
 private remote fails with an error toast instead of blocking the TUI.

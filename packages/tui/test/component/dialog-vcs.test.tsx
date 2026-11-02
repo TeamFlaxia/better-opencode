@@ -7,6 +7,7 @@ import { Keymap } from "../../src/context/keymap"
 import { ThemeProvider } from "../../src/context/theme"
 import { TuiI18nProvider } from "../../src/i18n"
 import { DialogVcs, type DialogVcsController } from "../../src/component/dialog-vcs"
+import { DialogVcsFiles } from "../../src/component/dialog-vcs-files"
 import { DialogProvider } from "../../src/ui/dialog"
 import { ToastProvider } from "../../src/ui/toast"
 import type { VcsMutation, VcsSummary } from "../../src/util/vcs"
@@ -46,13 +47,23 @@ function Providers(props: ParentProps) {
 test.each([
   [
     "jj",
-    { kind: "jj" as const, label: "main", detail: "fix tabs", dirty: 2, conflict: false },
+    { kind: "jj" as const, label: "main", detail: "fix tabs", dirty: 2, conflict: false, files: [] },
     ["Create new change", "Describe current change", "Set bookmark", "Push bookmarks"],
   ],
   [
     "git",
-    { kind: "git" as const, label: "main", detail: "2 changed files", dirty: 2, conflict: false },
-    ["Commit all changes", "Fetch", "Pull", "Push"],
+    {
+      kind: "git" as const,
+      label: "main",
+      detail: "2 changed files",
+      dirty: 2,
+      conflict: false,
+      files: [
+        { file: "a.ts", status: "modified" as const, staged: true, unstaged: false },
+        { file: "b.ts", status: "added" as const, staged: false, unstaged: true },
+      ],
+    },
+    ["Commit staged changes", "Commit all changes", "Stage files…", "Unstage files…", "Fetch", "Pull", "Push"],
   ],
 ])("lists built-in %s actions", async (_kind, summary, expected) => {
   const app = await testRender(
@@ -61,7 +72,7 @@ test.each([
         <DialogVcs controller={controller(summary)} />
       </Providers>
     ),
-    { width: 100, height: 30 },
+    { width: 100, height: 50 },
   )
 
   try {
@@ -76,9 +87,42 @@ test.each([
   }
 })
 
+test("selects multiple files for a file action", async () => {
+  const confirmed: string[][] = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <DialogVcsFiles
+          title="Stage files"
+          files={[
+            { file: "src/a.ts", status: "modified", staged: false, unstaged: true },
+            { file: "src/b.ts", status: "added", staged: false, unstaged: true },
+          ]}
+          onConfirm={(paths) => confirmed.push(paths)}
+          onCancel={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 30 },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts") && frame.includes("src/b.ts"))
+    app.mockInput.pressKey(" ")
+    app.mockInput.pressArrow("down")
+    app.mockInput.pressKey(" ")
+    app.mockInput.pressEnter()
+    await app.waitFor(() => confirmed[0]?.length === 2)
+    expect(confirmed[0]).toEqual(["src/a.ts", "src/b.ts"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
 test("runs a selected built-in action", async () => {
   const executed: VcsMutation[] = []
-  const summary: VcsSummary = { kind: "jj", label: "main", detail: "fix tabs", dirty: 2, conflict: false }
+  const summary: VcsSummary = { kind: "jj", label: "main", detail: "fix tabs", dirty: 2, conflict: false, files: [] }
   const base = controller(summary)
   const app = await testRender(
     () => (

@@ -6,6 +6,7 @@ import { type DialogContext, useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { DialogPrompt } from "../ui/dialog-prompt"
 import { DialogSelect } from "../ui/dialog-select"
+import { DialogVcsFiles } from "./dialog-vcs-files"
 
 type VcsDialogAction =
   | "diff"
@@ -14,9 +15,14 @@ type VcsDialogAction =
   | "squash"
   | "abandon"
   | "bookmark"
+  | "split"
+  | "edit"
+  | "stage"
+  | "unstage"
   | "fetch"
   | "push"
   | "commit"
+  | "commit_all"
   | "pull"
   | "refresh"
   | "external"
@@ -57,6 +63,10 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
         { title: "Create new change", value: "new", description: "jj new" },
         { title: "Squash into parent", value: "squash", description: "jj squash" },
         { title: "Abandon current change", value: "abandon", description: "jj abandon @" },
+        ...(current.files.length
+          ? [{ title: "Split files into new change", value: "split" as const, description: "jj split" }]
+          : []),
+        { title: "Edit change", value: "edit", description: "jj edit <revset>" },
         { title: "Set bookmark", value: "bookmark", description: "jj bookmark set" },
         { title: "Fetch from remote", value: "fetch", description: "jj git fetch" },
         { title: "Push bookmarks", value: "push", description: "jj git push" },
@@ -64,7 +74,14 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
     }
     if (current.kind === "git") {
       actions.push(
-        { title: "Commit all changes", value: "commit", description: "git add -A && git commit" },
+        { title: "Commit staged changes", value: "commit", description: "git commit -m" },
+        { title: "Commit all changes", value: "commit_all", description: "git add -A && git commit" },
+        ...(current.files.some((file) => file.unstaged)
+          ? [{ title: "Stage files…", value: "stage" as const, description: "Stage selected files" }]
+          : []),
+        ...(current.files.some((file) => file.staged)
+          ? [{ title: "Unstage files…", value: "unstage" as const, description: "Unstage selected files" }]
+          : []),
         { title: "Fetch", value: "fetch", description: "git fetch --all --prune" },
         { title: "Pull", value: "pull", description: "git pull --ff-only" },
         { title: "Push", value: "push", description: "git push" },
@@ -76,7 +93,13 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
     actions.push({ title: "Refresh status", value: "refresh" })
     return actions
   })
-  const prompt = (title: string, placeholder: string, value: string, action: VcsMutation) => {
+  const prompt = (
+    title: string,
+    placeholder: string,
+    value: string,
+    action: VcsMutation,
+    paths?: readonly string[],
+  ) => {
     dialog.replace(() => (
       <DialogPrompt
         title={title}
@@ -86,11 +109,35 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
           const next = input.trim()
           if (!next) return
           dialog.clear()
-          void vcs.execute(action, next)
+          void vcs.execute(action, next, paths)
         }}
         onCancel={() => dialog.clear()}
       />
     ))
+  }
+  const splitFiles = async () => {
+    const files = summary()?.files ?? []
+    if (files.length === 0) return
+    const paths = await DialogVcsFiles.show(dialog, {
+      title: "Split files into new change",
+      description: "Select the files that move into the new change.",
+      confirmLabel: "split",
+      files,
+    })
+    if (!paths?.length) return
+    prompt("Split description", "Description for the new change", "", "split", paths)
+  }
+  const stageFiles = async (staged: boolean) => {
+    const files = (summary()?.files ?? []).filter((file) => (staged ? file.staged : file.unstaged))
+    if (files.length === 0) return
+    const paths = await DialogVcsFiles.show(dialog, {
+      title: staged ? "Unstage files" : "Stage files",
+      description: staged ? "Select staged files to unstage." : "Select unstaged files to stage.",
+      confirmLabel: staged ? "unstage" : "stage",
+      files,
+    })
+    if (!paths?.length) return
+    void vcs.execute(staged ? "unstage" : "stage", undefined, paths)
   }
   const confirm = (title: string, message: string, action: VcsMutation) => {
     dialog.replace(() => (
@@ -126,8 +173,25 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
       prompt("Set bookmark", "Bookmark name", "", "bookmark")
       return
     }
-    if (action === "commit") {
-      prompt("Commit changes", "Commit message", "", "commit")
+    if (action === "commit" || action === "commit_all") {
+      prompt(
+        action === "commit_all" ? "Commit all changes" : "Commit staged changes",
+        "Commit message",
+        "",
+        action,
+      )
+      return
+    }
+    if (action === "split") {
+      void splitFiles()
+      return
+    }
+    if (action === "edit") {
+      prompt("Edit change", "Revset", "@-", "edit")
+      return
+    }
+    if (action === "stage" || action === "unstage") {
+      void stageFiles(action === "unstage")
       return
     }
     if (action === "abandon") {

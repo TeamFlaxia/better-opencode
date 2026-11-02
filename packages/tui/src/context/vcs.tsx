@@ -5,6 +5,7 @@ import { useConfig } from "../config"
 import {
   detectVcsKind,
   mutationCommands,
+  parseGitStatus,
   resolveVcsTool,
   summarizeJj,
   type VcsKind,
@@ -80,9 +81,14 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
     })
     let generation = 0
     let running = false
+    let queued = false
 
     const refresh = async () => {
-      if (!enabled() || running) return
+      if (!enabled()) return
+      if (running) {
+        queued = true
+        return
+      }
       const target = ref()
       const current = info()
       if (!target || !current) return
@@ -91,18 +97,28 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       setRefreshing(true)
       try {
         const kind = detectVcsKind(current.project.canonical)
-        const next = kind === "jj" ? await collectJj(current.directory) : await collectApi(kind, target)
+        const next =
+          kind === "jj"
+            ? await collectJj(current.directory)
+            : kind === "git"
+              ? await collectGit(target, current.directory)
+              : await collectApi(kind, target)
         if (attempt === generation) setSummary(next)
       } catch {
         // Keep the last summary on transient jj or transport failures.
       } finally {
         running = false
         if (attempt === generation) setRefreshing(false)
+        if (queued) {
+          queued = false
+          void refresh()
+        }
       }
     }
 
     const collectApi = async (kind: VcsKind, target: LocationRef): Promise<VcsSummary> => {
-      if (kind === "none") return { kind, label: "no repository", detail: "", dirty: 0, conflict: false }
+      if (kind === "none")
+        return { kind, label: "no repository", detail: "", dirty: 0, conflict: false, files: [] }
       const [info, status] = await Promise.all([
         client.api.vcs.get({ location: target }).then(
           (result) => result.data,
@@ -113,13 +129,40 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
           () => [],
         ),
       ])
-      const dirty = status.length
+      const files = status.map((file) => ({
+        file: file.file,
+        status: file.status,
+        staged: false,
+        unstaged: true,
+      }))
+      const dirty = files.length
       return {
         kind,
         label: info?.branch.current ?? "detached",
         detail: dirty === 0 ? "clean" : `${dirty} changed file${dirty === 1 ? "" : "s"}`,
         dirty,
         conflict: false,
+        files,
+      }
+    }
+
+    const collectGit = async (target: LocationRef, directory: string): Promise<VcsSummary> => {
+      const [info, status] = await Promise.all([
+        client.api.vcs.get({ location: target }).then(
+          (result) => result.data,
+          () => undefined,
+        ),
+        run("git", ["status", "--porcelain=v1", "-z"], directory),
+      ])
+      const files = parseGitStatus(status.stdout)
+      const dirty = files.length
+      return {
+        kind: "git",
+        label: info?.branch.current ?? "detached",
+        detail: dirty === 0 ? "clean" : `${dirty} changed file${dirty === 1 ? "" : "s"}`,
+        dirty,
+        conflict: files.some((file) => file.conflict),
+        files,
       }
     }
 
@@ -175,14 +218,16 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       }
     }
 
-    const execute = async (action: VcsMutation, input?: string) => {
+    const execute = async (action: VcsMutation, input?: string, paths: readonly string[] = []) => {
       const current = summary()
       const target = info()
       if (!current || !target) return
-      const commands = mutationCommands(current.kind, action, input)
+      const commands = mutationCommands(current.kind, action, input, paths)
       if (commands.length === 0) return
+      // Git prints root-relative paths, so its operations run from the repository root.
+      const cwd = current.kind === "git" ? target.project.canonical : target.directory
       try {
-        for (const command of commands) await run(command.command, command.args, target.directory)
+        for (const command of commands) await run(command.command, command.args, cwd)
         await refresh()
         toast.show({ variant: "success", message: `Version control: ${action} completed` })
       } catch (error) {

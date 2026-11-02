@@ -6,7 +6,9 @@ import {
   detectVcsKind,
   findExecutable,
   mutationCommands,
+  parseGitStatus,
   parseJjDiffSummary,
+  parseJjFiles,
   parseJjLog,
   resolveVcsTool,
   summarizeJj,
@@ -60,6 +62,42 @@ describe("parseJjDiffSummary", () => {
   })
 })
 
+describe("parseGitStatus", () => {
+  test("separates staged, unstaged, untracked, and renamed files", () => {
+    const status =
+      " M src/a.ts\0?? new.txt\0A  added.ts\0MM both.ts\0R  new-name.ts\0old-name.ts\0"
+    expect(parseGitStatus(status)).toEqual([
+      { file: "src/a.ts", status: "modified", staged: false, unstaged: true, conflict: false },
+      { file: "new.txt", status: "added", staged: false, unstaged: true, conflict: false },
+      { file: "added.ts", status: "added", staged: true, unstaged: false, conflict: false },
+      { file: "both.ts", status: "modified", staged: true, unstaged: true, conflict: false },
+      { file: "new-name.ts", status: "modified", staged: true, unstaged: false, conflict: false },
+    ])
+  })
+
+  test("marks unmerged entries as conflicts", () => {
+    expect(parseGitStatus("UU conflict.ts\0")).toEqual([
+      { file: "conflict.ts", status: "modified", staged: true, unstaged: true, conflict: true },
+    ])
+  })
+})
+
+describe("parseJjFiles", () => {
+  test("maps summary codes to file statuses", () => {
+    expect(parseJjFiles("M src/a.ts\nA src/new.ts\nD old.ts\n")).toEqual([
+      { file: "src/a.ts", status: "modified", staged: false, unstaged: true },
+      { file: "src/new.ts", status: "added", staged: false, unstaged: true },
+      { file: "old.ts", status: "deleted", staged: false, unstaged: true },
+    ])
+  })
+
+  test("uses the destination path of a rename", () => {
+    expect(parseJjFiles("R {old.txt => new.txt}\n")).toEqual([
+      { file: "new.txt", status: "modified", staged: false, unstaged: true },
+    ])
+  })
+})
+
 describe("summarizeJj", () => {
   test("uses the bookmark, description, and changed file count", () => {
     expect(summarizeJj("znnstyupywvs\tmain\tfix tabs\tfalse\tfalse\n", "M src/app.tsx\nA src/vcs.ts\n")).toEqual({
@@ -70,6 +108,10 @@ describe("summarizeJj", () => {
       description: "fix tabs",
       dirty: 2,
       conflict: false,
+      files: [
+        { file: "src/app.tsx", status: "modified", staged: false, unstaged: true },
+        { file: "src/vcs.ts", status: "added", staged: false, unstaged: true },
+      ],
     })
   })
 
@@ -99,10 +141,26 @@ describe("mutationCommands", () => {
       { command: "jj", args: ["squash", "--use-destination-message"] },
     ])
     expect(mutationCommands("jj", "fetch")).toEqual([{ command: "jj", args: ["git", "fetch"] }])
+    expect(mutationCommands("jj", "split", "split msg", ["a.ts", "b.ts"])).toEqual([
+      { command: "jj", args: ["split", "-m", "split msg", "--", "a.ts", "b.ts"] },
+    ])
+    expect(mutationCommands("jj", "edit", "@-")).toEqual([{ command: "jj", args: ["edit", "@-"] }])
   })
 
-  test("builds the two-step git commit", () => {
+  test("builds git stage and unstage commands", () => {
+    expect(mutationCommands("git", "stage", undefined, ["a.ts", "b.ts"])).toEqual([
+      { command: "git", args: ["add", "--", "a.ts", "b.ts"] },
+    ])
+    expect(mutationCommands("git", "unstage", undefined, ["a.ts"])).toEqual([
+      { command: "git", args: ["restore", "--staged", "--", "a.ts"] },
+    ])
+  })
+
+  test("commits staged files or stages everything first", () => {
     expect(mutationCommands("git", "commit", "message")).toEqual([
+      { command: "git", args: ["commit", "-m", "message"] },
+    ])
+    expect(mutationCommands("git", "commit_all", "message")).toEqual([
       { command: "git", args: ["add", "-A"] },
       { command: "git", args: ["commit", "-m", "message"] },
     ])
@@ -112,6 +170,10 @@ describe("mutationCommands", () => {
     expect(mutationCommands("jj", "describe", "  ")).toEqual([])
     expect(mutationCommands("jj", "bookmark")).toEqual([])
     expect(mutationCommands("git", "commit")).toEqual([])
+    expect(mutationCommands("git", "commit_all")).toEqual([])
+    expect(mutationCommands("jj", "split", "message")).toEqual([])
+    expect(mutationCommands("git", "stage")).toEqual([])
+    expect(mutationCommands("git", "unstage", undefined, [])).toEqual([])
   })
 
   test("ignores actions that do not belong to the repository kind", () => {

@@ -61,6 +61,7 @@ test("shows jj status and opens the built-in version control dialog on click", a
               change: "znnsty",
               dirty: 2,
               conflict: false,
+              files: [],
             })}
           />
         </box>
@@ -95,6 +96,7 @@ test("keeps the status legible in the compact vertical rail", async () => {
               change: "znnsty",
               dirty: 2,
               conflict: false,
+              files: [],
             })}
           />
           <text>transcript</text>
@@ -127,6 +129,7 @@ test("shows a conflict and exposes the menu on right click", async () => {
               change: "znnsty",
               dirty: 1,
               conflict: true,
+              files: [],
             })}
           />
         </box>

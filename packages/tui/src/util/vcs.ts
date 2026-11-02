@@ -13,11 +13,24 @@ export type VcsMutation =
   | "fetch"
   | "push"
   | "commit"
+  | "commit_all"
   | "pull"
+  | "stage"
+  | "unstage"
+  | "split"
+  | "edit"
 
 export type VcsCommand = {
   readonly command: string
   readonly args: readonly string[]
+}
+
+export type VcsFile = {
+  readonly file: string
+  readonly status: "added" | "modified" | "deleted"
+  readonly staged: boolean
+  readonly unstaged: boolean
+  readonly conflict?: boolean
 }
 
 export type VcsTool = {
@@ -34,6 +47,7 @@ export type VcsSummary = {
   readonly description?: string
   readonly dirty: number
   readonly conflict: boolean
+  readonly files: readonly VcsFile[]
 }
 
 const PREFERRED_TOOLS: Record<VcsKind, readonly VcsToolID[]> = {
@@ -63,28 +77,81 @@ export function parseJjLog(output: string) {
   }
 }
 
-export function parseJjDiffSummary(output: string) {
+export function parseJjFiles(output: string): VcsFile[] {
   return output
     .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean).length
+    .filter(Boolean)
+    .flatMap((line) => {
+      const entry = line.slice(2).trim()
+      if (!entry) return []
+      const code = line[0]
+      // Renames render as `R {old => new}`; the fileset commands take the new path.
+      const file =
+        code === "R" && entry.startsWith("{") && entry.endsWith("}")
+          ? entry.slice(entry.indexOf("=>") + 2, -1).trim()
+          : entry
+      return [
+        {
+          file,
+          status: code === "A" || code === "?" ? "added" : code === "D" ? "deleted" : "modified",
+          staged: false,
+          unstaged: true,
+        } satisfies VcsFile,
+      ]
+    })
+}
+
+export function parseJjDiffSummary(output: string) {
+  return parseJjFiles(output).length
+}
+
+export function parseGitStatus(output: string): VcsFile[] {
+  const entries = output.split("\0")
+  const files: VcsFile[] = []
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index]
+    if (!entry) continue
+    const x = entry[0] ?? " "
+    const y = entry[1] ?? " "
+    const file = entry.slice(3)
+    if (!file) continue
+    // Rename and copy entries carry the original path in the next NUL field.
+    if (x === "R" || x === "C") index++
+    const code = x === " " || x === "?" ? y : x
+    files.push({
+      file,
+      status: code === "A" || code === "?" ? "added" : code === "D" ? "deleted" : "modified",
+      staged: x !== " " && x !== "?",
+      unstaged: y !== " " || x === "?",
+      conflict: x === "U" || y === "U" || (x === "A" && y === "A") || (x === "D" && y === "D"),
+    })
+  }
+  return files
 }
 
 export function summarizeJj(log: string, diff: string): VcsSummary {
   const parsed = parseJjLog(log)
-  const dirty = parseJjDiffSummary(diff)
+  const files = parseJjFiles(diff)
+  const dirty = files.length
   return {
     kind: "jj",
     label: parsed.bookmarks || parsed.change || "working copy",
     detail: parsed.description || (dirty === 0 ? "clean" : `${dirty} changed file${dirty === 1 ? "" : "s"}`),
     dirty,
     conflict: parsed.conflict,
+    files,
     ...(parsed.change ? { change: parsed.change } : {}),
     ...(parsed.description ? { description: parsed.description } : {}),
   }
 }
 
-export function mutationCommands(kind: VcsKind, action: VcsMutation, input?: string): VcsCommand[] {
+export function mutationCommands(
+  kind: VcsKind,
+  action: VcsMutation,
+  input?: string,
+  paths: readonly string[] = [],
+): VcsCommand[] {
   const value = input?.trim()
   if (kind === "jj") {
     if (action === "describe") return value ? [{ command: "jj", args: ["describe", "-m", value] }] : []
@@ -92,18 +159,24 @@ export function mutationCommands(kind: VcsKind, action: VcsMutation, input?: str
     if (action === "squash") return [{ command: "jj", args: ["squash", "--use-destination-message"] }]
     if (action === "abandon") return [{ command: "jj", args: ["abandon", "@"] }]
     if (action === "bookmark") return value ? [{ command: "jj", args: ["bookmark", "set", value, "-r", "@"] }] : []
+    if (action === "split")
+      return value && paths.length ? [{ command: "jj", args: ["split", "-m", value, "--", ...paths] }] : []
+    if (action === "edit") return value ? [{ command: "jj", args: ["edit", value] }] : []
     if (action === "fetch") return [{ command: "jj", args: ["git", "fetch"] }]
     if (action === "push") return [{ command: "jj", args: ["git", "push"] }]
     return []
   }
   if (kind === "git") {
-    if (action === "commit")
+    if (action === "commit") return value ? [{ command: "git", args: ["commit", "-m", value] }] : []
+    if (action === "commit_all")
       return value
         ? [
             { command: "git", args: ["add", "-A"] },
             { command: "git", args: ["commit", "-m", value] },
           ]
         : []
+    if (action === "stage") return paths.length ? [{ command: "git", args: ["add", "--", ...paths] }] : []
+    if (action === "unstage") return paths.length ? [{ command: "git", args: ["restore", "--staged", "--", ...paths] }] : []
     if (action === "fetch") return [{ command: "git", args: ["fetch", "--all", "--prune"] }]
     if (action === "pull") return [{ command: "git", args: ["pull", "--ff-only"] }]
     if (action === "push") return [{ command: "git", args: ["push"] }]
