@@ -1,13 +1,13 @@
 # OpenCode Changelog
 
-The changelog Worker renders the root `CHANGELOG.md` at `https://opencode.ai/changelog`.
+The changelog Worker renders upstream's root `CHANGELOG.md` at `https://opencode.ai/changelog`.
 
 It owns two routes, `opencode.ai/changelog` and `opencode.ai/changelog/*`. Requests for
 `/changelog.json` and localized pages such as `/de/changelog` still reach the Console.
 
 ## Content
 
-Each request reads `CHANGELOG.md` from the `dev` branch on raw GitHub through the Workers
+Each request reads the upstream `CHANGELOG.md` from the `dev` branch on raw GitHub through the Workers
 cache. A copy stays fresh for five minutes. After that, the Worker serves the stale copy for up
 to a day and refreshes it in the background. If GitHub fails, the stale copy is kept. Releases
 appear without a deploy once the version-sync commit lands on `dev`.

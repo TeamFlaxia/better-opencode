@@ -2,13 +2,12 @@
 
 better-opencode is a fork of opencode. Upstream changes arrive on `upstream`; fork work happens on `main`. Before starting, read:
 
-- [docs/README.md](docs/README.md) — fork policy and current feature inventory
-- [docs/roadmap.md](docs/roadmap.md) — what is planned and in which order
+- [docs/README.md](docs/README.md) — fork policy, current feature inventory, and scope
 - [AGENTS.md](AGENTS.md) — implementation, style, and verification rules
 
 ## Choose work
 
-Prefer items already described in `docs/features` or `docs/roadmap.md`. New product ideas should be written up as a short proposal in `docs/features` before implementation, so the scope and the affected packages are clear.
+Prefer items already described in `docs/README.md`. New product ideas should be written up as a short proposal in `docs/` before implementation, so the scope and the affected packages are clear.
 
 Upstream-compatible fixes (bugs, performance, environment issues) are always welcome. Keep the diff small so it can be synced or upstreamed later.
 
@@ -69,14 +68,13 @@ git switch main
 git merge origin/upstream
 ```
 
-Resolve conflicts by keeping fork features on top of the upstream structure. If a conflict is ambiguous, stop and document the decision in `docs/roadmap.md` (decision log).
+Resolve conflicts by keeping fork features on top of the upstream structure. If a conflict is ambiguous, stop and document the decision in the pull request or `docs/`.
 
 ## Documentation
 
 User-facing behavior changes need a matching note in `docs/`:
 
-- design or scope change → the relevant `docs/features/*.md`
-- priority or phase change → `docs/roadmap.md`
+- design or scope change → `docs/README.md` or a new note in `docs/`
 - workflow or tooling change → `docs/development.md`
 
-Write in the style of the surrounding document. Feature documents currently use Japanese; code, identifiers, and commands stay in English.
+Write in the style of the surrounding document. Design notes currently use Japanese; code, identifiers, and commands stay in English.

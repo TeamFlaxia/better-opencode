@@ -1,6 +1,6 @@
 # better-opencode ドキュメント
 
-opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を強化したフォーク **better-opencode** の設計・ロードマップをまとめる場所です。
+opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を強化したフォーク **better-opencode** の設計方針と機能棚卸しをまとめる場所です。
 
 ## 開発方針
 
@@ -9,7 +9,7 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 - 新しい振る舞い・エンドポイントは既存ルールに従って **experimental** から始める。
   - 設定は `experimental.*`
   - HTTP は `/api/experimental/...`、OpenAPI 識別子は `experimental.<group>.<method>`、SDK は `client.experimental.<group>.<method>`
-  - 昇格時に `CHANGELOG.md` へ記載する
+  - 昇格時は PR の説明とリリースノートに記載する
 - 依存方向は `Schema` → `Core` / `Protocol` → `Server`。`Client` は `Schema` と `Protocol` のみに依存し、`Core` / `Server` を参照しない。
 - 追加するツールは `packages/core/src/tool/plugin/*` の既存パターン（`export const Plugin = { id, effect }`）で実装し、`Effect.fn` で名前を付ける。
 
@@ -44,16 +44,14 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 
 ## 提案一覧
 
-| # | 提案 | 柱 | 規模 | ドキュメント |
-| --- | --- | --- | --- | --- |
-| 1 | コードインテリジェンス層（シンボル索引・依存グラフ・影響範囲） | コード理解 | L | [features/01-code-intelligence.md](features/01-code-intelligence.md) |
-| 2 | 予算・安全ガードレール（トークン/コスト上限、承認ポリシー） | 安全とコスト | M | [features/02-budget-guardrails.md](features/02-budget-guardrails.md) |
-| 3 | テスト連動ループ（関連テストの自動選択と失敗の差し戻し） | 検証 | M | [features/03-test-loop.md](features/03-test-loop.md) |
-| 4 | チェックポイント / 一括 undo | 検証 | S–M | [features/04-checkpoints.md](features/04-checkpoints.md) |
-| 5 | マルチエージェント編成（worktree 分離・並列・統合レビュー） | 並列化 | L | [features/05-multi-agent.md](features/05-multi-agent.md) |
-| 6 | 小さく効く改善（履歴検索/エクスポート、注入防御、ルーティング） | 履歴・安全 | S each | [features/06-quick-wins.md](features/06-quick-wins.md) |
-
-優先順位とフェーズ計画は [roadmap.md](roadmap.md) を参照。
+| # | 提案 | 柱 | 規模 |
+| --- | --- | --- | --- |
+| 1 | コードインテリジェンス層（シンボル索引・依存グラフ・影響範囲） | コード理解 | L |
+| 2 | 予算・安全ガードレール（トークン/コスト上限、承認ポリシー） | 安全とコスト | M |
+| 3 | テスト連動ループ（関連テストの自動選択と失敗の差し戻し） | 検証 | M |
+| 4 | チェックポイント / 一括 undo | 検証 | S–M |
+| 5 | マルチエージェント編成（worktree 分離・並列・統合レビュー） | 並列化 | L |
+| 6 | 小さく効く改善（履歴検索/エクスポート、注入防御、ルーティング） | 履歴・安全 | S each |
 
 ## 非目標（当面）
 

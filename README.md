@@ -12,7 +12,7 @@ Early development. better-opencode is a TUI-first fork: the desktop app and web 
 - `upstream` … upstream mirror. Do not commit fork work here.
 - `origin/upstream` … upstream `anomalyco/opencode` `dev`, used for synchronization.
 
-See the [roadmap](docs/roadmap.md) and the [feature proposals](docs/README.md). Most design notes are written in Japanese.
+See the [fork documentation](docs/README.md) for the current scope and plans. Most design notes are written in Japanese.
 
 ## What we are building
 
@@ -24,8 +24,6 @@ See the [roadmap](docs/roadmap.md) and the [feature proposals](docs/README.md). 
 | Cost control | Session / daily token and cost budgets with soft warnings and hard stops | Proposed |
 | Parallelism | Worktree-isolated subagents with a consolidated diff review | Proposed |
 | Incremental | Session search and export, prompt-injection defenses, role-based model routing | Proposed |
-
-Details: [docs/features](docs/features/).
 
 ## Development
 
@@ -98,10 +96,8 @@ Tags must look like `v<major>.<minor>.<patch>[-prerelease]` and point to a commi
 
 ## Documentation
 
-- [docs/README.md](docs/README.md) — fork policy, current feature inventory, proposal index
-- [docs/roadmap.md](docs/roadmap.md) — priorities, phases, metrics
+- [docs/README.md](docs/README.md) — fork policy and current feature inventory
 - [docs/development.md](docs/development.md) — setup, branch workflow, upstream sync, verification
-- [docs/features](docs/features/) — individual feature designs
 - [AGENTS.md](AGENTS.md) — implementation and style rules
 
 ## License

@@ -1,12 +1,19 @@
 import { describe, expect, test } from "bun:test"
-import path from "path"
 import { parse } from "../src/highlights"
 
 describe("highlights", () => {
-  test("parses the v2.0.27 release notes", async () => {
-    const changelog = await Bun.file(path.resolve(import.meta.dir, "../../../CHANGELOG.md")).text()
-    const notes = changelog.split(/^## v2\.0\.27 .*$/m)[1].split(/^## /m)[0]
-    const result = parse(notes)
+  test("parses the v2.0.27 release notes", () => {
+    const result = parse(
+      [
+        "### Highlights",
+        "",
+        "- **Built-In Worktree Tools**: Ask OpenCode to use `worktree_create`, `worktree_list`, and `worktree_remove` in Code Mode. You can create isolated worktrees, move sessions into them, and remove them with normal edit approval. ([#53981](https://github.com/anomalyco/opencode/pull/53981))",
+        "- **Safer Remote Pairing**: The first `opencode pair --remote` now warns that it will expose your server and asks for confirmation. For non-interactive use, pass `opencode pair --remote --yes`. ([#54561](https://github.com/anomalyco/opencode/pull/54561))",
+        "- **Installable Web App**: Use Chrome or Edge’s **Install** button to install the OpenCode web app, including when it runs behind an authenticating proxy. ([#53905](https://github.com/anomalyco/opencode/pull/53905))",
+        "- **Clear Session Failures**: Desktop and TUI timelines now show execution errors that happen before or between model steps instead of ending without an explanation. ([#53826](https://github.com/anomalyco/opencode/pull/53826))",
+        "- **Automatic Project Cleanup**: Projects whose directories no longer exist are automatically hidden from the project list. Opening the directory again restores the project. ([#54354](https://github.com/anomalyco/opencode/pull/54354))",
+      ].join("\n"),
+    )
 
     expect(result.problems).toEqual([])
     expect(result.items.map((item) => item.title)).toEqual([
