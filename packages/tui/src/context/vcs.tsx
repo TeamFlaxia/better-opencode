@@ -5,9 +5,11 @@ import { useConfig } from "../config"
 import {
   detectVcsKind,
   mutationCommands,
+  parseGitDiffHunks,
   parseGitStatus,
   resolveVcsTool,
   summarizeJj,
+  type VcsHunkPatch,
   type VcsKind,
   type VcsMutation,
   type VcsSummary,
@@ -25,9 +27,9 @@ import { useSessionTerminals } from "./session-terminals"
 const JJ_LOG_TEMPLATE =
   'change_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ empty ++ "\\t" ++ conflict'
 
-function run(command: string, args: readonly string[], cwd: string) {
+function run(command: string, args: readonly string[], cwd: string, input?: string) {
   return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-    execFile(
+    const child = execFile(
       command,
       args,
       {
@@ -41,6 +43,7 @@ function run(command: string, args: readonly string[], cwd: string) {
         resolve({ stdout, stderr })
       },
     )
+    child.stdin?.end(input ?? "")
   })
 }
 
@@ -174,14 +177,39 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       return summarizeJj(log.stdout, diff.stdout)
     }
 
-    const openTool = async () => {
-      const current = summary()
+    const launch = async (title: string, command: string, args: string[] = []) => {
       const id = sessionID()
-      if (!current || current.kind === "none") return
       if (!id) {
         toast.show({ variant: "warning", message: "Open a session to launch a version control tool." })
         return
       }
+      try {
+        const existing = sessions
+          .get(id)
+          .terminals.find((terminal) => terminal.title === title && terminal.status === "running")
+        if (existing) {
+          await sessions.selectTerminal(id, existing.id)
+          return
+        }
+        await sessions.newTerminal(id, {
+          command,
+          args,
+          title,
+          cwd: info()?.directory,
+          focus: true,
+        })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: `Failed to open ${title}`,
+          message: errorMessage(error),
+        })
+      }
+    }
+
+    const openTool = async () => {
+      const current = summary()
+      if (!current || current.kind === "none") return
       const selected = resolveVcsTool(current.kind, config.data.vcs.tool)
       if (!selected) {
         const suggestion =
@@ -195,27 +223,11 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         })
         return
       }
-      try {
-        const existing = sessions
-          .get(id)
-          .terminals.find((terminal) => terminal.title === selected.label && terminal.status === "running")
-        if (existing) {
-          await sessions.selectTerminal(id, existing.id)
-          return
-        }
-        await sessions.newTerminal(id, {
-          command: selected.command,
-          title: selected.label,
-          cwd: info()?.directory,
-          focus: true,
-        })
-      } catch (error) {
-        toast.show({
-          variant: "error",
-          title: `Failed to open ${selected.label}`,
-          message: errorMessage(error),
-        })
-      }
+      await launch(selected.label, selected.command)
+    }
+
+    const openCommand = async (title: string, command: string, args: string[]) => {
+      await launch(title, command, args)
     }
 
     const execute = async (action: VcsMutation, input?: string, paths: readonly string[] = []) => {
@@ -234,6 +246,38 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         toast.show({
           variant: "error",
           title: "Version control action failed",
+          message: errorMessage(error),
+        })
+      }
+    }
+
+    const hunks = async (file: string, cached: boolean): Promise<VcsHunkPatch> => {
+      const target = info()
+      if (!target) return { header: "", hunks: [] }
+      const result = await run(
+        "git",
+        ["diff", ...(cached ? ["--cached"] : []), "--", file],
+        target.project.canonical,
+      )
+      return parseGitDiffHunks(result.stdout)
+    }
+
+    const applyHunks = async (patch: string, reverse: boolean) => {
+      const target = info()
+      if (!target) return
+      try {
+        await run(
+          "git",
+          ["apply", "--cached", ...(reverse ? ["-R"] : [])],
+          target.project.canonical,
+          patch,
+        )
+        await refresh()
+        toast.show({ variant: "success", message: reverse ? "Hunks unstaged" : "Hunks staged" })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: "Hunk operation failed",
           message: errorMessage(error),
         })
       }
@@ -267,7 +311,10 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       tool,
       refresh,
       openTool,
+      openCommand,
       execute,
+      hunks,
+      applyHunks,
     }
   },
 })

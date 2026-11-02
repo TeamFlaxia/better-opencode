@@ -3,9 +3,11 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os"
 import path from "node:path"
 import {
+  buildHunkPatch,
   detectVcsKind,
   findExecutable,
   mutationCommands,
+  parseGitDiffHunks,
   parseGitStatus,
   parseJjDiffSummary,
   parseJjFiles,
@@ -98,6 +100,46 @@ describe("parseJjFiles", () => {
   })
 })
 
+describe("git hunks", () => {
+  const patch = [
+    "diff --git a/a.ts b/a.ts",
+    "index 1111111..2222222 100644",
+    "--- a/a.ts",
+    "+++ b/a.ts",
+    "@@ -1,2 +1,3 @@",
+    " one",
+    "+two",
+    " three",
+    "@@ -10,2 +11,2 @@",
+    "-ten",
+    "+eleven",
+    " twelve",
+    "",
+  ].join("\n")
+
+  test("splits a patch into header and hunks", () => {
+    const parsed = parseGitDiffHunks(patch)
+    expect(parsed.header).toBe(
+      "diff --git a/a.ts b/a.ts\nindex 1111111..2222222 100644\n--- a/a.ts\n+++ b/a.ts\n",
+    )
+    expect(parsed.hunks).toHaveLength(2)
+    expect(parsed.hunks[0]).toMatchObject({ header: "@@ -1,2 +1,3 @@", additions: 1, deletions: 0 })
+    expect(parsed.hunks[1]).toMatchObject({ header: "@@ -10,2 +11,2 @@", additions: 1, deletions: 1 })
+  })
+
+  test("rebuilds a patch with only the selected hunks", () => {
+    const parsed = parseGitDiffHunks(patch)
+    expect(buildHunkPatch(parsed, [parsed.hunks[1]!])).toBe(parsed.header + parsed.hunks[1]!.text)
+  })
+
+  test("returns no hunks for a binary or empty patch", () => {
+    expect(parseGitDiffHunks("Binary files a/a.png and b/a.png differ\n")).toEqual({
+      header: "Binary files a/a.png and b/a.png differ\n",
+      hunks: [],
+    })
+  })
+})
+
 describe("summarizeJj", () => {
   test("uses the bookmark, description, and changed file count", () => {
     expect(summarizeJj("znnstyupywvs\tmain\tfix tabs\tfalse\tfalse\n", "M src/app.tsx\nA src/vcs.ts\n")).toEqual({
@@ -143,6 +185,9 @@ describe("mutationCommands", () => {
     expect(mutationCommands("jj", "fetch")).toEqual([{ command: "jj", args: ["git", "fetch"] }])
     expect(mutationCommands("jj", "split", "split msg", ["a.ts", "b.ts"])).toEqual([
       { command: "jj", args: ["split", "-m", "split msg", "--", "a.ts", "b.ts"] },
+    ])
+    expect(mutationCommands("jj", "split_parallel", "split msg", ["a.ts"])).toEqual([
+      { command: "jj", args: ["split", "-p", "-m", "split msg", "--", "a.ts"] },
     ])
     expect(mutationCommands("jj", "edit", "@-")).toEqual([{ command: "jj", args: ["edit", "@-"] }])
   })

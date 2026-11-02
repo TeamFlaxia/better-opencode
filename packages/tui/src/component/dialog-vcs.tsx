@@ -2,11 +2,14 @@ import { createMemo } from "solid-js"
 import { useVcs } from "../context/vcs"
 import { Keymap } from "../context/keymap"
 import type { VcsMutation } from "../util/vcs"
+import { errorMessage } from "../util/error"
+import { useToast } from "../ui/toast"
 import { type DialogContext, useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { DialogPrompt } from "../ui/dialog-prompt"
 import { DialogSelect } from "../ui/dialog-select"
 import { DialogVcsFiles } from "./dialog-vcs-files"
+import { DialogVcsHunks } from "./dialog-vcs-hunks"
 
 type VcsDialogAction =
   | "diff"
@@ -16,9 +19,13 @@ type VcsDialogAction =
   | "abandon"
   | "bookmark"
   | "split"
+  | "split_parallel"
+  | "split_interactive"
   | "edit"
   | "stage"
   | "unstage"
+  | "stage_hunks"
+  | "unstage_hunks"
   | "fetch"
   | "push"
   | "commit"
@@ -29,13 +36,22 @@ type VcsDialogAction =
 
 export type DialogVcsController = Pick<
   ReturnType<typeof useVcs>,
-  "summary" | "refreshing" | "tool" | "refresh" | "openTool" | "execute"
+  | "summary"
+  | "refreshing"
+  | "tool"
+  | "refresh"
+  | "openTool"
+  | "openCommand"
+  | "execute"
+  | "hunks"
+  | "applyHunks"
 >
 
 export function DialogVcs(props: { controller?: DialogVcsController }) {
   const vcs = props.controller ?? useVcs()
   const dialog = useDialog()
   const keymap = Keymap.use()
+  const toast = useToast()
   const summary = () => vcs.summary()
   const title = () => {
     const current = summary()
@@ -64,8 +80,20 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
         { title: "Squash into parent", value: "squash", description: "jj squash" },
         { title: "Abandon current change", value: "abandon", description: "jj abandon @" },
         ...(current.files.length
-          ? [{ title: "Split files into new change", value: "split" as const, description: "jj split" }]
+          ? [
+              { title: "Split files into new change", value: "split" as const, description: "jj split" },
+              {
+                title: "Split files into parallel change",
+                value: "split_parallel" as const,
+                description: "jj split --parallel",
+              },
+            ]
           : []),
+        {
+          title: "Split interactively (jj editor)",
+          value: "split_interactive" as const,
+          description: "hunk-level split in a terminal",
+        },
         { title: "Edit change", value: "edit", description: "jj edit <revset>" },
         { title: "Set bookmark", value: "bookmark", description: "jj bookmark set" },
         { title: "Fetch from remote", value: "fetch", description: "jj git fetch" },
@@ -77,10 +105,20 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
         { title: "Commit staged changes", value: "commit", description: "git commit -m" },
         { title: "Commit all changes", value: "commit_all", description: "git add -A && git commit" },
         ...(current.files.some((file) => file.unstaged)
-          ? [{ title: "Stage files…", value: "stage" as const, description: "Stage selected files" }]
+          ? [
+              { title: "Stage files…", value: "stage" as const, description: "Stage selected files" },
+              { title: "Stage hunks…", value: "stage_hunks" as const, description: "Stage selected hunks" },
+            ]
           : []),
         ...(current.files.some((file) => file.staged)
-          ? [{ title: "Unstage files…", value: "unstage" as const, description: "Unstage selected files" }]
+          ? [
+              { title: "Unstage files…", value: "unstage" as const, description: "Unstage selected files" },
+              {
+                title: "Unstage hunks…",
+                value: "unstage_hunks" as const,
+                description: "Unstage selected hunks",
+              },
+            ]
           : []),
         { title: "Fetch", value: "fetch", description: "git fetch --all --prune" },
         { title: "Pull", value: "pull", description: "git pull --ff-only" },
@@ -115,17 +153,60 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
       />
     ))
   }
-  const splitFiles = async () => {
+  const splitFiles = async (parallel: boolean) => {
     const files = summary()?.files ?? []
     if (files.length === 0) return
     const paths = await DialogVcsFiles.show(dialog, {
-      title: "Split files into new change",
+      title: parallel ? "Split files into parallel change" : "Split files into new change",
       description: "Select the files that move into the new change.",
       confirmLabel: "split",
       files,
     })
     if (!paths?.length) return
-    prompt("Split description", "Description for the new change", "", "split", paths)
+    prompt(
+      "Split description",
+      "Description for the new change",
+      "",
+      parallel ? "split_parallel" : "split",
+      paths,
+    )
+  }
+  const openHunks = async (file: string, staged: boolean) => {
+    try {
+      const patch = await vcs.hunks(file, staged)
+      if (patch.hunks.length === 0) {
+        toast.show({ variant: "info", message: `No hunks available for ${file}` })
+        return
+      }
+      const selected = await DialogVcsHunks.show(dialog, {
+        title: staged ? `Unstage hunks · ${file}` : `Stage hunks · ${file}`,
+        description: "Select hunks with space, then confirm.",
+        confirmLabel: staged ? "unstage" : "stage",
+        patch,
+      })
+      if (!selected) return
+      await vcs.applyHunks(selected, staged)
+    } catch (error) {
+      toast.show({
+        variant: "error",
+        title: "Failed to read hunks",
+        message: errorMessage(error),
+      })
+    }
+  }
+  const chooseHunkFile = (staged: boolean) => {
+    const files = (summary()?.files ?? []).filter((file) => (staged ? file.staged : file.unstaged))
+    if (files.length === 0) return
+    dialog.replace(() => (
+      <DialogSelect
+        title={staged ? "Unstage hunks · choose file" : "Stage hunks · choose file"}
+        options={files.map((file) => ({ title: file.file, value: file.file }))}
+        onSelect={(option) => {
+          dialog.clear()
+          void openHunks(option.value, staged)
+        }}
+      />
+    ))
   }
   const stageFiles = async (staged: boolean) => {
     const files = (summary()?.files ?? []).filter((file) => (staged ? file.staged : file.unstaged))
@@ -183,7 +264,16 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
       return
     }
     if (action === "split") {
-      void splitFiles()
+      void splitFiles(false)
+      return
+    }
+    if (action === "split_parallel") {
+      void splitFiles(true)
+      return
+    }
+    if (action === "split_interactive") {
+      dialog.clear()
+      void vcs.openCommand("jj split", "jj", ["split", "-i"])
       return
     }
     if (action === "edit") {
@@ -192,6 +282,10 @@ export function DialogVcs(props: { controller?: DialogVcsController }) {
     }
     if (action === "stage" || action === "unstage") {
       void stageFiles(action === "unstage")
+      return
+    }
+    if (action === "stage_hunks" || action === "unstage_hunks") {
+      chooseHunkFile(action === "unstage_hunks")
       return
     }
     if (action === "abandon") {

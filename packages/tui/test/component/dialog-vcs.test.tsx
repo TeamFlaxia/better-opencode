@@ -8,6 +8,7 @@ import { ThemeProvider } from "../../src/context/theme"
 import { TuiI18nProvider } from "../../src/i18n"
 import { DialogVcs, type DialogVcsController } from "../../src/component/dialog-vcs"
 import { DialogVcsFiles } from "../../src/component/dialog-vcs-files"
+import { DialogVcsHunks } from "../../src/component/dialog-vcs-hunks"
 import { DialogProvider } from "../../src/ui/dialog"
 import { ToastProvider } from "../../src/ui/toast"
 import type { VcsMutation, VcsSummary } from "../../src/util/vcs"
@@ -22,7 +23,10 @@ function controller(summary: VcsSummary): DialogVcsController {
     tool: () => undefined,
     refresh: async () => {},
     openTool: async () => {},
+    openCommand: async () => {},
     execute: async () => {},
+    hunks: async () => ({ header: "", hunks: [] }),
+    applyHunks: async () => {},
   }
 }
 
@@ -47,8 +51,23 @@ function Providers(props: ParentProps) {
 test.each([
   [
     "jj",
-    { kind: "jj" as const, label: "main", detail: "fix tabs", dirty: 2, conflict: false, files: [] },
-    ["Create new change", "Describe current change", "Set bookmark", "Push bookmarks"],
+    {
+      kind: "jj" as const,
+      label: "main",
+      detail: "fix tabs",
+      dirty: 2,
+      conflict: false,
+      files: [{ file: "a.ts", status: "modified" as const, staged: false, unstaged: true }],
+    },
+    [
+      "Create new change",
+      "Describe current change",
+      "Set bookmark",
+      "Push bookmarks",
+      "Split files into new change",
+      "Split files into parallel change",
+      "Split interactively",
+    ],
   ],
   [
     "git",
@@ -63,7 +82,17 @@ test.each([
         { file: "b.ts", status: "added" as const, staged: false, unstaged: true },
       ],
     },
-    ["Commit staged changes", "Commit all changes", "Stage files…", "Unstage files…", "Fetch", "Pull", "Push"],
+    [
+      "Commit staged changes",
+      "Commit all changes",
+      "Stage files…",
+      "Stage hunks…",
+      "Unstage files…",
+      "Unstage hunks…",
+      "Fetch",
+      "Pull",
+      "Push",
+    ],
   ],
 ])("lists built-in %s actions", async (_kind, summary, expected) => {
   const app = await testRender(
@@ -115,6 +144,44 @@ test("selects multiple files for a file action", async () => {
     app.mockInput.pressEnter()
     await app.waitFor(() => confirmed[0]?.length === 2)
     expect(confirmed[0]).toEqual(["src/a.ts", "src/b.ts"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("selects multiple hunks and returns only those hunks", async () => {
+  const confirmed: string[] = []
+  const header = "diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n"
+  const patch = {
+    header,
+    hunks: [
+      { header: "@@ -1 +1 @@", text: "@@ -1 +1 @@\n-one\n+two\n", additions: 1, deletions: 1 },
+      { header: "@@ -5 +5 @@", text: "@@ -5 +5 @@\n-five\n+six\n", additions: 1, deletions: 1 },
+    ],
+  }
+  const app = await testRender(
+    () => (
+      <Providers>
+        <DialogVcsHunks
+          title="Stage hunks"
+          patch={patch}
+          onConfirm={(value) => confirmed.push(value)}
+          onCancel={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 30 },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("@@ -1 +1 @@") && frame.includes("@@ -5 +5 @@"))
+    app.mockInput.pressKey(" ")
+    app.mockInput.pressArrow("down")
+    app.mockInput.pressKey(" ")
+    app.mockInput.pressEnter()
+    await app.waitFor(() => confirmed.length === 1)
+    expect(confirmed[0]).toBe(header + patch.hunks[0]!.text + patch.hunks[1]!.text)
   } finally {
     app.renderer.destroy()
   }

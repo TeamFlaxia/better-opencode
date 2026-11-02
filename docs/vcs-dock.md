@@ -37,7 +37,8 @@ jj:
 - Create a new change
 - Squash into the parent
 - Abandon the current change
-- Split selected files into a new change
+- Split selected files into a new change or a parallel change
+- Split interactively with jj's diff editor in a terminal
 - Edit an existing change by revset
 - Set a bookmark
 - Fetch and push with the Git backend
@@ -48,11 +49,18 @@ Git:
 - Commit staged changes with a message
 - Stage everything and commit in one action
 - Stage or unstage selected files
+- Stage or unstage selected hunks
 - Fetch, pull, and push
 
-The file picker is a multi-select list: `space` toggles the current file, `a`
-toggles all files, `enter` confirms, and `esc` cancels. Confirming without an
-explicit selection uses the highlighted file.
+The file and hunk pickers are multi-select lists: `space` toggles the current
+item, `a` toggles all items, `enter` confirms, and `esc` cancels. Confirming
+without an explicit selection uses the highlighted item.
+
+Hunk staging uses the unstaged diff for staging and the staged diff with a
+reverse apply for unstaging, so partially staged files keep both sides intact.
+jj does not expose a non-interactive hunk split API; the interactive option opens
+`jj split -i` in a terminal pane so jj's own diff editor can handle hunk-level
+selection.
 
 Actions run from the session directory. Git credential prompts are disabled, so a
 private remote fails with an error toast instead of blocking the TUI.

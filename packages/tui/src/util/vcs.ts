@@ -18,6 +18,7 @@ export type VcsMutation =
   | "stage"
   | "unstage"
   | "split"
+  | "split_parallel"
   | "edit"
 
 export type VcsCommand = {
@@ -31,6 +32,18 @@ export type VcsFile = {
   readonly staged: boolean
   readonly unstaged: boolean
   readonly conflict?: boolean
+}
+
+export type VcsHunk = {
+  readonly header: string
+  readonly text: string
+  readonly additions: number
+  readonly deletions: number
+}
+
+export type VcsHunkPatch = {
+  readonly header: string
+  readonly hunks: readonly VcsHunk[]
 }
 
 export type VcsTool = {
@@ -130,6 +143,27 @@ export function parseGitStatus(output: string): VcsFile[] {
   return files
 }
 
+export function parseGitDiffHunks(patch: string): VcsHunkPatch {
+  const starts = [...patch.matchAll(/^@@/gm)].map((match) => match.index)
+  if (starts.length === 0) return { header: patch, hunks: [] }
+  const header = patch.slice(0, starts[0])
+  const hunks = starts.map((start, index) => {
+    const text = patch.slice(start, starts[index + 1] ?? patch.length)
+    const lines = text.split("\n")
+    return {
+      header: lines[0] ?? "",
+      text,
+      additions: lines.filter((line) => line.startsWith("+")).length,
+      deletions: lines.filter((line) => line.startsWith("-")).length,
+    } satisfies VcsHunk
+  })
+  return { header, hunks }
+}
+
+export function buildHunkPatch(patch: VcsHunkPatch, selected: readonly VcsHunk[]) {
+  return patch.header + selected.map((hunk) => hunk.text).join("")
+}
+
 export function summarizeJj(log: string, diff: string): VcsSummary {
   const parsed = parseJjLog(log)
   const files = parseJjFiles(diff)
@@ -161,6 +195,10 @@ export function mutationCommands(
     if (action === "bookmark") return value ? [{ command: "jj", args: ["bookmark", "set", value, "-r", "@"] }] : []
     if (action === "split")
       return value && paths.length ? [{ command: "jj", args: ["split", "-m", value, "--", ...paths] }] : []
+    if (action === "split_parallel")
+      return value && paths.length
+        ? [{ command: "jj", args: ["split", "-p", "-m", value, "--", ...paths] }]
+        : []
     if (action === "edit") return value ? [{ command: "jj", args: ["edit", value] }] : []
     if (action === "fetch") return [{ command: "jj", args: ["git", "fetch"] }]
     if (action === "push") return [{ command: "jj", args: ["git", "push"] }]
