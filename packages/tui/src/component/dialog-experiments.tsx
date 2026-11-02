@@ -25,6 +25,11 @@ export const experiments: Experiment[] = [
     title: "TUI tools",
     description: "Let the agent open terminals in this TUI (requires server support)",
   },
+  {
+    id: "vcs-dock",
+    title: "Version control dock",
+    description: "Show jj or git status beside the tab bar and open lazyjj, jjui, or lazygit",
+  },
 ]
 
 export function DialogExperiments() {

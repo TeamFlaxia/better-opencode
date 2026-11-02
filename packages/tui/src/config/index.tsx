@@ -201,6 +201,19 @@ export const Info = Schema.Struct({
       }),
     }),
   ).annotate({ description: "Tab strip settings" }),
+  vcs: Schema.optional(
+    Schema.Struct({
+      placement: Schema.optional(Schema.Literals(["right", "below"])).annotate({
+        description: "Keep the version control dock at the right edge of the tab bar or below it",
+      }),
+      tool: Schema.optional(Schema.Literals(["auto", "lazygit", "lazyjj", "jjui"])).annotate({
+        description: "External version control tool; auto prefers lazyjj or jjui for jj and lazygit for git",
+      }),
+      refresh_interval: Schema.optional(Schema.Int.check(Schema.isGreaterThan(0))).annotate({
+        description: "Version control status refresh interval in milliseconds",
+      }),
+    }),
+  ).annotate({ description: "Version control dock settings" }),
   mini: Schema.optional(
     Schema.Struct({
       thinking: Schema.optional(Schema.Literals(["show", "hide"])).annotate({
@@ -286,6 +299,11 @@ export type Resolved = Omit<Info, "attention" | "cursor" | "keybinds" | "leader"
     layout: "horizontal" | "vertical"
     indicators: "status" | "numbers"
   }
+  vcs: {
+    placement: "right" | "below"
+    tool: "auto" | "lazygit" | "lazyjj" | "jjui"
+    refresh_interval: number
+  }
 }
 
 export function resolve(
@@ -336,6 +354,12 @@ export function resolve(
       scope: input.tabs?.scope ?? "cwd",
       layout: input.tabs?.layout ?? "horizontal",
       indicators: input.tabs?.indicators ?? "status",
+    },
+    vcs: {
+      ...input.vcs,
+      placement: input.vcs?.placement ?? "right",
+      tool: input.vcs?.tool ?? "auto",
+      refresh_interval: input.vcs?.refresh_interval ?? 5000,
     },
   }
 }

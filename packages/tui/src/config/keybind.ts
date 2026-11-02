@@ -88,6 +88,8 @@ export const Definitions = {
   "diff.toggle_fullscreen": keybind("f", "Toggle diff viewer full screen"),
   "diff.mark_reviewed": keybind("m", "Toggle selected diff file reviewed"),
   "diff.help": keybind("?,shift+?,shift+/", "Show more diff viewer shortcuts"),
+  "vcs.open": keybind("<leader>v", "Open version control"),
+  "vcs.refresh": keybind("none", "Refresh version control status"),
 
   "prompt.editor": keybind("<leader>e", "Open external editor"),
   "theme.switch": keybind("none", "List available themes"),

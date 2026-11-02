@@ -58,6 +58,20 @@ test("validates the session tabs setting", () => {
   expect(() => decode({ session: { new_location: "current" } })).toThrow()
 })
 
+test("validates and resolves the version control dock setting", () => {
+  expect(decodeInfo({ vcs: { placement: "below", tool: "lazyjj", refresh_interval: 2500 } })).toEqual({
+    vcs: { placement: "below", tool: "lazyjj", refresh_interval: 2500 },
+  })
+  expect(() => decodeInfo({ vcs: { placement: "left" } })).toThrow()
+  expect(() => decodeInfo({ vcs: { tool: "jj" } })).toThrow()
+  expect(() => decodeInfo({ vcs: { refresh_interval: 0 } })).toThrow()
+  expect(resolve({}, { terminalSuspend: true }).vcs).toEqual({
+    placement: "right",
+    tool: "auto",
+    refresh_interval: 5000,
+  })
+})
+
 test("resolves nested config and keybind defaults", () => {
   const config = resolve(
     {

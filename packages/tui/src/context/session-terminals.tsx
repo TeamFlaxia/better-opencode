@@ -99,14 +99,18 @@ export const { use: useSessionTerminals, provider: SessionTerminalsProvider } = 
       },
       refresh,
       selectTerminal,
-      async newTerminal(sessionID: string, options?: { focus?: boolean }): Promise<PersistentPtyInfo> {
+      async newTerminal(
+        sessionID: string,
+        options?: { focus?: boolean; command?: string; args?: string[]; cwd?: string; title?: string },
+      ): Promise<PersistentPtyInfo> {
         const session = data.session.get(sessionID)
         const terminal = await client.api.experimental.persistentPty.create({
           sessionID,
-          args: [],
-          cwd: session?.location.directory,
-          title: "Terminal",
+          args: options?.args ?? [],
+          cwd: options?.cwd ?? session?.location.directory,
+          title: options?.title ?? "Terminal",
           env: {},
+          ...(options?.command ? { command: options.command } : {}),
         })
         await refresh(sessionID)
         await selectTerminal(sessionID, terminal.id, options)

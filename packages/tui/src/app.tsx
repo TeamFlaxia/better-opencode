@@ -78,6 +78,8 @@ import { DialogAgent } from "./component/dialog-agent"
 import { DialogSessionList } from "./component/dialog-session-list"
 import { DialogOpen, DialogOpenKey, moveOpenSession } from "./component/dialog-open"
 import { SessionTabs } from "./component/session-tabs"
+import { VcsDock, VCS_DOCK_MIN_TERMINAL_WIDTH, VCS_DOCK_WIDTH } from "./component/vcs-dock"
+import { VcsProvider, useVcs } from "./context/vcs"
 import {
   clampSessionTabsWidth,
   sessionTabsFitVertically,
@@ -181,6 +183,8 @@ const appBindingCommands = [
   "help.show",
   "docs.open",
   "diff.open",
+  "vcs.open",
+  "vcs.refresh",
   "app.debug",
   "app.console",
   "terminal.suspend",
@@ -439,12 +443,14 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                                                               updater={input.updater}
                                                                             >
                                                                               <PanelProvider>
-                                                                                <PluginProvider
-                                                                                  packages={input.packages}
-                                                                                  directories={pluginDirectories}
-                                                                                >
-                                                                                  <App />
-                                                                                </PluginProvider>
+                                                                                <VcsProvider>
+                                                                                  <PluginProvider
+                                                                                    packages={input.packages}
+                                                                                    directories={pluginDirectories}
+                                                                                  >
+                                                                                    <App />
+                                                                                  </PluginProvider>
+                                                                                </VcsProvider>
                                                                               </PanelProvider>
                                                                             </UpdateNotificationProvider>
                                                                           </AttentionProvider>
@@ -509,6 +515,7 @@ function App() {
   const dialog = useDialog()
   const local = useLocal()
   const sessionTabs = useSessionTabs()
+  const vcs = useVcs()
   const panels = usePanel()
   const keymap = Keymap.use()
   const event = useEvent()
@@ -631,6 +638,15 @@ function App() {
     panels.presentation() === "fullscreen"
   const tabsVisible = () => tabsAvailable() && !fullscreenPanel()
   const verticalTabsVisible = () => tabsVisible() && tabsVertical()
+  const vcsDockEnabled = () => config.data.experimental?.["vcs-dock"] === true
+  const vcsDockVisible = () => vcsDockEnabled() && tabsAvailable() && vcs.visible() && !fullscreenPanel()
+  const vcsDockRight = () =>
+    vcsDockVisible() &&
+    !tabsVertical() &&
+    config.data.vcs.placement === "right" &&
+    dimensions().width >= VCS_DOCK_MIN_TERMINAL_WIDTH
+  const vcsDockBelow = () => vcsDockVisible() && !tabsVertical() && !vcsDockRight()
+  const tabsWidthForDock = () => dimensions().width - (vcsDockRight() ? VCS_DOCK_WIDTH : 0)
 
   // Measure the prospective split layout, even while full-screen hides the tabs.
   createEffect(() => panels.setWidth(dimensions().width - (tabsAvailable() && tabsVertical() ? tabsWidth() : 0)))
@@ -1186,6 +1202,21 @@ function App() {
         category: "System",
       },
       {
+        name: "vcs.open",
+        title: "Open version control",
+        category: "Version control",
+        slash: { name: "vcs", aliases: ["jj", "git"] },
+        enabled: vcsDockEnabled,
+        run: () => void vcs.openTool(),
+      },
+      {
+        name: "vcs.refresh",
+        title: "Refresh version control status",
+        category: "Version control",
+        enabled: vcsDockEnabled,
+        run: () => void vcs.refresh(),
+      },
+      {
         name: "app.exit",
         title: "Exit the app",
         slash: { name: "exit", aliases: ["quit", "q"] },
@@ -1442,13 +1473,36 @@ function App() {
         onMouseUp={tabsResize.onMouseUp}
       >
         <Show when={verticalTabsVisible()}>
-          <SessionTabs orientation="vertical" width={tabsWidth()} />
+          <SessionTabs
+            orientation="vertical"
+            width={tabsWidth()}
+            footer={
+              vcsDockVisible() ? <VcsDock orientation="vertical" width={tabsWidth()} /> : undefined
+            }
+          />
         </Show>
         <box flexGrow={1} minWidth={0} flexDirection="column">
           <Show when={plugins.ready()}>
             <box flexGrow={1} minHeight={0} flexDirection="column">
               <Show when={tabsVisible() && !tabsVertical()}>
-                <SessionTabs />
+                <Show
+                  when={vcsDockRight()}
+                  fallback={
+                    <box flexDirection="column" flexShrink={0}>
+                      <SessionTabs width={tabsWidthForDock()} />
+                      <Show when={vcsDockBelow()}>
+                        <VcsDock orientation="below" />
+                      </Show>
+                    </box>
+                  }
+                >
+                  <box flexDirection="row" flexShrink={0}>
+                    <box flexGrow={1} minWidth={0}>
+                      <SessionTabs width={tabsWidthForDock()} />
+                    </box>
+                    <VcsDock orientation="right" width={VCS_DOCK_WIDTH} />
+                  </box>
+                </Show>
               </Show>
               <Switch>
                 <Match when={route.data.type === "home"}>

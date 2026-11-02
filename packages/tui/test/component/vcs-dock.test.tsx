@@ -1,0 +1,154 @@
+/** @jsxImportSource @opentui/solid */
+import { MouseButton } from "@opentui/core"
+import { testRender } from "@opentui/solid"
+import { expect, test } from "bun:test"
+import { createSignal, type ParentProps } from "solid-js"
+import { ConfigProvider } from "../../src/config"
+import { Keymap } from "../../src/context/keymap"
+import { ThemeProvider } from "../../src/context/theme"
+import { TuiI18nProvider } from "../../src/i18n"
+import { VcsDock, type VcsDockController } from "../../src/component/vcs-dock"
+import { DialogProvider } from "../../src/ui/dialog"
+import { ToastProvider } from "../../src/ui/toast"
+import type { VcsSummary } from "../../src/util/vcs"
+import { emptyThemeSource } from "../fixture/fixture"
+import { TestTuiContexts } from "../fixture/tui-environment"
+import { createTuiResolvedConfig } from "../fixture/tui-runtime"
+
+function controller(summary: VcsSummary, onOpen: () => void): VcsDockController {
+  return {
+    visible: () => true,
+    summary: () => summary,
+    refreshing: () => false,
+    tool: () => ({ id: "lazyjj", label: "lazyjj", command: "/usr/bin/lazyjj" }),
+    openTool: async () => onOpen(),
+    refresh: async () => {},
+  }
+}
+
+function Providers(props: ParentProps) {
+  return (
+    <TestTuiContexts>
+      <ConfigProvider config={createTuiResolvedConfig()}>
+        <TuiI18nProvider>
+          <Keymap.Provider>
+            <ThemeProvider mode="dark" source={emptyThemeSource}>
+              <ToastProvider>
+                <DialogProvider>{props.children}</DialogProvider>
+              </ToastProvider>
+            </ThemeProvider>
+          </Keymap.Provider>
+        </TuiI18nProvider>
+      </ConfigProvider>
+    </TestTuiContexts>
+  )
+}
+
+test("shows jj status and opens the preferred tool on click", async () => {
+  const [opened, setOpened] = createSignal(0)
+  const app = await testRender(
+    () => (
+      <Providers>
+        <box width="100%" height="100%" flexDirection="column">
+          <VcsDock
+            orientation="right"
+            width={30}
+            controller={controller(
+              {
+                kind: "jj",
+                label: "main",
+                detail: "fix tabs",
+                change: "znnsty",
+                dirty: 2,
+                conflict: false,
+              },
+              () => setOpened((value) => value + 1),
+            )}
+          />
+        </box>
+      </Providers>
+    ),
+    { width: 40, height: 4 },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("jj") && frame.includes("main") && frame.includes("fix tabs"))
+    expect(app.captureCharFrame()).toContain("2")
+    await app.mockMouse.click(2, 0)
+    await app.waitFor(() => opened() === 1)
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("keeps the status legible in the compact vertical rail", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <box width="100%" height="100%" flexDirection="row">
+          <VcsDock
+            orientation="vertical"
+            width={5}
+            controller={controller(
+              {
+                kind: "jj",
+                label: "main",
+                detail: "fix tabs",
+                change: "znnsty",
+                dirty: 2,
+                conflict: false,
+              },
+              () => {},
+            )}
+          />
+          <text>transcript</text>
+        </box>
+      </Providers>
+    ),
+    { width: 20, height: 4 },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("jj") && frame.includes("2"))
+    expect(app.captureCharFrame().split("\n")[0]?.slice(0, 5)).toBe("  jj ")
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("shows a conflict and exposes the menu on right click", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <box width="100%" height="100%" flexDirection="column">
+          <VcsDock
+            orientation="below"
+            controller={controller(
+              {
+                kind: "jj",
+                label: "main",
+                detail: "resolving",
+                change: "znnsty",
+                dirty: 1,
+                conflict: true,
+              },
+              () => {},
+            )}
+          />
+        </box>
+      </Providers>
+    ),
+    { width: 80, height: 24 },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("jj") && frame.includes("conflict"))
+    await app.mockMouse.click(2, 0, MouseButton.RIGHT)
+    await app.waitForFrame((frame) => frame.includes("Version control") && frame.includes("Open lazyjj"))
+  } finally {
+    app.renderer.destroy()
+  }
+})

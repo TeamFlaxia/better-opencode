@@ -18,6 +18,7 @@ import {
   createSignal,
   onCleanup,
   untrack,
+  type JSX,
 } from "solid-js"
 import { Portal, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { useConfig } from "../config"
@@ -510,6 +511,7 @@ export function SessionTabs(
     indicators?: "status" | "numbers"
     orientation?: "horizontal" | "vertical"
     width?: number
+    footer?: JSX.Element
   } = {},
 ) {
   const config = useConfig().data
@@ -524,6 +526,7 @@ export function SessionTabs(
           unreadMarker={props.unreadMarker}
           numbers={(props.indicators ?? config.tabs.indicators) === "numbers"}
           width={props.width}
+          footer={props.footer}
         />
       </Match>
       <Match when={true}>
@@ -533,6 +536,7 @@ export function SessionTabs(
           spinner={props.spinner}
           unreadMarker={props.unreadMarker}
           numbers={(props.indicators ?? config.tabs.indicators) === "numbers"}
+          width={props.width}
         />
       </Match>
     </Switch>
@@ -546,6 +550,7 @@ function VerticalSessionTabs(props: {
   spinner?: TabSpinner
   unreadMarker?: TabUnreadMarker
   width?: number
+  footer?: JSX.Element
 }) {
   const tabs: SessionTabsController = props.controller ?? useSessionTabs()
   const data = props.controller ? undefined : useData()
@@ -1224,6 +1229,7 @@ function VerticalSessionTabs(props: {
           </Show>
         </box>
       </scrollbox>
+      <Show when={props.footer}>{props.footer}</Show>
       <Show when={compact() && !dragging() && !contextMenu() && hovered()}>
         {(sessionID) => (
           <box
@@ -1278,10 +1284,12 @@ function HorizontalSessionTabs(props: {
   spinner?: TabSpinner
   unreadMarker?: TabUnreadMarker
   numbers: boolean
+  width?: number
 }) {
   const tabs = props.controller ?? useSessionTabs()
   const data = props.controller ? undefined : useData()
   const dimensions = useTerminalDimensions()
+  const availableWidth = () => props.width ?? dimensions().width
   const theme = useTheme()
   const config = useConfig().data
   const animations = () => props.animations ?? config.animations ?? true
@@ -1344,7 +1352,7 @@ function HorizontalSessionTabs(props: {
       adaptiveSessionTabLayout(
         items(),
         activeID(),
-        dimensions().width - (showPlus() ? ADD_TAB_WIDTH : 0),
+        availableWidth() - (showPlus() ? ADD_TAB_WIDTH : 0),
         previous?.start,
       ),
   )
@@ -1386,7 +1394,7 @@ function HorizontalSessionTabs(props: {
   )
   let signature = ""
   let total = 0
-  let terminalWidth = dimensions().width
+  let terminalWidth = availableWidth()
 
   // createComputed runs before render effects, so seeded widths are visible on the first frame
   // of a membership change instead of flashing the final layout.
@@ -1395,11 +1403,11 @@ function HorizontalSessionTabs(props: {
     const nextSignature = identity()
     const changed = Boolean(signature) && signature !== nextSignature
     const resized = Boolean(total) && total !== layout().total
-    const terminalResized = terminalWidth !== dimensions().width
+    const terminalResized = terminalWidth !== availableWidth()
     const previous = signature
     signature = nextSignature
     total = layout().total
-    terminalWidth = dimensions().width
+    terminalWidth = availableWidth()
     const releasing = releasingCloseHold
     releasingCloseHold = false
     if (terminalResized && closeHold()) {
