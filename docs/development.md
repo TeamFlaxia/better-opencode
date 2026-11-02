@@ -132,6 +132,7 @@ git push origin v2.2.5-better.1
 - `build` … 12ターゲット分の CLI バイナリをビルドし、Linux は `tar.gz`、macOS / Windows は `zip` にまとめる
 - `publish` … `SHA256SUMS.txt` と一緒に GitHub Release を作成する。既存 Release にはアセットを上書きアップロードする
 - 手動で再実行する場合は `workflow_dispatch` に既存タグを指定する
+- `curl` インストール版の更新確認は `TeamFlaxia/better-opencode` の GitHub Releases を参照する。`latest` / `prod` チャネルは stable、それ以外は prerelease も対象にする
 
 現時点のリリース対象は CLI のみ。npm publish は含まない。
 

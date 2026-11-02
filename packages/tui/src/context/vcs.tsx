@@ -3,7 +3,7 @@ import { execFile } from "node:child_process"
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { useConfig } from "../config"
 import {
-  detectVcsKind,
+  detectVcsKinds,
   mutationCommands,
   parseGitDiffHunks,
   parseGitStatus,
@@ -59,7 +59,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
     const sessions = useSessionTerminals()
     const toast = useToast()
     const enabled = () => config.data.experimental?.["vcs-dock"] === true
-    const [summary, setSummary] = createSignal<VcsSummary>()
+    const [summaries, setSummaries] = createSignal<readonly VcsSummary[]>([])
     const [refreshing, setRefreshing] = createSignal(false)
     const sessionID = createMemo(() => {
       if (route.data.type === "session") return route.data.sessionID
@@ -76,12 +76,13 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       return target ? data.location.info(target) : undefined
     })
     const canonical = createMemo(() => info()?.project.canonical)
-    const visible = () => enabled() && summary() !== undefined && summary()?.kind !== "none"
-    const tool = createMemo(() => {
-      const current = summary()
+    const visible = () => enabled() && summaries().length > 0
+    const summary = createMemo(() => summaries().at(0))
+    const tool = (kind?: VcsKind) => {
+      const current = kind ? summaries().find((item) => item.kind === kind) : summary()
       if (!current) return
       return resolveVcsTool(current.kind, config.data.vcs.tool)
-    })
+    }
     let generation = 0
     let running = false
     let queued = false
@@ -99,16 +100,31 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       const attempt = ++generation
       setRefreshing(true)
       try {
-        const kind = detectVcsKind(current.project.canonical)
-        const next =
-          kind === "jj"
-            ? await collectJj(current.directory)
-            : kind === "git"
-              ? await collectGit(target, current.directory)
-              : await collectApi(kind, target)
-        if (attempt === generation) setSummary(next)
-      } catch {
-        // Keep the last summary on transient jj or transport failures.
+        const kinds = detectVcsKinds(current.project.canonical)
+        const next = (
+          await Promise.all(
+            kinds.map(async (kind) => {
+              try {
+                return kind === "jj"
+                  ? await collectJj(current.directory)
+                  : kind === "git"
+                    ? await collectGit(target, current.project.canonical)
+                    : await collectApi(kind, target)
+              } catch {
+                return undefined
+              }
+            }),
+          )
+        ).filter((item): item is VcsSummary => item !== undefined)
+        if (attempt === generation)
+          setSummaries((previous) =>
+            kinds.flatMap((kind) => {
+              const nextSummary = next.find((item) => item.kind === kind)
+              const previousSummary = previous.find((item) => item.kind === kind)
+              const summary = nextSummary ?? previousSummary
+              return summary ? [summary] : []
+            }),
+          )
       } finally {
         running = false
         if (attempt === generation) setRefreshing(false)
@@ -120,8 +136,6 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
     }
 
     const collectApi = async (kind: VcsKind, target: LocationRef): Promise<VcsSummary> => {
-      if (kind === "none")
-        return { kind, label: "no repository", detail: "", dirty: 0, conflict: false, files: [] }
       const [info, status] = await Promise.all([
         client.api.vcs.get({ location: target }).then(
           (result) => result.data,
@@ -207,13 +221,12 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       }
     }
 
-    const openTool = async () => {
-      const current = summary()
-      if (!current || current.kind === "none") return
+    const openTool = async (kind?: VcsKind) => {
+      const current = kind ? summaries().find((item) => item.kind === kind) : summary()
+      if (!current) return
       const selected = resolveVcsTool(current.kind, config.data.vcs.tool)
       if (!selected) {
-        const suggestion =
-          current.kind === "jj" ? "lazyjj or jjui" : current.kind === "git" ? "lazygit" : undefined
+        const suggestion = current.kind === "jj" ? "lazyjj or jjui" : current.kind === "git" ? "lazygit" : undefined
         toast.show({
           variant: "warning",
           title: "Version control tool not found",
@@ -230,8 +243,8 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       await launch(title, command, args)
     }
 
-    const execute = async (action: VcsMutation, input?: string, paths: readonly string[] = []) => {
-      const current = summary()
+    const execute = async (action: VcsMutation, input?: string, paths: readonly string[] = [], kind?: VcsKind) => {
+      const current = kind ? summaries().find((item) => item.kind === kind) : summary()
       const target = info()
       if (!current || !target) return
       const commands = mutationCommands(current.kind, action, input, paths)
@@ -251,14 +264,21 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       }
     }
 
+    const patch = async (kind: VcsKind, file: string, staged: boolean) => {
+      const target = info()
+      if (!target) return ""
+      if (kind === "git")
+        return (await run("git", ["diff", ...(staged ? ["--cached"] : []), "--", file], target.project.canonical))
+          .stdout
+      if (kind === "jj")
+        return (await run("jj", ["--no-pager", "--color=never", "diff", "--git", "--", file], target.directory)).stdout
+      return ""
+    }
+
     const hunks = async (file: string, cached: boolean): Promise<VcsHunkPatch> => {
       const target = info()
       if (!target) return { header: "", hunks: [] }
-      const result = await run(
-        "git",
-        ["diff", ...(cached ? ["--cached"] : []), "--", file],
-        target.project.canonical,
-      )
+      const result = await run("git", ["diff", ...(cached ? ["--cached"] : []), "--", file], target.project.canonical)
       return parseGitDiffHunks(result.stdout)
     }
 
@@ -266,12 +286,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       const target = info()
       if (!target) return
       try {
-        await run(
-          "git",
-          ["apply", "--cached", ...(reverse ? ["-R"] : [])],
-          target.project.canonical,
-          patch,
-        )
+        await run("git", ["apply", "--cached", ...(reverse ? ["-R"] : [])], target.project.canonical, patch)
         await refresh()
         toast.show({ variant: "success", message: reverse ? "Hunks unstaged" : "Hunks staged" })
       } catch (error) {
@@ -285,14 +300,14 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
 
     createEffect(() => {
       if (!enabled()) {
-        setSummary(undefined)
+        setSummaries([])
         return
       }
       if (!canonical()) {
-        setSummary(undefined)
+        setSummaries([])
         return
       }
-      setSummary(undefined)
+      setSummaries([])
       let disposed = false
       void refresh()
       const interval = setInterval(() => {
@@ -306,6 +321,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
 
     return {
       visible,
+      summaries,
       summary,
       refreshing,
       tool,
@@ -313,6 +329,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       openTool,
       openCommand,
       execute,
+      patch,
       hunks,
       applyHunks,
     }

@@ -6,29 +6,13 @@ import { ConfigProvider } from "../../src/config"
 import { Keymap } from "../../src/context/keymap"
 import { ThemeProvider } from "../../src/context/theme"
 import { TuiI18nProvider } from "../../src/i18n"
-import { DialogVcs, type DialogVcsController } from "../../src/component/dialog-vcs"
 import { DialogVcsFiles } from "../../src/component/dialog-vcs-files"
 import { DialogVcsHunks } from "../../src/component/dialog-vcs-hunks"
 import { DialogProvider } from "../../src/ui/dialog"
 import { ToastProvider } from "../../src/ui/toast"
-import type { VcsMutation, VcsSummary } from "../../src/util/vcs"
 import { emptyThemeSource } from "../fixture/fixture"
 import { TestTuiContexts } from "../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
-
-function controller(summary: VcsSummary): DialogVcsController {
-  return {
-    summary: () => summary,
-    refreshing: () => false,
-    tool: () => undefined,
-    refresh: async () => {},
-    openTool: async () => {},
-    openCommand: async () => {},
-    execute: async () => {},
-    hunks: async () => ({ header: "", hunks: [] }),
-    applyHunks: async () => {},
-  }
-}
 
 function Providers(props: ParentProps) {
   return (
@@ -47,74 +31,6 @@ function Providers(props: ParentProps) {
     </TestTuiContexts>
   )
 }
-
-test.each([
-  [
-    "jj",
-    {
-      kind: "jj" as const,
-      label: "main",
-      detail: "fix tabs",
-      dirty: 2,
-      conflict: false,
-      files: [{ file: "a.ts", status: "modified" as const, staged: false, unstaged: true }],
-    },
-    [
-      "Create new change",
-      "Describe current change",
-      "Set bookmark",
-      "Push bookmarks",
-      "Split files into new change",
-      "Split files into parallel change",
-      "Split interactively",
-    ],
-  ],
-  [
-    "git",
-    {
-      kind: "git" as const,
-      label: "main",
-      detail: "2 changed files",
-      dirty: 2,
-      conflict: false,
-      files: [
-        { file: "a.ts", status: "modified" as const, staged: true, unstaged: false },
-        { file: "b.ts", status: "added" as const, staged: false, unstaged: true },
-      ],
-    },
-    [
-      "Commit staged changes",
-      "Commit all changes",
-      "Stage files…",
-      "Stage hunks…",
-      "Unstage files…",
-      "Unstage hunks…",
-      "Fetch",
-      "Pull",
-      "Push",
-    ],
-  ],
-])("lists built-in %s actions", async (_kind, summary, expected) => {
-  const app = await testRender(
-    () => (
-      <Providers>
-        <DialogVcs controller={controller(summary)} />
-      </Providers>
-    ),
-    { width: 100, height: 50 },
-  )
-
-  try {
-    app.renderer.start()
-    await app.waitForFrame(
-      (frame) =>
-        frame.includes(`Version control · ${summary.kind} main`) && expected.every((title) => frame.includes(title)),
-    )
-    expect(app.captureCharFrame()).toContain("Review changes")
-  } finally {
-    app.renderer.destroy()
-  }
-})
 
 test("selects multiple files for a file action", async () => {
   const confirmed: string[][] = []
@@ -182,31 +98,6 @@ test("selects multiple hunks and returns only those hunks", async () => {
     app.mockInput.pressEnter()
     await app.waitFor(() => confirmed.length === 1)
     expect(confirmed[0]).toBe(header + patch.hunks[0]!.text + patch.hunks[1]!.text)
-  } finally {
-    app.renderer.destroy()
-  }
-})
-
-test("runs a selected built-in action", async () => {
-  const executed: VcsMutation[] = []
-  const summary: VcsSummary = { kind: "jj", label: "main", detail: "fix tabs", dirty: 2, conflict: false, files: [] }
-  const base = controller(summary)
-  const app = await testRender(
-    () => (
-      <Providers>
-        <DialogVcs controller={{ ...base, execute: async (action) => void executed.push(action) }} />
-      </Providers>
-    ),
-    { width: 100, height: 30 },
-  )
-
-  try {
-    app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("Create new change"))
-    const rows = app.captureCharFrame().split("\n")
-    const row = rows.findIndex((line) => line.includes("Create new change"))
-    await app.mockMouse.click(rows[row]?.indexOf("Create new change") ?? 2, row)
-    await app.waitFor(() => executed[0] === "new")
   } finally {
     app.renderer.destroy()
   }

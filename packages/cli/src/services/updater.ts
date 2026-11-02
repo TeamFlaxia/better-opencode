@@ -273,9 +273,59 @@ const make = Effect.gen(function* () {
   }
 
   const release = Effect.fnUntraced(function* (method?: Method) {
+    const core = method === "brew" && installedFormula === "opencode"
+    // A curl install is a better-opencode build, so it follows the fork's GitHub releases.
+    // Homebrew and package-manager installs keep the upstream release service.
+    if (method === "curl" || method === undefined) {
+      const response = yield* Effect.tryPromise({
+        try: (signal) =>
+          fetch("https://api.github.com/repos/TeamFlaxia/better-opencode/releases?per_page=20", {
+            headers: { Accept: "application/vnd.github+json" },
+            signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
+          }),
+        catch: (cause) =>
+          new UpgradeError(
+            {
+              title: "Could not check for OpenCode updates",
+              detail: errorDetail(cause),
+              retry: "Check your network, then run opencode upgrade again.",
+            },
+            { cause },
+          ),
+      })
+      if (!response.ok)
+        return yield* Effect.fail(
+          new UpgradeError({
+            title: "Could not check for OpenCode updates",
+            detail: `The better-opencode release service returned HTTP ${response.status}.`,
+            retry: "Try again in a few minutes.",
+          }),
+        )
+      const releases: Array<{ tag_name?: string; draft?: boolean; prerelease?: boolean }> = yield* Effect.tryPromise({
+        try: () => response.json(),
+        catch: (cause) =>
+          new UpgradeError(
+            {
+              title: "Could not read the OpenCode update information",
+              detail: errorDetail(cause),
+              retry: "Try again in a few minutes.",
+            },
+            { cause },
+          ),
+      })
+      const stable = channel === "latest" || channel === "prod"
+      const selected = releases.find(
+        (release) =>
+          !release.draft &&
+          (!stable || !release.prerelease) &&
+          typeof release.tag_name === "string" &&
+          parseReleaseVersion(release.tag_name),
+      )
+      if (!selected?.tag_name) return { package: "opencode", version: OPENCODE_VERSION }
+      return { package: "opencode", version: selected.tag_name.replace(/^v/, "") }
+    }
     const distribution = method === "brew" ? "homebrew" : "npm"
     // Homebrew Core builds its formula on its own schedule, so the tap release does not describe it.
-    const core = method === "brew" && installedFormula === "opencode"
     const response = yield* Effect.tryPromise({
       try: (signal) =>
         fetch(

@@ -24,9 +24,30 @@ and changed file count from `jj log` and `jj diff --summary`. For Git and
 Mercurial it uses the existing VCS API, so the dock reflects the same state as the
 rest of OpenCode.
 
-Click the dock (or run `vcs.open`) to open the built-in version control dialog.
-Right-click for the same actions plus quick links to the diff viewer and the
-optional external tool.
+Click the dock (or run `vcs.open`) to open the built-in version control view.
+The view replaces the session transcript instead of opening a modal dialog, so the
+file list and diff stay visible while the tab bar and dock remain in place.
+
+When a jj repository is colocated with Git, the view lists both repositories and
+their files together. Use `tab` or the left/right arrows to switch which repository
+the action shortcuts target.
+
+Right-click the dock for quick links to the diff viewer and the optional external
+tool.
+
+## Keyboard
+
+- `up` / `down` or `j` / `k`: select a changed file
+- `tab` or `left` / `right`: switch the active repository (jj, git, or both)
+- `space`: stage or unstage the selected Git file
+- `enter`: open the full diff viewer
+- `o`: open the optional external tool
+- `r`: refresh status
+- `q` / `esc`: return to the conversation
+
+Repository-specific shortcuts appear in the footer: Git uses `c`, `a`, `h`, `u`,
+`f`, `p`, and `l`; jj uses `d`, `n`, `s`, `b`, `a`, `e`, `v`, `w`, `i`, `f`, and
+`p`.
 
 ## Built-in actions
 
@@ -69,30 +90,30 @@ private remote fails with an error toast instead of blocking the TUI.
 
 The previous integration remains available when a tool is installed:
 
-| Repository | Preferred tool | Fallback |
-| --- | --- | --- |
-| jj (`.jj`) | `lazyjj` | `jjui` |
-| Git (`.git`) | `lazygit` | none |
+| Repository   | Preferred tool | Fallback |
+| ------------ | -------------- | -------- |
+| jj (`.jj`)   | `lazyjj`       | `jjui`   |
+| Git (`.git`) | `lazygit`      | none     |
 
-Set `vcs.tool` to force a tool. The dialog and dock expose the external tool only
+Set `vcs.tool` to force a tool. The view and dock expose the external tool only
 when it is found on `PATH`.
 
 `lazygit` is MIT, `jjui` is MIT, and `lazyjj` is Apache-2.0. If these binaries are
 ever bundled with a release, their license texts and notices must ship with them.
-The built-in dialog avoids that dependency entirely.
+The built-in view avoids that dependency entirely.
 
 ## Configuration
 
 ```jsonc
 {
   "experimental": {
-    "vcs-dock": true
+    "vcs-dock": true,
   },
   "vcs": {
     "placement": "right", // or "below"
     "tool": "auto", // optional: "lazygit", "lazyjj", "jjui"
-    "refresh_interval": 5000
-  }
+    "refresh_interval": 5000,
+  },
 }
 ```
 

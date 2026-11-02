@@ -15,7 +15,7 @@ type VcsDockOrientation = "right" | "below" | "vertical"
 type VcsAction = "actions" | "open" | "diff" | "copy" | "refresh"
 export type VcsDockController = Pick<
   ReturnType<typeof useVcs>,
-  "visible" | "summary" | "refreshing" | "tool" | "openTool" | "refresh"
+  "visible" | "summaries" | "summary" | "refreshing" | "tool" | "openTool" | "refresh"
 >
 
 export function VcsDock(props: {
@@ -36,6 +36,8 @@ export function VcsDock(props: {
   const dockWidth = () => props.width ?? VCS_DOCK_WIDTH
   const compact = () => props.orientation !== "below" && dockWidth() < 12
   const kind = () => {
+    const kinds = vcs.summaries().map((item) => item.kind)
+    if (kinds.length > 1) return kinds.join("+")
     const value = summary()?.kind
     return value === "jj" ? "jj" : value === "hg" ? "hg" : "git"
   }
@@ -93,11 +95,7 @@ export function VcsDock(props: {
   }
   const menu = () => {
     dialog.replace(() => (
-      <DialogSelect
-        title="Version control"
-        options={actions()}
-        onSelect={(option) => run(option.value)}
-      />
+      <DialogSelect title="Version control" options={actions()} onSelect={(option) => run(option.value)} />
     ))
   }
   let menuPressed = false

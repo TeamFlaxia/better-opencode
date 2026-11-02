@@ -70,10 +70,16 @@ const PREFERRED_TOOLS: Record<VcsKind, readonly VcsToolID[]> = {
   none: [],
 }
 
+export function detectVcsKinds(canonical: string): VcsKind[] {
+  const kinds: VcsKind[] = []
+  if (existsSync(path.join(canonical, ".jj"))) kinds.push("jj")
+  if (existsSync(path.join(canonical, ".git"))) kinds.push("git")
+  if (kinds.length === 0 && existsSync(path.join(canonical, ".hg"))) kinds.push("hg")
+  return kinds
+}
+
 export function detectVcsKind(canonical: string): VcsKind {
-  if (existsSync(path.join(canonical, ".jj"))) return "jj"
-  if (existsSync(path.join(canonical, ".git"))) return "git"
-  return existsSync(path.join(canonical, ".hg")) ? "hg" : "none"
+  return detectVcsKinds(canonical)[0] ?? "none"
 }
 
 export function parseJjLog(output: string) {
@@ -196,9 +202,7 @@ export function mutationCommands(
     if (action === "split")
       return value && paths.length ? [{ command: "jj", args: ["split", "-m", value, "--", ...paths] }] : []
     if (action === "split_parallel")
-      return value && paths.length
-        ? [{ command: "jj", args: ["split", "-p", "-m", value, "--", ...paths] }]
-        : []
+      return value && paths.length ? [{ command: "jj", args: ["split", "-p", "-m", value, "--", ...paths] }] : []
     if (action === "edit") return value ? [{ command: "jj", args: ["edit", value] }] : []
     if (action === "fetch") return [{ command: "jj", args: ["git", "fetch"] }]
     if (action === "push") return [{ command: "jj", args: ["git", "push"] }]
@@ -214,7 +218,8 @@ export function mutationCommands(
           ]
         : []
     if (action === "stage") return paths.length ? [{ command: "git", args: ["add", "--", ...paths] }] : []
-    if (action === "unstage") return paths.length ? [{ command: "git", args: ["restore", "--staged", "--", ...paths] }] : []
+    if (action === "unstage")
+      return paths.length ? [{ command: "git", args: ["restore", "--staged", "--", ...paths] }] : []
     if (action === "fetch") return [{ command: "git", args: ["fetch", "--all", "--prune"] }]
     if (action === "pull") return [{ command: "git", args: ["pull", "--ff-only"] }]
     if (action === "push") return [{ command: "git", args: ["push"] }]
@@ -241,8 +246,7 @@ export function findExecutable(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ) {
   const search = environment.PATH ?? environment.Path ?? ""
-  const extensions =
-    process.platform === "win32" ? (environment.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";") : [""]
+  const extensions = process.platform === "win32" ? (environment.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";") : [""]
   for (const directory of search.split(path.delimiter)) {
     if (!directory) continue
     for (const extension of extensions) {

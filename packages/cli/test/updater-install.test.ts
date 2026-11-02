@@ -56,6 +56,12 @@ function fixture(
               const url = input instanceof Request ? input.url : input.toString()
               requests.push(url)
               if (new URL(url).hostname === "formulae.brew.sh") return Response.json({ versions: { stable: "2.0.21" } })
+              if (new URL(url).hostname === "api.github.com")
+                return Response.json([
+                  { tag_name: "v2.3.4-beta.1", draft: true, prerelease: true },
+                  { tag_name: "v2.3.4", draft: false, prerelease: true },
+                  { tag_name: "v2.3.3", draft: false, prerelease: false },
+                ])
               return Response.json({ version: "2.3.4", metadata: { package: releasePackage } })
             },
             { preconnect: fetch.preconnect },
@@ -343,6 +349,23 @@ it.live("Homebrew Core installs check and upgrade the Core formula", () =>
     }),
   )
 })
+
+it.live("curl installs check better-opencode GitHub releases", () =>
+  Effect.gen(function* () {
+    const test = yield* fixture(
+      () => ({}),
+      "@opencode/cli",
+      false,
+      "@opencode/cli",
+      undefined,
+      (_root, home) => Effect.succeed(path.join(home, ".opencode", "bin", "opencode")),
+    )
+    expect(yield* test.updater.method()).toBe("curl")
+    // Draft releases never count, and local builds accept the newest published prerelease.
+    expect(yield* test.updater.latest()).toBe("2.3.4")
+    expect(test.requests).toEqual(["https://api.github.com/repos/TeamFlaxia/better-opencode/releases?per_page=20"])
+  }),
+)
 
 const winget = (search: Partial<AppProcess.RunResult>) =>
   fixture(

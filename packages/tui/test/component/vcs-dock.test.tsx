@@ -15,9 +15,10 @@ import { emptyThemeSource } from "../fixture/fixture"
 import { TestTuiContexts } from "../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
 
-function controller(summary: VcsSummary): VcsDockController {
+function controller(summary: VcsSummary, summaries: readonly VcsSummary[] = [summary]): VcsDockController {
   return {
     visible: () => true,
+    summaries: () => summaries,
     summary: () => summary,
     refreshing: () => false,
     tool: () => ({ id: "lazyjj", label: "lazyjj", command: "/usr/bin/lazyjj" }),
@@ -44,7 +45,7 @@ function Providers(props: ParentProps) {
   )
 }
 
-test("shows jj status and opens the built-in version control dialog on click", async () => {
+test("shows jj status and opens the built-in version control view on click", async () => {
   const [opened, setOpened] = createSignal(0)
   const app = await testRender(
     () => (
@@ -143,6 +144,43 @@ test("shows a conflict and exposes the menu on right click", async () => {
     await app.waitForFrame((frame) => frame.includes("jj") && frame.includes("conflict"))
     await app.mockMouse.click(2, 0, MouseButton.RIGHT)
     await app.waitForFrame((frame) => frame.includes("Version control") && frame.includes("Open lazyjj"))
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("labels a colocated jj and git repository with both kinds", async () => {
+  const jj: VcsSummary = {
+    kind: "jj",
+    label: "main",
+    detail: "1 changed file",
+    change: "znnsty",
+    dirty: 1,
+    conflict: false,
+    files: [],
+  }
+  const git: VcsSummary = {
+    kind: "git",
+    label: "main",
+    detail: "clean",
+    dirty: 0,
+    conflict: false,
+    files: [],
+  }
+  const app = await testRender(
+    () => (
+      <Providers>
+        <box width="100%" height="100%" flexDirection="column">
+          <VcsDock orientation="below" controller={controller(jj, [jj, git])} />
+        </box>
+      </Providers>
+    ),
+    { width: 80, height: 4 },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("jj+git"))
   } finally {
     app.renderer.destroy()
   }

@@ -5,6 +5,7 @@ import path from "node:path"
 import {
   buildHunkPatch,
   detectVcsKind,
+  detectVcsKinds,
   findExecutable,
   mutationCommands,
   parseGitDiffHunks,
@@ -66,8 +67,7 @@ describe("parseJjDiffSummary", () => {
 
 describe("parseGitStatus", () => {
   test("separates staged, unstaged, untracked, and renamed files", () => {
-    const status =
-      " M src/a.ts\0?? new.txt\0A  added.ts\0MM both.ts\0R  new-name.ts\0old-name.ts\0"
+    const status = " M src/a.ts\0?? new.txt\0A  added.ts\0MM both.ts\0R  new-name.ts\0old-name.ts\0"
     expect(parseGitStatus(status)).toEqual([
       { file: "src/a.ts", status: "modified", staged: false, unstaged: true, conflict: false },
       { file: "new.txt", status: "added", staged: false, unstaged: true, conflict: false },
@@ -119,9 +119,7 @@ describe("git hunks", () => {
 
   test("splits a patch into header and hunks", () => {
     const parsed = parseGitDiffHunks(patch)
-    expect(parsed.header).toBe(
-      "diff --git a/a.ts b/a.ts\nindex 1111111..2222222 100644\n--- a/a.ts\n+++ b/a.ts\n",
-    )
+    expect(parsed.header).toBe("diff --git a/a.ts b/a.ts\nindex 1111111..2222222 100644\n--- a/a.ts\n+++ b/a.ts\n")
     expect(parsed.hunks).toHaveLength(2)
     expect(parsed.hunks[0]).toMatchObject({ header: "@@ -1,2 +1,3 @@", additions: 1, deletions: 0 })
     expect(parsed.hunks[1]).toMatchObject({ header: "@@ -10,2 +11,2 @@", additions: 1, deletions: 1 })
@@ -179,9 +177,7 @@ describe("mutationCommands", () => {
       { command: "jj", args: ["bookmark", "set", "feature", "-r", "@"] },
     ])
     expect(mutationCommands("jj", "new")).toEqual([{ command: "jj", args: ["new"] }])
-    expect(mutationCommands("jj", "squash")).toEqual([
-      { command: "jj", args: ["squash", "--use-destination-message"] },
-    ])
+    expect(mutationCommands("jj", "squash")).toEqual([{ command: "jj", args: ["squash", "--use-destination-message"] }])
     expect(mutationCommands("jj", "fetch")).toEqual([{ command: "jj", args: ["git", "fetch"] }])
     expect(mutationCommands("jj", "split", "split msg", ["a.ts", "b.ts"])).toEqual([
       { command: "jj", args: ["split", "-m", "split msg", "--", "a.ts", "b.ts"] },
@@ -234,18 +230,22 @@ describe("detectVcsKind", () => {
     mkdirSync(path.join(root, ".jj"))
     mkdirSync(path.join(root, ".git"))
     expect(detectVcsKind(root)).toBe("jj")
+    expect(detectVcsKinds(root)).toEqual(["jj", "git"])
   })
 
   test("detects git, hg, and a plain directory", () => {
     const git = directory()
     mkdirSync(path.join(git, ".git"))
     expect(detectVcsKind(git)).toBe("git")
+    expect(detectVcsKinds(git)).toEqual(["git"])
 
     const hg = directory()
     mkdirSync(path.join(hg, ".hg"))
     expect(detectVcsKind(hg)).toBe("hg")
+    expect(detectVcsKinds(hg)).toEqual(["hg"])
 
     expect(detectVcsKind(directory())).toBe("none")
+    expect(detectVcsKinds(directory())).toEqual([])
   })
 })
 

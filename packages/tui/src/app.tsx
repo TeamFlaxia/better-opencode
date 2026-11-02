@@ -79,7 +79,7 @@ import { DialogSessionList } from "./component/dialog-session-list"
 import { DialogOpen, DialogOpenKey, moveOpenSession } from "./component/dialog-open"
 import { SessionTabs } from "./component/session-tabs"
 import { VcsDock, VCS_DOCK_MIN_TERMINAL_WIDTH, VCS_DOCK_WIDTH } from "./component/vcs-dock"
-import { DialogVcs } from "./component/dialog-vcs"
+import { VcsView } from "./component/vcs-view"
 import { VcsProvider, useVcs } from "./context/vcs"
 import {
   clampSessionTabsWidth,
@@ -434,32 +434,32 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                                             <ClientMcp />
                                                             <LocalProvider>
                                                               <PromptStashProvider>
-                                                                <DialogProvider>
-                                                                  <FrecencyProvider>
-                                                                    <PromptHistoryProvider>
-                                                                      <PromptRefProvider>
-                                                                        <EditorContextProvider>
-                                                                          <AttentionProvider>
-                                                                            <UpdateNotificationProvider
-                                                                              updater={input.updater}
-                                                                            >
-                                                                              <PanelProvider>
-                                                                                <VcsProvider>
+                                                                <VcsProvider>
+                                                                  <DialogProvider>
+                                                                    <FrecencyProvider>
+                                                                      <PromptHistoryProvider>
+                                                                        <PromptRefProvider>
+                                                                          <EditorContextProvider>
+                                                                            <AttentionProvider>
+                                                                              <UpdateNotificationProvider
+                                                                                updater={input.updater}
+                                                                              >
+                                                                                <PanelProvider>
                                                                                   <PluginProvider
                                                                                     packages={input.packages}
                                                                                     directories={pluginDirectories}
                                                                                   >
                                                                                     <App />
                                                                                   </PluginProvider>
-                                                                                </VcsProvider>
-                                                                              </PanelProvider>
-                                                                            </UpdateNotificationProvider>
-                                                                          </AttentionProvider>
-                                                                        </EditorContextProvider>
-                                                                      </PromptRefProvider>
-                                                                    </PromptHistoryProvider>
-                                                                  </FrecencyProvider>
-                                                                </DialogProvider>
+                                                                                </PanelProvider>
+                                                                              </UpdateNotificationProvider>
+                                                                            </AttentionProvider>
+                                                                          </EditorContextProvider>
+                                                                        </PromptRefProvider>
+                                                                      </PromptHistoryProvider>
+                                                                    </FrecencyProvider>
+                                                                  </DialogProvider>
+                                                                </VcsProvider>
                                                               </PromptStashProvider>
                                                             </LocalProvider>
                                                           </ThemeProvider>
@@ -517,6 +517,7 @@ function App() {
   const local = useLocal()
   const sessionTabs = useSessionTabs()
   const vcs = useVcs()
+  const [vcsOpen, setVcsOpen] = createSignal(false)
   const panels = usePanel()
   const keymap = Keymap.use()
   const event = useEvent()
@@ -648,6 +649,9 @@ function App() {
     dimensions().width >= VCS_DOCK_MIN_TERMINAL_WIDTH
   const vcsDockBelow = () => vcsDockVisible() && !tabsVertical() && !vcsDockRight()
   const tabsWidthForDock = () => dimensions().width - (vcsDockRight() ? VCS_DOCK_WIDTH : 0)
+  createEffect(() => {
+    if (route.data.type === "plugin") setVcsOpen(false)
+  })
 
   // Measure the prospective split layout, even while full-screen hides the tabs.
   createEffect(() => panels.setWidth(dimensions().width - (tabsAvailable() && tabsVertical() ? tabsWidth() : 0)))
@@ -1208,7 +1212,9 @@ function App() {
         category: "Version control",
         slash: { name: "vcs", aliases: ["jj", "git"] },
         enabled: vcsDockEnabled,
-        run: () => DialogVcs.show(dialog),
+        run: () => {
+          setVcsOpen(true)
+        },
       },
       {
         name: "vcs.refresh",
@@ -1479,7 +1485,7 @@ function App() {
             width={tabsWidth()}
             footer={
               vcsDockVisible() ? (
-                <VcsDock orientation="vertical" width={tabsWidth()} onOpen={() => DialogVcs.show(dialog)} />
+                <VcsDock orientation="vertical" width={tabsWidth()} onOpen={() => setVcsOpen(true)} />
               ) : undefined
             }
           />
@@ -1494,7 +1500,7 @@ function App() {
                     <box flexDirection="column" flexShrink={0}>
                       <SessionTabs width={tabsWidthForDock()} />
                       <Show when={vcsDockBelow()}>
-                        <VcsDock orientation="below" onOpen={() => DialogVcs.show(dialog)} />
+                        <VcsDock orientation="below" onOpen={() => setVcsOpen(true)} />
                       </Show>
                     </box>
                   }
@@ -1503,33 +1509,39 @@ function App() {
                     <box flexGrow={1} minWidth={0}>
                       <SessionTabs width={tabsWidthForDock()} />
                     </box>
-                    <VcsDock
-                      orientation="right"
-                      width={VCS_DOCK_WIDTH}
-                      onOpen={() => DialogVcs.show(dialog)}
-                    />
+                    <VcsDock orientation="right" width={VCS_DOCK_WIDTH} onOpen={() => setVcsOpen(true)} />
                   </box>
                 </Show>
               </Show>
-              <Switch>
-                <Match when={route.data.type === "home"}>
-                  <Home />
-                </Match>
-                <Match when={route.data.type === "session"}>
-                  <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
-                    {(sessionID) => (
-                      <SessionFrame sessionID={sessionID} verticalTabsWidth={verticalTabsVisible() ? tabsWidth() : 0} />
-                    )}
-                  </Show>
-                </Match>
-                <Match when={route.data.type === "plugin"}>
-                  <PluginRoute
-                    fallback={(id, name) => (
-                      <PluginRouteMissing id={id} name={name} onHome={() => route.navigate({ type: "home" })} />
-                    )}
-                  />
-                </Match>
-              </Switch>
+              <Show
+                when={vcsOpen() && vcsDockEnabled()}
+                fallback={
+                  <Switch>
+                    <Match when={route.data.type === "home"}>
+                      <Home />
+                    </Match>
+                    <Match when={route.data.type === "session"}>
+                      <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
+                        {(sessionID) => (
+                          <SessionFrame
+                            sessionID={sessionID}
+                            verticalTabsWidth={verticalTabsVisible() ? tabsWidth() : 0}
+                          />
+                        )}
+                      </Show>
+                    </Match>
+                    <Match when={route.data.type === "plugin"}>
+                      <PluginRoute
+                        fallback={(id, name) => (
+                          <PluginRouteMissing id={id} name={name} onHome={() => route.navigate({ type: "home" })} />
+                        )}
+                      />
+                    </Match>
+                  </Switch>
+                }
+              >
+                <VcsView onClose={() => setVcsOpen(false)} />
+              </Show>
             </box>
             <Slot path="app" />
           </Show>
