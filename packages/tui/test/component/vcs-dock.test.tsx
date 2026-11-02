@@ -185,3 +185,43 @@ test("labels a colocated jj and git repository with both kinds", async () => {
     app.renderer.destroy()
   }
 })
+
+test("keeps the narrow right dock inside its width", async () => {
+  const jj: VcsSummary = {
+    kind: "jj",
+    label: "lvnoszqwwumv",
+    detail: "1 changed file",
+    change: "lvnoszqwwumv",
+    dirty: 1,
+    conflict: false,
+    files: [],
+  }
+  const git: VcsSummary = {
+    kind: "git",
+    label: "main",
+    detail: "1 changed file",
+    dirty: 1,
+    conflict: false,
+    files: [],
+  }
+  const app = await testRender(
+    () => (
+      <Providers>
+        <box width="100%" height="100%" flexDirection="column">
+          <VcsDock orientation="right" width={24} controller={controller(jj, [jj, git])} />
+        </box>
+      </Providers>
+    ),
+    { width: 24, height: 4 },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("VCS") && frame.includes("jj+git"))
+    const line = app.captureCharFrame().split("\n")[0]!
+    expect(line.slice(0, 24)).toContain("VCS jj+git")
+    expect(app.captureCharFrame()).not.toContain("1 changed file")
+  } finally {
+    app.renderer.destroy()
+  }
+})

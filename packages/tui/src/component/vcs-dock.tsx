@@ -34,6 +34,8 @@ export function VcsDock(props: {
   const summary = () => vcs.summary()
   const tool = () => vcs.tool()
   const dockWidth = () => props.width ?? VCS_DOCK_WIDTH
+  const detailWidth = () => Math.max(1, Math.min(12, Math.floor(dockWidth() / 2) - 3))
+  const labelWidth = () => Math.max(1, dockWidth() - 4 - detailWidth())
   const compact = () => props.orientation !== "below" && dockWidth() < 12
   const repository = () => {
     const kinds = vcs.summaries().map((item) => item.kind)
@@ -139,28 +141,37 @@ export function VcsDock(props: {
                 backgroundColor={background()}
                 {...pointer}
               >
-                <box height={1} flexDirection="row" paddingLeft={1} gap={1}>
-                  <text fg={theme.text.base} selectable={false}>
+                <box height={1} flexDirection="row" paddingLeft={1} paddingRight={1} gap={1}>
+                  <text fg={theme.text.base} flexShrink={0} selectable={false}>
                     <b>VCS</b>
                   </text>
-                  <text fg={theme.text.muted} selectable={false}>
+                  <text fg={theme.text.muted} flexShrink={0} selectable={false}>
                     {repository()}
                   </text>
-                  <text fg={theme.text.muted} selectable={false}>
-                    ·
-                  </text>
-                  <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
-                    {Locale.truncateWidth(label(), Math.max(1, dockWidth() - 14))}
-                  </text>
-                  <box flexGrow={1} />
-                  <text fg={statusColor()} selectable={false}>
+                  <box flexGrow={1} minWidth={0} />
+                  <text fg={statusColor()} flexShrink={0} selectable={false}>
                     {status()}
                   </text>
-                  <box width={1} />
                 </box>
-                <box height={1} flexDirection="row" paddingLeft={1} paddingRight={1}>
-                  <text fg={detailColor()} wrapMode="none" truncate selectable={false}>
-                    {detail()}
+                <box height={1} flexDirection="row" paddingLeft={1} paddingRight={1} gap={1}>
+                  <text
+                    width={labelWidth()}
+                    fg={theme.text.muted}
+                    wrapMode="none"
+                    truncate
+                    selectable={false}
+                  >
+                    {Locale.truncateWidth(label(), labelWidth())}
+                  </text>
+                  <box flexGrow={1} minWidth={0} />
+                  <text
+                    width={detailWidth()}
+                    fg={detailColor()}
+                    wrapMode="none"
+                    truncate
+                    selectable={false}
+                  >
+                    {Locale.truncateWidth(detail(), detailWidth())}
                   </text>
                 </box>
               </box>
