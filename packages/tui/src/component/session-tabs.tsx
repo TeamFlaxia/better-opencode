@@ -580,7 +580,6 @@ function VerticalSessionTabs(props: {
     untrack(marquee.reset)
   })
   const [hoverY, setHoverY] = createSignal(0)
-  const [scrollTop, setScrollTop] = createSignal(0)
   const detail = (sessionID: string) => {
     const fixture = tabs.detail?.(sessionID)
     if (fixture !== undefined) return fixture
@@ -607,13 +606,6 @@ function VerticalSessionTabs(props: {
     return moveSessionTab(tabs.tabs(), pending.sessionID, pending.index)
   })
   const items = ordered
-  const highlighted = (sessionID: string | undefined) =>
-    sessionID !== undefined && (activeID() === sessionID || hovered() === sessionID || dragging() === sessionID)
-  const addHighlighted = () => newTab() || addHovered()
-  const belowHighlighted = createMemo(() => {
-    const tab = items()[Math.floor(scrollTop() / stride())]
-    return tab ? highlighted(tab.sessionID) : addHighlighted()
-  })
   createEffect(() => {
     const active = marquee.active()
     if (active && !items().some((tab) => tab.sessionID === active)) marquee.reset()
@@ -640,8 +632,6 @@ function VerticalSessionTabs(props: {
   const itemStatus = (tab: SessionTab) => statuses().get(tab.sessionID)!
   let rail: { screenX: number; screenY: number } | undefined
   let scroll: ScrollBoxRenderable | undefined
-  const updateScroll = () => setScrollTop(scroll?.scrollTop ?? 0)
-  onCleanup(() => scroll?.verticalScrollBar.off("change", updateScroll))
   let didDrag = false
   let addPressed = false
   // A captured drag ends with a synthetic up on its drop target; do not turn that into a click.
@@ -711,7 +701,7 @@ function VerticalSessionTabs(props: {
       flexShrink={0}
       flexDirection="column"
       position="relative"
-      paddingTop={1}
+      paddingTop={compact() ? 0 : 1}
       backgroundColor={railBackground()}
       onMouseOut={marquee.leaveHovered}
       onMouseUp={(event) => {
@@ -725,13 +715,11 @@ function VerticalSessionTabs(props: {
       onMouseDragEnd={release}
     >
       <Show when={compact()}>
-        <SessionTabsRailControls width={width()} tabs={tabs} belowHighlighted={belowHighlighted()} />
+        <SessionTabsRailControls width={width()} tabs={tabs} />
       </Show>
       <scrollbox
         ref={(element) => {
           scroll = element
-          scroll.verticalScrollBar.on("change", updateScroll)
-          updateScroll()
         }}
         flexGrow={1}
         minHeight={0}
@@ -909,30 +897,39 @@ function VerticalSessionTabs(props: {
                   }}
                 >
                   <Show when={compact()}>
-                    <box height={1} flexDirection="row" justifyContent="center">
-                      <TabIndicator
-                        centered
-                        selected={selected()}
-                        width={width()}
-                        status={status()}
-                        label={sessionTabNumberLabel(index())}
-                        idleLabel={Locale.graphemes(title().trimStart())[0] ?? "U"}
-                        color={
-                          selected()
-                            ? theme.text.base
-                            : props.numbers
-                              ? numberColor()
-                              : (tabFeedbackColor(status(), theme) ?? (runs() ? activeNumber() : foreground()))
-                        }
-                        unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
-                        backgroundColor={pulseBackground()}
-                        flashColor={theme.text.base}
-                        animations={animations()}
-                        numbers={props.numbers}
-                        spinner={props.spinner}
-                        unreadMarker={props.unreadMarker}
-                        attributes={selected() ? TextAttributes.BOLD : undefined}
-                      />
+                    <box height={1} flexDirection="row">
+                      <text
+                        width={1}
+                        fg={selected() ? theme.hue.interactive[200] : theme.background.base}
+                        selectable={false}
+                      >
+                        {selected() ? "▏" : " "}
+                      </text>
+                      <box flexGrow={1} flexDirection="row" justifyContent="center">
+                        <TabIndicator
+                          centered
+                          selected={selected()}
+                          width={Math.max(1, width() - 1)}
+                          status={status()}
+                          label={sessionTabNumberLabel(index())}
+                          idleLabel={Locale.graphemes(title().trimStart())[0] ?? "U"}
+                          color={
+                            selected()
+                              ? theme.hue.interactive[200]
+                              : props.numbers
+                                ? numberColor()
+                                : (tabFeedbackColor(status(), theme) ?? (runs() ? activeNumber() : foreground()))
+                          }
+                          unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
+                          backgroundColor={pulseBackground()}
+                          flashColor={theme.text.base}
+                          animations={animations()}
+                          numbers={props.numbers}
+                          spinner={props.spinner}
+                          unreadMarker={props.unreadMarker}
+                          attributes={selected() ? TextAttributes.BOLD : undefined}
+                        />
+                      </box>
                     </box>
                   </Show>
                   <Show when={!compact()}>
