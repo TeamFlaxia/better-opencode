@@ -1,14 +1,13 @@
 name: pr-check
 
 # Pull-request gate for the better-opencode fork. Upstream CI targets upstream branches and Blacksmith runners,
-# so this workflow uses GitHub-hosted runners and main as the base.
+# so this workflow uses GitHub-hosted runners and main as the base. Pushes do not run checks; use a pull
+# request, or workflow_dispatch when a full run is needed.
 
 on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -41,8 +40,16 @@ jobs:
         run: bun run lint
 
       # CI uses the official TypeScript compiler, matching the upstream check job.
+      # Packages unaffected by the pull request were already checked on main, so only the changed
+      # packages and their dependents need compiling. A manual run still checks everything.
       - name: Typecheck
-        run: bun run typecheck:tsc
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            bun run typecheck:tsc
+          else
+            TURBO_SCM_BASE="${{ github.sha }}^1" TURBO_SCM_HEAD="${{ github.sha }}" \
+              bun turbo typecheck:tsc --affected --concurrency=3
+          fi
 
       - name: Lint changed files
         if: github.event_name == 'pull_request'
@@ -65,8 +72,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          # Pull requests diff against the merge's first parent; pushes need the commit before the push.
-          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+          # --affected diffs against the merge's first parent; that parent must be in the clone.
+          fetch-depth: 2
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
@@ -84,17 +91,14 @@ jobs:
         timeout-minutes: 35
         env:
           GITHUB_ACTIONS: "false"
-          TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
-          TURBO_SCM_HEAD: ${{ github.sha }}
-          BEFORE: ${{ github.event.before }}
         run: |
-          # A manual run and the first push to a new branch have no usable diff base, so run every suite.
+          # Two suites share the four-vCPU runner, and each runs its files with two worker processes.
+          # --no-isolate keeps each worker's module cache warm; the suites pass with it locally.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            bun turbo test --concurrency=2
-          elif [ "${{ github.event_name }}" = "push" ] && { [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; }; then
-            bun turbo test --concurrency=2
+            bun turbo test --concurrency=2 -- --parallel=2 --no-isolate
           else
-            bun turbo test --affected --concurrency=2
+            TURBO_SCM_BASE="${{ github.sha }}^1" TURBO_SCM_HEAD="${{ github.sha }}" \
+              bun turbo test --affected --concurrency=2 -- --parallel=2 --no-isolate
           fi
 
   build:
@@ -106,7 +110,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+          # --affected diffs against the merge's first parent; that parent must be in the clone.
+          fetch-depth: 2
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
@@ -114,15 +119,10 @@ jobs:
       # Unit tests import workspace sources, so this only checks that the libraries the CLI and app depend on build.
       - name: Build affected workspace libraries
         timeout-minutes: 25
-        env:
-          TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
-          TURBO_SCM_HEAD: ${{ github.sha }}
-          BEFORE: ${{ github.event.before }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             bun turbo build --concurrency=2 --filter='@opencode/cli^...'
-          elif [ "${{ github.event_name }}" = "push" ] && { [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; }; then
-            bun turbo build --concurrency=2 --filter='@opencode/cli^...'
           else
-            bun turbo build --affected --concurrency=2 --filter='@opencode/cli^...'
+            TURBO_SCM_BASE="${{ github.sha }}^1" TURBO_SCM_HEAD="${{ github.sha }}" \
+              bun turbo build --affected --concurrency=2 --filter='@opencode/cli^...'
           fi
