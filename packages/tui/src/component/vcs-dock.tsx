@@ -12,13 +12,18 @@ export const VCS_DOCK_WIDTH = 24
 export const VCS_DOCK_MIN_TERMINAL_WIDTH = 96
 
 type VcsDockOrientation = "right" | "below" | "vertical"
-type VcsAction = "open" | "diff" | "copy" | "refresh"
+type VcsAction = "actions" | "open" | "diff" | "copy" | "refresh"
 export type VcsDockController = Pick<
   ReturnType<typeof useVcs>,
   "visible" | "summary" | "refreshing" | "tool" | "openTool" | "refresh"
 >
 
-export function VcsDock(props: { orientation: VcsDockOrientation; width?: number; controller?: VcsDockController }) {
+export function VcsDock(props: {
+  orientation: VcsDockOrientation
+  width?: number
+  controller?: VcsDockController
+  onOpen?: () => void
+}) {
   const vcs = props.controller ?? useVcs()
   const theme = useTheme()
   const clipboard = useClipboard()
@@ -59,6 +64,7 @@ export function VcsDock(props: { orientation: VcsDockOrientation; width?: number
     const current = summary()
     const selected = tool()
     return [
+      { title: "Version control actions", value: "actions" as const, description: "Manage the repository" },
       ...(selected
         ? [{ title: `Open ${selected.label}`, value: "open" as const, description: "Launch the external TUI" }]
         : []),
@@ -73,6 +79,7 @@ export function VcsDock(props: { orientation: VcsDockOrientation; width?: number
   })
   const run = (action: VcsAction) => {
     dialog.clear()
+    if (action === "actions") return props.onOpen?.()
     if (action === "open") return void vcs.openTool()
     if (action === "diff") return keymap.dispatch("diff.open")
     if (action === "refresh") return void vcs.refresh()
@@ -114,7 +121,7 @@ export function VcsDock(props: { orientation: VcsDockOrientation; width?: number
         return
       }
       menuPressed = false
-      void vcs.openTool()
+      props.onOpen?.()
     },
   }
 
@@ -201,7 +208,7 @@ export function VcsDock(props: { orientation: VcsDockOrientation; width?: number
           </text>
           <box flexGrow={1} />
           <text fg={theme.text.muted} wrapMode="none" selectable={false}>
-            {tool()?.label ?? "no tool"} ⟨leader+v⟩
+            vcs ⟨leader+v⟩
           </text>
         </box>
       </Show>

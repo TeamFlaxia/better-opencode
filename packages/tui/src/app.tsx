@@ -79,6 +79,7 @@ import { DialogSessionList } from "./component/dialog-session-list"
 import { DialogOpen, DialogOpenKey, moveOpenSession } from "./component/dialog-open"
 import { SessionTabs } from "./component/session-tabs"
 import { VcsDock, VCS_DOCK_MIN_TERMINAL_WIDTH, VCS_DOCK_WIDTH } from "./component/vcs-dock"
+import { DialogVcs } from "./component/dialog-vcs"
 import { VcsProvider, useVcs } from "./context/vcs"
 import {
   clampSessionTabsWidth,
@@ -1207,7 +1208,7 @@ function App() {
         category: "Version control",
         slash: { name: "vcs", aliases: ["jj", "git"] },
         enabled: vcsDockEnabled,
-        run: () => void vcs.openTool(),
+        run: () => DialogVcs.show(dialog),
       },
       {
         name: "vcs.refresh",
@@ -1477,7 +1478,9 @@ function App() {
             orientation="vertical"
             width={tabsWidth()}
             footer={
-              vcsDockVisible() ? <VcsDock orientation="vertical" width={tabsWidth()} /> : undefined
+              vcsDockVisible() ? (
+                <VcsDock orientation="vertical" width={tabsWidth()} onOpen={() => DialogVcs.show(dialog)} />
+              ) : undefined
             }
           />
         </Show>
@@ -1491,7 +1494,7 @@ function App() {
                     <box flexDirection="column" flexShrink={0}>
                       <SessionTabs width={tabsWidthForDock()} />
                       <Show when={vcsDockBelow()}>
-                        <VcsDock orientation="below" />
+                        <VcsDock orientation="below" onOpen={() => DialogVcs.show(dialog)} />
                       </Show>
                     </box>
                   }
@@ -1500,7 +1503,11 @@ function App() {
                     <box flexGrow={1} minWidth={0}>
                       <SessionTabs width={tabsWidthForDock()} />
                     </box>
-                    <VcsDock orientation="right" width={VCS_DOCK_WIDTH} />
+                    <VcsDock
+                      orientation="right"
+                      width={VCS_DOCK_WIDTH}
+                      onOpen={() => DialogVcs.show(dialog)}
+                    />
                   </box>
                 </Show>
               </Show>

@@ -3,24 +3,8 @@
 The TUI can keep a small version control status dock beside the tab bar. It is an
 experimental feature, gated by the `vcs-dock` experiment and configured under `vcs`.
 
-## Why not only lazygit
-
-`lazygit` is built around Git's index and branch model. A jj repository is
-Git-compatible at the storage layer, but jj keeps the working copy as a real
-commit and stores bookmarks outside Git. Running lazygit against a colocated jj
-repository therefore shows an unfamiliar state and can create changes jj does
-not expect.
-
-The dock picks a tool that understands the detected repository:
-
-| Repository | Preferred tool | Fallback |
-| --- | --- | --- |
-| jj (`.jj`) | `lazyjj` | `jjui` |
-| Git (`.git`) | `lazygit` | none |
-| Mercurial (`.hg`) | none | none |
-
-Set `vcs.tool` to force a tool. For example, a jj user with only `jjui` installed
-can set `"tool": "jjui"`.
+Operations run inside OpenCode: the dock does not require `lazygit`, `lazyjj`, or
+`jjui` to be installed. Those tools remain available as an optional external view.
 
 ## Placement
 
@@ -40,15 +24,46 @@ and changed file count from `jj log` and `jj diff --summary`. For Git and
 Mercurial it uses the existing VCS API, so the dock reflects the same state as the
 rest of OpenCode.
 
-Click the dock to open the preferred external tool in a terminal pane. Right-click
-for a small menu with the external tool, the OpenCode diff viewer, copying the
-change or branch identifier, and a manual refresh.
+Click the dock (or run `vcs.open`) to open the built-in version control dialog.
+Right-click for the same actions plus quick links to the diff viewer and the
+optional external tool.
 
-## Commands
+## Built-in actions
 
-- `vcs.open` (`<leader>v`): open the preferred external tool.
-- `vcs.refresh`: refresh the dock status.
-- `/vcs`: slash-command entry for `vcs.open`.
+jj:
+
+- Review changes in the OpenCode diff viewer
+- Describe the current change
+- Create a new change
+- Squash into the parent
+- Abandon the current change
+- Set a bookmark
+- Fetch and push with the Git backend
+
+Git:
+
+- Review changes
+- Commit all changes with a message
+- Fetch, pull, and push
+
+Actions run from the session directory. Git credential prompts are disabled, so a
+private remote fails with an error toast instead of blocking the TUI.
+
+## Optional external tools
+
+The previous integration remains available when a tool is installed:
+
+| Repository | Preferred tool | Fallback |
+| --- | --- | --- |
+| jj (`.jj`) | `lazyjj` | `jjui` |
+| Git (`.git`) | `lazygit` | none |
+
+Set `vcs.tool` to force a tool. The dialog and dock expose the external tool only
+when it is found on `PATH`.
+
+`lazygit` is MIT, `jjui` is MIT, and `lazyjj` is Apache-2.0. If these binaries are
+ever bundled with a release, their license texts and notices must ship with them.
+The built-in dialog avoids that dependency entirely.
 
 ## Configuration
 
@@ -59,10 +74,11 @@ change or branch identifier, and a manual refresh.
   },
   "vcs": {
     "placement": "right", // or "below"
-    "tool": "auto", // or "lazygit", "lazyjj", "jjui"
+    "tool": "auto", // optional: "lazygit", "lazyjj", "jjui"
     "refresh_interval": 5000
   }
 }
 ```
 
-The experiment stays opt-in until the dock is useful without an external jj TUI.
+The experiment stays opt-in until the built-in actions cover the common jj and
+Git workflows without surprising rewrites.

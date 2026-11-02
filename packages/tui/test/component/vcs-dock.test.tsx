@@ -15,13 +15,13 @@ import { emptyThemeSource } from "../fixture/fixture"
 import { TestTuiContexts } from "../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
 
-function controller(summary: VcsSummary, onOpen: () => void): VcsDockController {
+function controller(summary: VcsSummary): VcsDockController {
   return {
     visible: () => true,
     summary: () => summary,
     refreshing: () => false,
     tool: () => ({ id: "lazyjj", label: "lazyjj", command: "/usr/bin/lazyjj" }),
-    openTool: async () => onOpen(),
+    openTool: async () => {},
     refresh: async () => {},
   }
 }
@@ -44,7 +44,7 @@ function Providers(props: ParentProps) {
   )
 }
 
-test("shows jj status and opens the preferred tool on click", async () => {
+test("shows jj status and opens the built-in version control dialog on click", async () => {
   const [opened, setOpened] = createSignal(0)
   const app = await testRender(
     () => (
@@ -53,17 +53,15 @@ test("shows jj status and opens the preferred tool on click", async () => {
           <VcsDock
             orientation="right"
             width={30}
-            controller={controller(
-              {
-                kind: "jj",
-                label: "main",
-                detail: "fix tabs",
-                change: "znnsty",
-                dirty: 2,
-                conflict: false,
-              },
-              () => setOpened((value) => value + 1),
-            )}
+            onOpen={() => setOpened((value) => value + 1)}
+            controller={controller({
+              kind: "jj",
+              label: "main",
+              detail: "fix tabs",
+              change: "znnsty",
+              dirty: 2,
+              conflict: false,
+            })}
           />
         </box>
       </Providers>
@@ -90,17 +88,14 @@ test("keeps the status legible in the compact vertical rail", async () => {
           <VcsDock
             orientation="vertical"
             width={5}
-            controller={controller(
-              {
-                kind: "jj",
-                label: "main",
-                detail: "fix tabs",
-                change: "znnsty",
-                dirty: 2,
-                conflict: false,
-              },
-              () => {},
-            )}
+            controller={controller({
+              kind: "jj",
+              label: "main",
+              detail: "fix tabs",
+              change: "znnsty",
+              dirty: 2,
+              conflict: false,
+            })}
           />
           <text>transcript</text>
         </box>
@@ -125,17 +120,14 @@ test("shows a conflict and exposes the menu on right click", async () => {
         <box width="100%" height="100%" flexDirection="column">
           <VcsDock
             orientation="below"
-            controller={controller(
-              {
-                kind: "jj",
-                label: "main",
-                detail: "resolving",
-                change: "znnsty",
-                dirty: 1,
-                conflict: true,
-              },
-              () => {},
-            )}
+            controller={controller({
+              kind: "jj",
+              label: "main",
+              detail: "resolving",
+              change: "znnsty",
+              dirty: 1,
+              conflict: true,
+            })}
           />
         </box>
       </Providers>

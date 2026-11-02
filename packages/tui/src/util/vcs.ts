@@ -4,6 +4,21 @@ import path from "node:path"
 export type VcsKind = "jj" | "git" | "hg" | "none"
 export type VcsToolID = "lazygit" | "lazyjj" | "jjui"
 export type VcsToolPreference = "auto" | VcsToolID
+export type VcsMutation =
+  | "describe"
+  | "new"
+  | "squash"
+  | "abandon"
+  | "bookmark"
+  | "fetch"
+  | "push"
+  | "commit"
+  | "pull"
+
+export type VcsCommand = {
+  readonly command: string
+  readonly args: readonly string[]
+}
 
 export type VcsTool = {
   readonly id: VcsToolID
@@ -16,6 +31,7 @@ export type VcsSummary = {
   readonly label: string
   readonly detail: string
   readonly change?: string
+  readonly description?: string
   readonly dirty: number
   readonly conflict: boolean
 }
@@ -64,7 +80,36 @@ export function summarizeJj(log: string, diff: string): VcsSummary {
     dirty,
     conflict: parsed.conflict,
     ...(parsed.change ? { change: parsed.change } : {}),
+    ...(parsed.description ? { description: parsed.description } : {}),
   }
+}
+
+export function mutationCommands(kind: VcsKind, action: VcsMutation, input?: string): VcsCommand[] {
+  const value = input?.trim()
+  if (kind === "jj") {
+    if (action === "describe") return value ? [{ command: "jj", args: ["describe", "-m", value] }] : []
+    if (action === "new") return [{ command: "jj", args: ["new"] }]
+    if (action === "squash") return [{ command: "jj", args: ["squash", "--use-destination-message"] }]
+    if (action === "abandon") return [{ command: "jj", args: ["abandon", "@"] }]
+    if (action === "bookmark") return value ? [{ command: "jj", args: ["bookmark", "set", value, "-r", "@"] }] : []
+    if (action === "fetch") return [{ command: "jj", args: ["git", "fetch"] }]
+    if (action === "push") return [{ command: "jj", args: ["git", "push"] }]
+    return []
+  }
+  if (kind === "git") {
+    if (action === "commit")
+      return value
+        ? [
+            { command: "git", args: ["add", "-A"] },
+            { command: "git", args: ["commit", "-m", value] },
+          ]
+        : []
+    if (action === "fetch") return [{ command: "git", args: ["fetch", "--all", "--prune"] }]
+    if (action === "pull") return [{ command: "git", args: ["pull", "--ff-only"] }]
+    if (action === "push") return [{ command: "git", args: ["push"] }]
+    return []
+  }
+  return []
 }
 
 export function resolveVcsTool(

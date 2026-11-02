@@ -207,7 +207,8 @@ export const Info = Schema.Struct({
         description: "Keep the version control dock at the right edge of the tab bar or below it",
       }),
       tool: Schema.optional(Schema.Literals(["auto", "lazygit", "lazyjj", "jjui"])).annotate({
-        description: "External version control tool; auto prefers lazyjj or jjui for jj and lazygit for git",
+        description:
+          "Optional external version control tool; auto prefers lazyjj or jjui for jj and lazygit for git",
       }),
       refresh_interval: Schema.optional(Schema.Int.check(Schema.isGreaterThan(0))).annotate({
         description: "Version control status refresh interval in milliseconds",

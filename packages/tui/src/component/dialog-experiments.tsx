@@ -28,7 +28,7 @@ export const experiments: Experiment[] = [
   {
     id: "vcs-dock",
     title: "Version control dock",
-    description: "Show jj or git status beside the tab bar and open lazyjj, jjui, or lazygit",
+    description: "Show jj or git status beside the tab bar and manage changes in a built-in panel",
   },
 ]
 

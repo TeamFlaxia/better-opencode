@@ -2,7 +2,15 @@ import type { LocationRef } from "@opencode/client"
 import { execFile } from "node:child_process"
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { useConfig } from "../config"
-import { detectVcsKind, resolveVcsTool, summarizeJj, type VcsKind, type VcsSummary } from "../util/vcs"
+import {
+  detectVcsKind,
+  mutationCommands,
+  resolveVcsTool,
+  summarizeJj,
+  type VcsKind,
+  type VcsMutation,
+  type VcsSummary,
+} from "../util/vcs"
 import { errorMessage } from "../util/error"
 import { useToast } from "../ui/toast"
 import { useClient } from "./client"
@@ -16,7 +24,7 @@ import { useSessionTerminals } from "./session-terminals"
 const JJ_LOG_TEMPLATE =
   'change_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ empty ++ "\\t" ++ conflict'
 
-function run(command: string, args: string[], cwd: string) {
+function run(command: string, args: readonly string[], cwd: string) {
   return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
     execFile(
       command,
@@ -25,7 +33,7 @@ function run(command: string, args: string[], cwd: string) {
         cwd,
         encoding: "utf8",
         maxBuffer: 4 * 1024 * 1024,
-        env: { ...process.env, NO_COLOR: "1", JJ_PAGER: "cat" },
+        env: { ...process.env, NO_COLOR: "1", JJ_PAGER: "cat", GIT_TERMINAL_PROMPT: "0" },
       },
       (error, stdout, stderr) => {
         if (error) return reject(error)
@@ -167,6 +175,25 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       }
     }
 
+    const execute = async (action: VcsMutation, input?: string) => {
+      const current = summary()
+      const target = info()
+      if (!current || !target) return
+      const commands = mutationCommands(current.kind, action, input)
+      if (commands.length === 0) return
+      try {
+        for (const command of commands) await run(command.command, command.args, target.directory)
+        await refresh()
+        toast.show({ variant: "success", message: `Version control: ${action} completed` })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: "Version control action failed",
+          message: errorMessage(error),
+        })
+      }
+    }
+
     createEffect(() => {
       if (!enabled()) {
         setSummary(undefined)
@@ -195,6 +222,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       tool,
       refresh,
       openTool,
+      execute,
     }
   },
 })

@@ -5,6 +5,7 @@ import path from "node:path"
 import {
   detectVcsKind,
   findExecutable,
+  mutationCommands,
   parseJjDiffSummary,
   parseJjLog,
   resolveVcsTool,
@@ -66,6 +67,7 @@ describe("summarizeJj", () => {
       label: "main",
       detail: "fix tabs",
       change: "znnstyupywvs",
+      description: "fix tabs",
       dirty: 2,
       conflict: false,
     })
@@ -81,6 +83,41 @@ describe("summarizeJj", () => {
 
   test("surfaces a conflict", () => {
     expect(summarizeJj("znnstyupywvs\t\t\tfalse\ttrue\n", "")).toMatchObject({ conflict: true })
+  })
+})
+
+describe("mutationCommands", () => {
+  test("builds jj actions", () => {
+    expect(mutationCommands("jj", "describe", "  fix tabs  ")).toEqual([
+      { command: "jj", args: ["describe", "-m", "fix tabs"] },
+    ])
+    expect(mutationCommands("jj", "bookmark", "feature")).toEqual([
+      { command: "jj", args: ["bookmark", "set", "feature", "-r", "@"] },
+    ])
+    expect(mutationCommands("jj", "new")).toEqual([{ command: "jj", args: ["new"] }])
+    expect(mutationCommands("jj", "squash")).toEqual([
+      { command: "jj", args: ["squash", "--use-destination-message"] },
+    ])
+    expect(mutationCommands("jj", "fetch")).toEqual([{ command: "jj", args: ["git", "fetch"] }])
+  })
+
+  test("builds the two-step git commit", () => {
+    expect(mutationCommands("git", "commit", "message")).toEqual([
+      { command: "git", args: ["add", "-A"] },
+      { command: "git", args: ["commit", "-m", "message"] },
+    ])
+  })
+
+  test("requires input for describe, bookmark, and commit", () => {
+    expect(mutationCommands("jj", "describe", "  ")).toEqual([])
+    expect(mutationCommands("jj", "bookmark")).toEqual([])
+    expect(mutationCommands("git", "commit")).toEqual([])
+  })
+
+  test("ignores actions that do not belong to the repository kind", () => {
+    expect(mutationCommands("hg", "fetch")).toEqual([])
+    expect(mutationCommands("git", "describe", "message")).toEqual([])
+    expect(mutationCommands("jj", "commit", "message")).toEqual([])
   })
 })
 

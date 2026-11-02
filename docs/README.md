@@ -25,7 +25,7 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 
 開発手順の詳細は [development.md](development.md) を参照。
 
-バージョン管理ドック（jj / lazyjj / lazygit）は [vcs-dock.md](vcs-dock.md) を参照。
+バージョン管理ドック（jj / git の内蔵操作と任意の lazyjj / lazygit 連携）は [vcs-dock.md](vcs-dock.md) を参照。
 
 ## 現在の機能棚卸し（重複提案を避けるため）
 
