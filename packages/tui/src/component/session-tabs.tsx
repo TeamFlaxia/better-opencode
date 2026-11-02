@@ -1045,21 +1045,16 @@ function VerticalSessionTabs(props: {
                         </text>
                       </box>
                     </box>
-                    <box height={1} width="100%" flexShrink={0} backgroundColor={cardLineColor()} />
-                    <TabPulse
-                      top={2}
-                      enabled={animations()}
-                      active={runs()}
-                      promptPulse={status().promptPulse}
-                      complete={complete() && !status().attention}
-                      glow={glows()}
-                      color={pulseColor()}
-                      glowColor={glowColor()}
-                      flashColor={flashColor()}
-                      flashTail={8}
-                      completionColor={unreadColor()}
-                      backgroundColor={cardLineColor()}
-                    />
+                    <text
+                      height={1}
+                      width={width()}
+                      fg={cardLineColor()}
+                      bg={tabBackground()}
+                      wrapMode="none"
+                      selectable={false}
+                    >
+                      {"▁".repeat(width())}
+                    </text>
                   </Show>
                 </box>
               )

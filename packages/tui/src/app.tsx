@@ -517,26 +517,19 @@ function App() {
   const local = useLocal()
   const sessionTabs = useSessionTabs()
   const vcs = useVcs()
-  // VCS is a view owned by the current session tab, so switching tabs does not carry it over.
-  const [vcsOpenKeys, setVcsOpenKeys] = createSignal<ReadonlySet<string>>(new Set())
+  // VCS is a transient view: switching session tabs returns to that tab's conversation.
+  const [vcsOpen, setVcsOpen] = createSignal(false)
   const vcsKey = () => {
     if (route.data.type === "session") return `session:${route.data.sessionID}`
     if (route.data.type === "home") return "home"
   }
-  const vcsOpen = () => {
+  let lastVcsKey = vcsKey()
+  createEffect(() => {
     const key = vcsKey()
-    return key !== undefined && vcsOpenKeys().has(key)
-  }
-  const setVcsOpen = (open: boolean) => {
-    const key = vcsKey()
-    if (!key) return
-    setVcsOpenKeys((keys) => {
-      const next = new Set(keys)
-      if (open) next.add(key)
-      else next.delete(key)
-      return next
-    })
-  }
+    if (key === lastVcsKey) return
+    lastVcsKey = key
+    setVcsOpen(false)
+  })
   const panels = usePanel()
   const keymap = Keymap.use()
   const event = useEvent()

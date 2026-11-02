@@ -38,7 +38,7 @@ const session = (id: string, title: string) => ({
   time: { created: 0, updated: 0 },
 })
 
-test("the version control view stays with its session tab", async () => {
+test("switching session tabs closes the version control view", async () => {
   const first = session("ses_vcs_tab_a", "First tab")
   const second = session("ses_vcs_tab_b", "Second tab")
   const message = (text: string) => ({
@@ -88,5 +88,67 @@ test("the version control view stays with its session tab", async () => {
     data: { sessionID: first.id },
     location: { directory },
   })
-  await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository") && !frame.includes("Conversation B"))
+  await setup.waitForFrame((frame) => frame.includes("Conversation A") && !frame.includes("No Git, jj, or Mercurial repository"))
 }, 20000)
+
+for (const layout of ["vertical", "horizontal"] as const) {
+test(`switching ${layout} tabs with the mouse leaves the version control view`, async () => {
+  const first = session("ses_vcs_tab_click_a", "First click tab")
+  const second = session("ses_vcs_tab_click_b", "Second click tab")
+  const message = (text: string) => ({
+    data: [{ id: `msg_${text}`, type: "user", text, time: { created: 1 } }],
+    cursor: {},
+  })
+  await using setup = await createAppFixture({
+    width: 110,
+    height: 30,
+    args: { sessionID: first.id },
+    config: { animations: false, tabs: { mode: "on", layout }, experimental: { "vcs-dock": true } },
+    fetch: (url) => {
+      if (url.pathname === "/api/location") return json(location)
+      if (url.pathname === "/api/session") return json({ data: [first, second], cursor: {} })
+      if (url.pathname === `/api/session/${first.id}`) return json({ data: first })
+      if (url.pathname === `/api/session/${second.id}`) return json({ data: second })
+      if (url.pathname === `/api/session/${first.id}/message`) return json(message("Click conversation A"))
+      if (url.pathname === `/api/session/${second.id}/message`) return json(message("Click conversation B"))
+      if (/^\/api\/session\/[^/]+\/(inbox|permission|form)$/.test(url.pathname)) return json({ data: [] })
+      if (url.pathname === "/api/agent")
+        return json({ location, data: [{ id: "build", mode: "primary", hidden: false, permissions: [] }] })
+      if (url.pathname === "/api/provider") return json({ location, data: [{ id: "provider", name: "Provider" }] })
+      if (url.pathname === "/api/model")
+        return json({ location, data: [{ id: "model", providerID: "provider", name: "Model", variants: [] }] })
+    },
+  })
+  await setup.ready
+  await setup.waitForFrame((frame) => frame.includes("Click conversation A"))
+  // Selecting a session once adds its tab; return to the first tab before opening VCS.
+  setup.events.emit({
+    id: "evt_click_select_second",
+    created: 2,
+    type: "tui.session.select",
+    data: { sessionID: second.id },
+    location: { directory },
+  })
+  await setup.waitForFrame((frame) => frame.includes("Click conversation B"))
+  setup.events.emit({
+    id: "evt_click_select_first",
+    created: 3,
+    type: "tui.session.select",
+    data: { sessionID: first.id },
+    location: { directory },
+  })
+  await setup.waitForFrame((frame) => frame.includes("Click conversation A"))
+
+  setup.mockInput.pressKey("x", { ctrl: true })
+  setup.mockInput.pressKey("v")
+  await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
+
+  const rows = setup.captureCharFrame().split("\n")
+  const row = rows.findIndex((line) => line.includes("Second click tab"))
+  expect(row).toBeGreaterThanOrEqual(0)
+  await setup.mockMouse.click(rows[row]!.indexOf("Second click tab") + 2, row)
+  await setup.waitForFrame(
+    (frame) => frame.includes("Click conversation B") && !frame.includes("No Git, jj, or Mercurial repository"),
+  )
+}, 20000)
+}

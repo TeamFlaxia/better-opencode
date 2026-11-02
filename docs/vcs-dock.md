@@ -27,9 +27,8 @@ rest of OpenCode.
 
 Click the dock (or run `vcs.open`) to open the built-in version control view.
 The view replaces the session transcript instead of opening a modal dialog, so the
-file list and diff stay visible while the tab bar and dock remain in place. The
-view belongs to the current session tab: switching tabs hides it, and returning to
-that tab brings it back.
+file list and diff stay visible while the tab bar and dock remain in place.
+Switching to another session tab closes the view and shows that tab's conversation.
 
 When a jj repository is colocated with Git, the view lists both repositories and
 their files together. Use `tab` or the left/right arrows to switch which repository

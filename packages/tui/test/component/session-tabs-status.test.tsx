@@ -328,12 +328,11 @@ test.each([SESSION_SIDEBAR_WIDTH, 18])(
       const runningLine = cellRow(6)
       const rightEdge = railWidth - 1
 
-      expect(idleLine.slice(0, railWidth).map((cell) => cell.char)).toEqual(Array(railWidth).fill(" "))
-      expect(runningLine[rightEdge]!.bg).not.toBe(idleLine[rightEdge]!.bg)
+      expect(idleLine.slice(0, railWidth).map((cell) => cell.char)).toEqual(Array(railWidth).fill("▁"))
+      expect(runningLine.slice(0, railWidth).map((cell) => cell.char)).toEqual(Array(railWidth).fill("▁"))
       expect(runningTitle[rightEdge]!.bg).not.toBe(idleTitle[rightEdge]!.bg)
       expect(runningDetail[rightEdge]!.bg).not.toBe(idleDetail[rightEdge]!.bg)
       expect(runningTitle[railWidth]!.bg).toBe(idleTitle[railWidth]!.bg)
-      expect(runningLine[railWidth]!.bg).toBe(idleLine[railWidth]!.bg)
     } finally {
       app.renderer.destroy()
     }
