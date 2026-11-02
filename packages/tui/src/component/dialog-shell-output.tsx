@@ -10,6 +10,13 @@ import { DialogFooter, DialogHeader, DialogLayout, useDialog } from "../ui/dialo
 
 const PAGE_BYTES = 64 * 1024
 
+// The viewer polls while it is open. Tests shorten this instead of waiting a second per poll.
+let pollIntervalMs = 1_000
+
+export function setShellOutputPollInterval(ms: number) {
+  pollIntervalMs = ms
+}
+
 export function DialogShellOutput(props: { shell: ShellInfo; location: LocationRef }) {
   const client = useClient()
   const dialog = useDialog()
@@ -70,7 +77,7 @@ export function DialogShellOutput(props: { shell: ShellInfo; location: LocationR
         .then((more) => {
           // Poll only while the viewer is open, including after exit so the final
           // file flush is observed. Never overlap reads or reload earlier pages.
-          if (!disposed && !missing) timer = setTimeout(poll, more ? 0 : 1_000)
+          if (!disposed && !missing) timer = setTimeout(poll, more ? 0 : pollIntervalMs)
         })
     }
     poll()

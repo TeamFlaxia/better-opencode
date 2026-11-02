@@ -5,7 +5,7 @@ description: Use when writing, reviewing, speeding up, or fixing a flaky `bun te
 
 # Fast, Reliable Unit Tests
 
-CI runs `bun turbo test --affected --concurrency=3` on 4-vCPU Linux and Windows runners (unit job in `.github/workflows/check-test.yml`), so each suite shares the CPU with two others, and Windows is the slower leg. Most slow or flaky unit tests here wait on real time, spawn too many processes, or assert wall-clock speed.
+CI runs `bun turbo test --affected --concurrency=2 -- --parallel=2 --no-isolate` on a 4-vCPU Linux runner (`.github/workflows/pr-check.yml`), so two suites share the CPU with two workers each. The fork has no Windows unit job; the Windows guidance below comes from upstream and is kept for tests that must stay cross-platform.
 
 Read these first; this skill does not repeat them:
 
@@ -13,6 +13,22 @@ Read these first; this skill does not repeat them:
 - `packages/ai/AGENTS.md`: cassettes. The `effect` skill: `it.effect` and `it.live`.
 
 Sibling skill: `tui-tests` (OpenTUI renderer tests in tui and cli). This skill owns cli subprocess and service tests.
+
+## Fast local runs
+
+The main packages expose `test:fast`, which adds `--parallel=4 --no-isolate` to the package's
+normal test command. Use it during iteration; CI keeps the serial `test` script.
+
+- `packages/core`: `bun run test:fast` (measured 140s → 50s on 12 cores)
+- `packages/tui`: `bun run test:fast` (158s → 50s)
+- `packages/cli`, `ai`, `server`, `codemode`: `bun run test:fast`
+
+To run only the tests affected by edited files, use `bun test --changed` inside a package (core:
+`bun run script/test.ts --changed`). A single file is fastest: `bun test test/session-runner.test.ts`
+(core: `bun run script/test.ts <file>`).
+The repository root exposes `bun run test:affected` for the affected-package variant. When adding a
+test, make sure it passes under `test:fast` as well; `--no-isolate` shares one module registry per
+worker, so file-level state leaks surface there.
 
 ## Know the budget
 
@@ -54,8 +70,13 @@ Sibling skill: `tui-tests` (OpenTUI renderer tests in tui and cli). This skill o
 
 TestClock cannot reach a spawned server or worker. These production waits already cost real time:
 
-- cli (about 60s of its roughly 2-minute suite): the 15s bind-retry deadline (`Date.now() + 15_000` in `packages/cli/src/server-process.ts`), the 5s registration watch (`packages/cli/src/services/service-registration.ts:63`), and fixed sleeps (`Bun.sleep(8_000)` at `service.test.ts:620`, `Bun.sleep(5_500)` at `service-lifecycle.test.ts:237`).
-- core (about 8s locally): McpStdio `CLOSE_GRACE` 2s + `FORCE_KILL_AFTER` 2s (`stdio.ts:10-13`), Shell `forceKillAfter` 3s (`packages/core/src/shell.ts:306`, `:401`), and the 1s capture deadline in cross-spawn-spawner.
+- cli: the 15s bind-retry deadline (`packages/cli/src/server-process.ts`) and the 5s registration
+  watch (`packages/cli/src/services/service-registration.ts`) are read through
+  `OPENCODE_SERVICE_BIND_RETRY_MS` and `OPENCODE_SERVICE_REGISTRATION_INTERVAL_MS`. Set both in the
+  spawned service's env (the service and lifecycle suites already do) instead of waiting them out.
+- core: `McpStdio.make` accepts `closeGrace` and `forceKillAfter` overrides; pass short durations
+  when a test closes a process that ignores SIGTERM. The 3s Shell kill grace and the 1s capture
+  deadline still have no test seam.
 
 To avoid adding more:
 
@@ -106,13 +127,13 @@ To avoid adding more:
   - In Effect packages, provide the dependency through a test layer. In ui, drive the real module and entry point, and inject only through a parameter the product already has.
 - Never add `--isolate` or bare `--parallel` (which implies `--isolate`) to a test script: ai went from 7.6s to 26.3s with `--parallel=2`.
   - `--parallel=N --no-isolate` keeps the shared registry and measured 0.47-0.68x serial wall time at about the same CPU in core. It also exposed load-sensitive tests (browser-idle and integration's `eventually`, both since fixed).
-  - Adopting it is a runner decision for maintainers once CI passes on both OSes, not a fix for one slow test.
+  - The fork's PR job passes `--parallel=2 --no-isolate` on its 4-vCPU Linux runner; the upstream Windows job still runs serial. A maintainer decision to change the runner belongs in the workflow, not in one flaky test.
 -
 
 ## Turbo test tasks
 
 - `bun turbo test` runs every workspace package that has a `test` script, through the generic `test` task in `turbo.json` (`"dependsOn": ["transit"], "outputs": []`). A package with test files but no `test` script never runs in CI: give a new suite a script, and check with `bun turbo test --dry=json`. Add an `@opencode/<pkg>#test` entry only to override the generic task (desktop disables caching). Suites CI skipped rotted: client, util, sdk, http-recorder and merman needed fixes before CI could run them.
-- `transit` runs nothing and depends on `^transit`, so a test hash covers the package's whole workspace closure. The global dependencies add root `package.json` (whose `packageManager` pins Bun), `bunfig.toml`, `patches/**`, `.npmrc`, `.github/actions/setup-bun/**` and `check-test.yml`.
+- `transit` runs nothing and depends on `^transit`, so a test hash covers the package's whole workspace closure. The global dependencies add root `package.json` (whose `packageManager` pins Bun), `bunfig.toml`, `patches/**`, `.npmrc`, `.github/actions/setup-bun/**` and `pr-check.yml`.
 - Tests do not wait for builds: workspace packages export their sources (`"./*": "./src/*.ts"` in `packages/core/package.json`), so a test must not read a dependency's `dist`. The build job's "Build workspace libraries" step checks the library builds on Linux.
 - A package that compiles `src` with tsc keeps colocated tests out of the build (`"exclude": ["src/**/*.test.ts"]` in `packages/util/tsconfig.build.json`). Otherwise `bun test` also runs the compiled copies, as Windows CI did with `packages/util/dist/retry.test.js`.
 
@@ -121,7 +142,7 @@ To avoid adding more:
 - Most suites print only failures (`--only-failures`): `(fail) <name> [5000ms]` and `^ this test timed out after 5000ms`.
   - When `killed 1 dangling process` and `# Unhandled error between tests` follow (for example `NpmInstallFailedError` with `SIGTERM` from a `git clone`), the test was still doing real work, not hanging.
   - The unhandled error is the abandoned Effect failing after Bun killed its child, not a second bug. Count the work (see Before you push) before choosing a fix.
-- Check whether the test also fails on dev pushes: `gh run list --workflow check-test.yml --branch dev --event push --status failure`. In one census before core's 30s default, 4 of 25 dev pushes went red, all on Windows unit tests (3 of them Npm.add 5s timeouts).
+- The fork runs CI only on pull requests, so compare with the base branch's other PR runs (`gh run list --workflow pr-check.yml --limit 20`). A failure that also appears in unrelated PRs is not caused by this change. The Windows-flake census below is upstream history, kept because those tests still need to stay cross-platform.
 - Read whole job logs with `gh run view --log --job <id>`; `--log-failed` omits green jobs, whose `Ran N tests across M files. [Xs]` lines you need for comparison.
 - Assert a child's stderr before its exit codes. `packages/core/test/util/effect-flock.test.ts:327-328` checks codes first, so its one CI failure never showed the cause.
 

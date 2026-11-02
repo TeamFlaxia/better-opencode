@@ -46,6 +46,7 @@ import { ToolOutput } from "@opencode/core/tool-output"
 import {
   Context,
   Deferred,
+  Duration,
   Effect,
   Exit,
   Fiber,
@@ -919,6 +920,9 @@ testMcpDescendants(
       args: [path.join(import.meta.dir, "fixture/held-stdio.cjs"), "mcp", pidFile],
       cwd: tmp.path,
       environment: {},
+      // The ready descendant holds the pipes; do not spend the production 2s grace here.
+      closeGrace: Duration.millis(50),
+      forceKillAfter: Duration.millis(50),
     })
     transport.onmessage = () => {
       Deferred.doneUnsafe(ready, Exit.void)
@@ -985,6 +989,9 @@ test("closes a stdio process that finishes spawning after close", async () => {
           args: [],
           cwd: import.meta.dir,
           environment: {},
+          // The fake handle exits only after kill; skip the production grace windows.
+          closeGrace: Duration.millis(10),
+          forceKillAfter: Duration.millis(10),
         })
         const start = transport.start()
         yield* Deferred.await(spawning)

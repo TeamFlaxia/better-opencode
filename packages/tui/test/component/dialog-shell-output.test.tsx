@@ -2,8 +2,9 @@
 import { ScrollBoxRenderable } from "@opentui/core"
 import { testRender } from "@opentui/solid"
 import type { ShellInfo } from "@opencode/client"
-import { expect, test } from "bun:test"
+import { afterAll, beforeAll, expect, test } from "bun:test"
 import { createSignal, onMount } from "solid-js"
+import { setShellOutputPollInterval } from "../../src/component/dialog-shell-output"
 import { ConfigProvider } from "../../src/config"
 import { ClientProvider } from "../../src/context/client"
 import { DataProvider, useData } from "../../src/context/data"
@@ -19,6 +20,11 @@ import { emptyThemeSource, tmpdir } from "../fixture/fixture"
 import { createApi, createEventStream, createFetch, json } from "../fixture/tui-client"
 import { TestTuiContexts } from "../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
+
+const POLL_INTERVAL_MS = 10
+
+beforeAll(() => setShellOutputPollInterval(POLL_INTERVAL_MS))
+afterAll(() => setShellOutputPollInterval(1_000))
 
 async function setup(width: number, output = "") {
   const temporary = await tmpdir()
@@ -160,7 +166,7 @@ test.each([40, 100])("shell output opens, follows, scrolls, and survives exit at
   app.mockInput.pressEscape()
   await app.waitForFrame((frame) => !frame.includes("Shell output") && frame.includes("No shell commands"))
   const count = app.requests.length
-  await Bun.sleep(1100)
+  await Bun.sleep(POLL_INTERVAL_MS * 5)
   expect(app.requests).toHaveLength(count)
 })
 
@@ -179,7 +185,7 @@ test("empty output explains redirection, retries errors, and preserves output af
   await app.waitForFrame((frame) => frame.includes("no longer available"), { maxPasses: 100 })
   expect(app.captureCharFrame()).toContain("Recovered output")
   const count = app.requests.length
-  await Bun.sleep(1100)
+  await Bun.sleep(POLL_INTERVAL_MS * 5)
   expect(app.requests).toHaveLength(count)
 })
 

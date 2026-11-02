@@ -66,6 +66,8 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
   return yield* Effect.scoped(
     Effect.gen(function* () {
       const foreground = options.mode === "default"
+      const serviceBindRetryMs = yield* Env.serviceBindRetryMs
+      const serviceRegistrationIntervalMs = yield* Env.serviceRegistrationIntervalMs
       const serviceOptions = options.mode === "service" ? yield* ServiceConfig.options() : undefined
       const config = options.mode === "service" ? yield* ServiceConfig.read() : {}
       const hostname = options.hostname ?? config.hostname ?? "127.0.0.1"
@@ -153,6 +155,7 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
                     id: instanceID,
                     file: serviceOptions.file,
                     shutdown,
+                    intervalMs: serviceRegistrationIntervalMs,
                   })
                 }),
             },
@@ -163,7 +166,7 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
         Effect.catch((error) => {
           if (findIncumbent === undefined || !addressInUse(error)) return Effect.fail(error)
           return Effect.gen(function* () {
-            const deadline = Date.now() + 15_000
+            const deadline = Date.now() + serviceBindRetryMs
             while (Date.now() < deadline) {
               const found = yield* findIncumbent.pipe(Effect.timeoutOption(deadline - Date.now()))
               if (Option.isSome(found) && found.value !== undefined) return

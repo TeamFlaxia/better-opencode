@@ -25,6 +25,7 @@
     "pack": "bun run script/pack.ts",
     "update-models-snapshot": "bun run script/update-models-snapshot.ts",
     "test": "bun run script/test.ts",
+    "test:fast": "bun run script/test.ts --parallel=4 --no-isolate",
     "typecheck": "bun check --no-script -b -p tsconfig.tests.json",
     "typecheck:tsc": "tsc -b tsconfig.json tsconfig.tests.json"
   },

@@ -38,8 +38,10 @@ During iteration, run the package-level commands instead of the full suite:
 ```bash
 cd packages/core
 bun typecheck
-bun run test
+bun run test:fast
 ```
+
+`test:fast` runs test files in parallel with Bun's `--parallel=4 --no-isolate` (roughly 2–3x faster locally). CI keeps using the serial `test` script. Use `bun test --changed` inside a package to run only the tests affected by edited files, or `bun run test:affected` from the repository root for affected packages.
 
 Tests must run from the package directory. Running `bun test` from the repository root is blocked on purpose.
 

@@ -4,6 +4,8 @@
 
 - Bun 1.4.4（`.bun-version` で固定、`packageManager` も `bun@1.4.4`）
 - Git
+- ripgrep（`rg`）。`packages/core` の検索テストが使う。無いと多数のテストが失敗する
+- 任意: `lsof`（サービス系テストのポート所有者表示）
 - 任意: インストール済みの `opencode`（`bun run dev:live` を使う場合）
 
 初回は Bun を導入してから依存をインストールする。
@@ -80,27 +82,34 @@ bun run check          # lint + typecheck（リポジトリ全体）
 ```bash
 cd packages/core
 bun typecheck
-bun run test
+bun run test:fast      # テストファイルを並列実行（直列より約 2.8 倍速い）
+bun run script/test.ts test/session-runner.test.ts   # 1ファイルだけ
 ```
 
+`test:fast` は Bun の `--parallel=4 --no-isolate` でテストファイルを並列実行する。CI は従来どおり直列の `test` を使うため、並列化はローカル専用の高速パスとして扱う。複数パッケージをまとめて回す場合は、リポジトリルートで `bun run test:affected` を使う（`bun turbo test --affected --concurrency=2 -- --parallel=4 --no-isolate`）。
+
+変更したファイルに関係するテストだけを回す場合は、パッケージディレクトリで `bun test --changed` を使う。1ファイルを監視する場合は `bun test example.test.ts --watch`、テスト名で絞る場合は `-t <pattern>` を使う。
+
 - テストは必ずパッケージディレクトリから実行する（ルートからの `bun test` はブロックされる）。
+- `packages/core` は HOME / XDG / TMPDIR を隔離するため、直接 `bun test` せず `bun run script/test.ts` を使う（`--changed` も `bun run script/test.ts --changed`）。
 - 公開 Protocol / Server `HttpApi` を変えたら `packages/client` で `bun run generate`。
 - `bun check` と `bun run typecheck:tsc` が食い違う場合は `tsc` を正とする。
 - Changesets は使わない。
 
 ## CI
 
-`.github/workflows/pr-check.yml` が `main` 向け PR と `main` への push で動く。GitHub ホストの `ubuntu-latest` を使い、次の3ジョブを並列で実行する。
+`.github/workflows/pr-check.yml` は `main` 向け PR と手動実行（`workflow_dispatch`）で動く。`main` への通常の push では動かない。GitHub ホストの `ubuntu-latest` を使い、次の3ジョブを並列で実行する。
 
 | ジョブ | 内容 |
 | --- | --- |
-| `check` | `bun run lint`、`bun run typecheck:tsc`、変更ファイルの lint、生成クライアント / OpenAPI の差分確認 |
-| `test` | 変更の影響を受けるパッケージのユニットテスト（`bun turbo test --affected`） |
+| `check` | `bun run lint`、`bun turbo typecheck:tsc --affected`、変更ファイルの lint、生成クライアント / OpenAPI の差分確認 |
+| `test` | 変更の影響を受けるパッケージのユニットテスト（`bun turbo test --affected --concurrency=2 -- --parallel=2 --no-isolate`） |
 | `build` | CLI / app が依存するワークスペースライブラリのビルド（`--affected`） |
 
 - ドラフト PR ではジョブをスキップする。`ready_for_review` で再実行される。
-- 同じ PR への追加 push は古い実行をキャンセルする。
-- `workflow_dispatch` では影響範囲を絞らず全テスト・全ビルドを実行する。
+- 同じ PR への追加コミットは古い実行をキャンセルする。
+- `workflow_dispatch` では影響範囲を絞らず、全パッケージの型チェック・全テスト・全ビルドを実行する。
+- PR の `check` / `test` / `build` は変更されたパッケージとその依存先だけを対象にする。未変更パッケージは `main` で検証済みという前提。
 - 上流由来のリリース・デプロイ・トリアージ workflow は削除済み。現在の CI は `pr-check.yml`、`release-tag.yml`、`check-process-daemon.yml` のみ。
 
 ブランチ保護で `check` / `test` / `build` を必須チェックにすると、PR のマージ前に検証を強制できる。

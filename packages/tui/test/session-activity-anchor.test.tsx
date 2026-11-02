@@ -117,8 +117,8 @@ const rowOf = (frame: string, label: string) => lines(frame).findIndex((line) =>
 async function toggle(setup: Setup, label: string) {
   const row = rowOf(setup.captureCharFrame(), label)
   expect(row).toBeGreaterThan(0)
-  // Stay outside OpenTUI's 500ms multi-click window so a second toggle is not a word selection.
-  await Bun.sleep(550)
+  // Reset the multi-click history so a second toggle is not a word selection.
+  setup.renderer.clearSelection()
   const recorder = new TestRecorder(setup.renderer)
   recorder.rec()
   await setup.mockMouse.click(8, row)

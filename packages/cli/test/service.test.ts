@@ -638,7 +638,12 @@ test("unresponsive managed port occupancy reports a bounded conflict", async () 
     await fs.chmod(path.join(root, "bin", "lsof"), 0o755)
   }
   const contender = Bun.spawn([process.execPath, path.join(import.meta.dir, "../src/index.ts"), "serve", "--service"], {
-    env: { ...serviceEnv(root), PATH: `${path.join(root, "bin")}${path.delimiter}${process.env.PATH}` },
+    env: {
+      ...serviceEnv(root),
+      // The production deadline is 15s; one second still exercises the bounded-conflict path.
+      OPENCODE_SERVICE_BIND_RETRY_MS: "1000",
+      PATH: `${path.join(root, "bin")}${path.delimiter}${process.env.PATH}`,
+    },
     stderr: "pipe",
     stdout: "pipe",
   })
@@ -701,7 +706,9 @@ test("port contender recognizes an incumbent registered during the bind race", a
 
   try {
     expect(await Promise.race([recognizing.promise.then(() => true), Bun.sleep(20_000).then(() => false)])).toBe(true)
-    await Bun.sleep(8_000)
+    // The second request completes the initial incumbent check. The next one comes from the bind-retry
+    // loop, which is already running when it makes this request.
+    await waitFor(() => requests.count >= 3)
     const info = {
       id: "incumbent",
       version: OPENCODE_VERSION,
@@ -785,6 +792,15 @@ test("a failed service stays registered and owns the selected port until stopped
   }
 }, 30_000)
 
+async function waitFor(condition: () => boolean, timeout = 10_000) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    if (condition()) return
+    await Bun.sleep(10)
+  }
+  throw new Error("Timed out waiting for condition")
+}
+
 async function waitForInfo(file: string, accept: (info: Info) => boolean = () => true) {
   for (let attempt = 0; attempt < 400; attempt++) {
     const value = await Bun.file(file)
@@ -851,6 +867,8 @@ function serviceEnv(root: string) {
     ...process.env,
     BUN_RUNTIME_TRANSPILER_CACHE_PATH: transpilerCache,
     HOME: root,
+    // Spawned services verify registration ownership every 100ms instead of the production 5s.
+    OPENCODE_SERVICE_REGISTRATION_INTERVAL_MS: "100",
     OPENCODE_CONFIG_DIR: undefined,
     OPENCODE_DB: path.join(root, "opencode.db"),
     OPENCODE_TEST_HOME: root,

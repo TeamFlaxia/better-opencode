@@ -109,7 +109,7 @@ serviceTest(
 serviceTest(
   "an unrelated process on the port gets an actionable error, then the service starts",
   async () => {
-    await using home = await serviceHome()
+    await using home = await serviceHome({ bindRetryMs: 500 })
     using listener = Bun.serve({ hostname: "127.0.0.1", port: home.port, fetch: () => new Response("unrelated") })
 
     const conflict = await cli(home, "service", "start").then(
@@ -175,7 +175,7 @@ serviceTest(
 type Home = Awaited<ReturnType<typeof serviceHome>>
 type Snapshot = Awaited<ReturnType<typeof snapshot>>
 
-async function serviceHome(options: { readonly failBoot?: boolean } = {}) {
+async function serviceHome(options: { readonly failBoot?: boolean; readonly bindRetryMs?: number } = {}) {
   // Bun resolves symlinks in the entry path, so process command lines carry the real directory.
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "opencode-service-lifecycle-")))
   const port = await availablePort()
@@ -186,7 +186,13 @@ async function serviceHome(options: { readonly failBoot?: boolean } = {}) {
   // Servers spawned through this home's entry carry its path, so `servers()` sees only this home.
   const homeEntry = path.join(root, "opencode.ts")
   await fs.writeFile(homeEntry, `import ${JSON.stringify(entry)}\n`)
-  const overrides = options.failBoot ? { OPENCODE_DB: path.join(root, "database") } : {}
+  const overrides = {
+    // The suite checks that a server survives its registration self-check; a short interval keeps
+    // that wait in milliseconds instead of the production five seconds.
+    OPENCODE_SERVICE_REGISTRATION_INTERVAL_MS: "50",
+    ...(options.bindRetryMs === undefined ? {} : { OPENCODE_SERVICE_BIND_RETRY_MS: String(options.bindRetryMs) }),
+    ...(options.failBoot ? { OPENCODE_DB: path.join(root, "database") } : {}),
+  }
   const home = {
     root,
     port,
@@ -238,7 +244,8 @@ async function settled(home: Home, version = OPENCODE_VERSION) {
 /** Settled, and still the same server after its registration self-check has run. */
 async function steady(home: Home) {
   const info = await settled(home)
-  await Bun.sleep(5_500)
+  // The home runs the self-check every 50ms; wait for several passes.
+  await Bun.sleep(200)
   const state = await snapshot(home)
   expect({ settled: isSettled(home, state, OPENCODE_VERSION), id: state.info?.id }).toEqual({
     settled: true,

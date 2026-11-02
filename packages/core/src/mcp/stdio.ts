@@ -32,6 +32,10 @@ export interface Options {
    * environment. Host variables therefore never cross the seam into a remote workspace.
    */
   readonly environment: Record<string, string>
+  /** How long close() waits for a graceful exit before sending SIGTERM. */
+  readonly closeGrace?: Duration.Duration
+  /** How long close() waits after SIGTERM before sending SIGKILL. */
+  readonly forceKillAfter?: Duration.Duration
 }
 
 /**
@@ -43,6 +47,8 @@ export interface Options {
  * whole process group, so descendants go too) regardless of whether the transport was closed.
  */
 export const make = Effect.fnUntraced(function* (options: Options) {
+  const closeGrace = options.closeGrace ?? CLOSE_GRACE
+  const forceKillAfter = options.forceKillAfter ?? FORCE_KILL_AFTER
   const environment = yield* Environment.Service
   const scope = yield* Effect.scope
   // Outgoing frames are queued rather than written to `handle.stdin` directly: the sink closes the
@@ -59,8 +65,8 @@ export const make = Effect.fnUntraced(function* (options: Options) {
 
   const stop = Effect.fnUntraced(function* (handle: ChildProcessHandle) {
     // Exit completion can precede descendant cleanup after the capture deadline.
-    yield* Effect.timeoutOption(handle.exitCode, CLOSE_GRACE).pipe(Effect.ignore)
-    const terminated = yield* Effect.timeoutOption(handle.kill({ killSignal: "SIGTERM" }), FORCE_KILL_AFTER)
+    yield* Effect.timeoutOption(handle.exitCode, closeGrace).pipe(Effect.ignore)
+    const terminated = yield* Effect.timeoutOption(handle.kill({ killSignal: "SIGTERM" }), forceKillAfter)
     if (terminated._tag === "None") yield* handle.kill({ killSignal: "SIGKILL" })
   }, Effect.ignore())
 
@@ -93,7 +99,7 @@ export const make = Effect.fnUntraced(function* (options: Options) {
               stdin: { stream: Stream.encodeText(Stream.fromQueue(outgoing)), endOnDone: true },
               stdout: "pipe",
               stderr: "pipe",
-              forceKillAfter: FORCE_KILL_AFTER,
+              forceKillAfter,
             }),
           )
           state.handle = handle

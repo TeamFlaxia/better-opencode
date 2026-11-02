@@ -2,7 +2,7 @@ export * as ServiceRegistration from "./service-registration"
 
 import { Service, type Info } from "@opencode/client/effect/service"
 import path from "node:path"
-import { Effect, FileSystem, Schedule, Schema } from "effect"
+import { Duration, Effect, FileSystem, Schedule, Schema } from "effect"
 import { HttpServer } from "effect/http"
 import { NetAddress } from "effect/net"
 import { OPENCODE_VERSION } from "../version"
@@ -17,6 +17,8 @@ export const register = Effect.fnUntraced(function* (options: {
   readonly id: string
   readonly file: string
   readonly shutdown: Effect.Effect<void>
+  /** How often the service verifies that it still owns its registration. */
+  readonly intervalMs?: number
 }) {
   const fs = yield* FileSystem.FileSystem
   const temp = options.file + "." + options.id + ".tmp"
@@ -67,7 +69,7 @@ export const register = Effect.fnUntraced(function* (options: {
           }),
     ),
     Effect.filterOrFail(owns),
-    Effect.repeat(Schedule.spaced("5 seconds")),
+    Effect.repeat(Schedule.spaced(Duration.millis(options.intervalMs ?? 5_000))),
     Effect.ignore,
     Effect.andThen(options.shutdown),
     Effect.forkScoped,

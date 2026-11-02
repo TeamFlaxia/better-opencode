@@ -5,7 +5,13 @@ description: Use when writing, fixing, or reviewing tests that render OpenTUI (t
 
 # TUI tests
 
-packages/tui runs about 170 test files in one `bun test` process. CI runs it next to up to two other suites on 4-vCPU runners (`bun turbo test --affected --concurrency=3` in `.github/workflows/check-test.yml`), where it has taken 136-146s on Linux and 147-171s on Windows, most of it idle on frame pacing, production timers and sleeps. Most flakes come from waiting on the wrong signal and then running out of frames on a busy runner.
+packages/tui runs about 170 test files in one `bun test` process. Locally use `bun run test:fast`
+(`--parallel=4 --no-isolate`): 158s → 50s on 12 cores. CI keeps the serial `test` script and runs it
+next to one other suite on a 4-vCPU Linux runner, each with two workers
+(`bun turbo test --affected --concurrency=2 -- --parallel=2 --no-isolate` in
+`.github/workflows/pr-check.yml`). The 136-146s Linux and 147-171s Windows figures from upstream CI
+remain a useful budget reference.
+Most of that is idle on frame pacing, production timers and sleeps. Most flakes come from waiting on the wrong signal and then running out of frames on a busy runner.
 
 Read the root `AGENTS.md` Testing section (no `globalThis` mocks, run from the package directory) and its TUI Stories section. To drive the real TUI, use the `opencode-dev` skill. For CLI subprocesses, service deadlines, Effect `TestClock` and turbo test tasks, use the `unit-tests` skill.
 
@@ -48,7 +54,7 @@ Read the root `AGENTS.md` Testing section (no `globalThis` mocks, run from the p
   | `pressEnter({ shift: true })`                | `return`                                  | `shift+return`  |
   | `pressEscape()` then `pressKey("a")`         | `meta+a` (a lone Escape is held for 20ms) | `escape`, `a`   |
 
-- A second click on the same renderable within 500ms (renderer clock) and within 1 cell becomes a word or line selection. Do not sleep past that window: `Bun.sleep(550)` at `packages/tui/test/session-activity-anchor.test.tsx:120` costs 4.4s per file. Call `setup.renderer.clearSelection()` first, which resets the click history, or click at least 2 cells away. In a `ManualClock` renderer driven by `renderOnce()`, `clock.advance(501)` also works.
+- A second click on the same renderable within 500ms (renderer clock) and within 1 cell becomes a word or line selection. Call `setup.renderer.clearSelection()` first, which resets the click history, or click at least 2 cells away; do not sleep past the window (`session-activity-anchor.test.tsx` used to spend 550ms per toggle). In a `ManualClock` renderer driven by `renderOnce()`, `clock.advance(501)` also works.
 
 ## Terminal sizes
 
@@ -58,7 +64,7 @@ Read the root `AGENTS.md` Testing section (no `globalThis` mocks, run from the p
 
 ## Timers, cleanup and shared state
 
-- A TUI test that takes over a second is usually waiting on a production constant; make it injectable instead of waiting it out. Two such constants: the shell output poll `setTimeout(poll, more ? 0 : 1_000)` (`packages/tui/src/component/dialog-shell-output.tsx:73`; 6 tests, 18.8s, 95% idle) and `reconnectDelay = 1_000` (`packages/client/src/solid/connection.ts:33`; about 1s per reconnect test). connection.ts already takes `idleTimeout` and `flushInterval` options, so add a sibling.
+- A TUI test that takes over a second is usually waiting on a production constant; make it injectable instead of waiting it out. The shell output poll (`setShellOutputPollInterval` in `packages/tui/src/component/dialog-shell-output.tsx`) took `dialog-shell-output.test.tsx` from 18.8s to 1.9s. `reconnectDelay` (`packages/client/src/solid/connection.ts:33`) still has no seam.
 - Clean up with `await using` or `finally`: destroy the renderer and stop the fixture server. Cancel timers first, or they throw "TextBuffer is destroyed" into the next test.
 - Remove the tmpdir last. Destroy the renderer and await the app task first, as `createAppFixture`'s `[Symbol.asyncDispose]` does (`fixture/app.ts:63`). Removing it under a pending write logs "Failed to persist" and flock "lock is compromised".
 - `TestTuiContexts` (`packages/tui/test/fixture/tui-environment.tsx:32-35`) defaults `home` and `state` to fixed `/tmp/opencode/...` paths. When the tree mounts a provider that writes under `paths.state` (`StorageProvider` in `src/context/storage.tsx:145`, `LocalProvider`, or the prompt history, frecency and stash providers), pass `paths={{ state, home }}` built from `tmpdir()` (`test/fixture/fixture.ts:8`). Process-shared paths are what keep tui from parallel workers: `--parallel=2 --no-isolate` halved local wall time (162.9s to 80.7s). Isolated mode re-imports `src/app` in each of the 18 test files that load it, at 6x the CPU.
