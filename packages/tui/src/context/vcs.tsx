@@ -5,12 +5,18 @@ import { useConfig } from "../config"
 import {
   detectVcsKinds,
   mutationCommands,
+  parseGitBranches,
   parseGitDiffHunks,
+  parseGitHistory,
   parseGitStatus,
+  parseJjBookmarks,
+  parseJjHistory,
   resolveVcsTool,
   summarizeJj,
+  type VcsBranchAction,
   type VcsHunkPatch,
   type VcsKind,
+  type VcsListEntry,
   type VcsMutation,
   type VcsSummary,
 } from "../util/vcs"
@@ -25,7 +31,11 @@ import { useSessionTabs } from "./session-tabs"
 import { useSessionTerminals } from "./session-terminals"
 
 const JJ_LOG_TEMPLATE =
-  'change_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ empty ++ "\\t" ++ conflict'
+  'change_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ empty ++ "\\t" ++ conflict ++ "\\n"'
+const JJ_BOOKMARK_TEMPLATE =
+  'name ++ "\\t" ++ normal_target.change_id().short() ++ "\\t" ++ normal_target.commit_id().short() ++ "\\t" ++ normal_target.description().first_line() ++ "\\n"'
+const JJ_HISTORY_TEMPLATE =
+  'change_id.short() ++ "\\t" ++ commit_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\n"'
 
 function run(command: string, args: readonly string[], cwd: string, input?: string) {
   return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
@@ -106,7 +116,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
             kinds.map(async (kind) => {
               try {
                 return kind === "jj"
-                  ? await collectJj(current.directory)
+                  ? await collectJj(current.project.canonical)
                   : kind === "git"
                     ? await collectGit(target, current.project.canonical)
                     : await collectApi(kind, target)
@@ -209,7 +219,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
           command,
           args,
           title,
-          cwd: info()?.directory,
+          cwd: info()?.project.canonical,
           focus: true,
         })
       } catch (error) {
@@ -249,8 +259,8 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       if (!current || !target) return
       const commands = mutationCommands(current.kind, action, input, paths)
       if (commands.length === 0) return
-      // Git prints root-relative paths, so its operations run from the repository root.
-      const cwd = current.kind === "git" ? target.project.canonical : target.directory
+      // Version control commands print root-relative paths, so they run from the repository root.
+      const cwd = current.kind === "jj" || current.kind === "git" ? target.project.canonical : target.directory
       try {
         for (const command of commands) await run(command.command, command.args, cwd)
         await refresh()
@@ -271,8 +281,126 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         return (await run("git", ["diff", ...(staged ? ["--cached"] : []), "--", file], target.project.canonical))
           .stdout
       if (kind === "jj")
-        return (await run("jj", ["--no-pager", "--color=never", "diff", "--git", "--", file], target.directory)).stdout
+        return (await run("jj", ["--no-pager", "--color=never", "diff", "--git", "--", file], target.project.canonical))
+          .stdout
       return ""
+    }
+
+    const branches = async (kind: VcsKind): Promise<VcsListEntry[]> => {
+      const target = info()
+      if (!target) return []
+      if (kind === "git") {
+        const result = await run(
+          "git",
+          ["--no-pager", "branch", "--format=%(HEAD)%09%(refname:short)%09%(objectname:short)%09%(contents:subject)"],
+          target.project.canonical,
+        )
+        return parseGitBranches(result.stdout)
+      }
+      if (kind === "jj") {
+        const result = await run(
+          "jj",
+          ["--no-pager", "--color=never", "bookmark", "list", "-T", JJ_BOOKMARK_TEMPLATE],
+          target.project.canonical,
+        )
+        return parseJjBookmarks(result.stdout, summaries().find((summary) => summary.kind === "jj")?.change)
+      }
+      return []
+    }
+
+    const history = async (kind: VcsKind): Promise<VcsListEntry[]> => {
+      const target = info()
+      if (!target) return []
+      if (kind === "git") {
+        const result = await run(
+          "git",
+          ["--no-pager", "log", "--date=short", "--pretty=format:%h%x09%ad%x09%an%x09%s", "-n", "50"],
+          target.project.canonical,
+        )
+        return parseGitHistory(result.stdout)
+      }
+      if (kind === "jj") {
+        const result = await run(
+          "jj",
+          ["--no-pager", "--color=never", "log", "--no-graph", "-r", "::@", "-n", "50", "-T", JJ_HISTORY_TEMPLATE],
+          target.project.canonical,
+        )
+        return parseJjHistory(result.stdout)
+      }
+      return []
+    }
+
+    const show = async (kind: VcsKind, ref: string) => {
+      const target = info()
+      if (!target) return ""
+      if (kind === "git")
+        return (
+          await run(
+            "git",
+            ["--no-pager", "show", "--color=never", "--format=medium", "--stat", "--patch", ref],
+            target.project.canonical,
+          )
+        ).stdout
+      if (kind === "jj")
+        return (await run("jj", ["--no-pager", "--color=never", "show", "--git", "-r", ref], target.project.canonical))
+          .stdout
+      return ""
+    }
+
+    const switchTo = async (kind: VcsKind, ref: string) => {
+      const target = info()
+      if (!target) return
+      try {
+        if (kind === "git") await run("git", ["switch", ref], target.project.canonical)
+        else if (kind === "jj") await run("jj", ["edit", ref], target.project.canonical)
+        await refresh()
+        toast.show({ variant: "success", message: `Version control: switched to ${ref}` })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: "Version control action failed",
+          message: errorMessage(error),
+        })
+      }
+    }
+
+    const branchAction = async (
+      kind: VcsKind,
+      action: VcsBranchAction,
+      input: { name?: string; previous?: string; target?: string },
+    ) => {
+      const target = info()
+      if (!target) return
+      try {
+        if (kind === "git") {
+          if (action === "create" && input.name) {
+            await run(
+              "git",
+              input.target ? ["branch", input.name, input.target] : ["switch", "-c", input.name],
+              target.project.canonical,
+            )
+          }
+          if (action === "delete" && input.previous)
+            await run("git", ["branch", "-d", input.previous], target.project.canonical)
+          if (action === "rename" && input.previous && input.name)
+            await run("git", ["branch", "-m", input.previous, input.name], target.project.canonical)
+        } else if (kind === "jj") {
+          if (action === "create" && input.name)
+            await run("jj", ["bookmark", "set", input.name, "-r", input.target ?? "@"], target.project.canonical)
+          if (action === "delete" && input.previous)
+            await run("jj", ["bookmark", "delete", input.previous], target.project.canonical)
+          if (action === "rename" && input.previous && input.name)
+            await run("jj", ["bookmark", "rename", input.previous, input.name], target.project.canonical)
+        }
+        await refresh()
+        toast.show({ variant: "success", message: `Version control: ${action} completed` })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: "Version control action failed",
+          message: errorMessage(error),
+        })
+      }
     }
 
     const hunks = async (file: string, cached: boolean): Promise<VcsHunkPatch> => {
@@ -330,6 +458,11 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       openCommand,
       execute,
       patch,
+      branches,
+      history,
+      show,
+      switchTo,
+      branchAction,
       hunks,
       applyHunks,
     }

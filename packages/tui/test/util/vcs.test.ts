@@ -8,10 +8,14 @@ import {
   detectVcsKinds,
   findExecutable,
   mutationCommands,
+  parseGitBranches,
   parseGitDiffHunks,
+  parseGitHistory,
   parseGitStatus,
+  parseJjBookmarks,
   parseJjDiffSummary,
   parseJjFiles,
+  parseJjHistory,
   parseJjLog,
   resolveVcsTool,
   summarizeJj,
@@ -81,6 +85,53 @@ describe("parseGitStatus", () => {
     expect(parseGitStatus("UU conflict.ts\0")).toEqual([
       { file: "conflict.ts", status: "modified", staged: true, unstaged: true, conflict: true },
     ])
+  })
+})
+
+describe("branch and history parsing", () => {
+  test("reads local Git branches and marks the current one", () => {
+    expect(
+      parseGitBranches(
+        "*\tmain\t62730de940ae\tfeat: current\n \tfeature\t2c35b8929271\ttopic\n*\t(HEAD detached from abc)\t111111111111\t\n",
+      ),
+    ).toEqual([
+      { id: "main", label: "main", current: true, detail: "62730de940ae · feat: current" },
+      { id: "feature", label: "feature", current: false, detail: "2c35b8929271 · topic" },
+    ])
+  })
+
+  test("reads Git history with date and author", () => {
+    expect(
+      parseGitHistory("62730de940\t2026-11-02\tMikan256\tfeat: current\n2c35b89292\t2026-11-01\tMikan256\t\n"),
+    ).toEqual([
+      {
+        id: "62730de940",
+        label: "feat: current",
+        detail: "62730de940 · 2026-11-02 · Mikan256",
+      },
+      { id: "2c35b89292", label: "(no subject)", detail: "2c35b89292 · 2026-11-01 · Mikan256" },
+    ])
+  })
+
+  test("marks the bookmark that points at the current jj change", () => {
+    expect(
+      parseJjBookmarks(
+        "main\tqywvssxltvqq\t62730de940ae\tfeat: current\nfeature\tmntrunsmtoom\t2c35b8929271\ttopic\n",
+        "qywvssxltvqq",
+      ),
+    ).toEqual([
+      { id: "main", label: "main", current: true, detail: "62730de940ae · feat: current" },
+      { id: "feature", label: "feature", current: false, detail: "2c35b8929271 · topic" },
+    ])
+  })
+
+  test("reads jj history with change, commit, and bookmarks", () => {
+    expect(parseJjHistory("qywvssxltvqq\t62730de940ae\tmain\tfeat: current\nmntrunsmtoom\t2c35b8929271\t\t\n")).toEqual(
+      [
+        { id: "qywvssxltvqq", label: "feat: current", detail: "qywvssxltvqq · 62730de940ae · main" },
+        { id: "mntrunsmtoom", label: "(no description)", detail: "mntrunsmtoom · 2c35b8929271" },
+      ],
+    )
   })
 })
 

@@ -12,7 +12,8 @@ Operations run inside OpenCode: the dock does not require `lazygit`, `lazyjj`, o
 - `below`: a one-row status bar below the horizontal tab bar.
 
 Vertical tabs always render the dock at the bottom of the rail, so the tab layout
-keeps its width.
+keeps its width. The expanded dock is labelled `VCS`; the compact rail collapses it
+to a `V` icon with the status count.
 
 The right placement falls back to `below` on narrow terminals. The dock is only
 shown when a repository is detected and session tabs are visible.
@@ -26,34 +27,51 @@ rest of OpenCode.
 
 Click the dock (or run `vcs.open`) to open the built-in version control view.
 The view replaces the session transcript instead of opening a modal dialog, so the
-file list and diff stay visible while the tab bar and dock remain in place.
+file list and diff stay visible while the tab bar and dock remain in place. The
+view belongs to the current session tab: switching tabs hides it, and returning to
+that tab brings it back.
 
 When a jj repository is colocated with Git, the view lists both repositories and
 their files together. Use `tab` or the left/right arrows to switch which repository
 the action shortcuts target.
+
+The layout follows lazygit's panel structure: a repositories panel, the active
+files/branches/commits panel, and a preview panel. The list panel uses the accent
+border to show where keyboard input goes, and the footer groups contextual and
+global shortcuts on separate rows.
 
 Right-click the dock for quick links to the diff viewer and the optional external
 tool.
 
 ## Keyboard
 
-- `up` / `down` or `j` / `k`: select a changed file
-- `tab` or `left` / `right`: switch the active repository (jj, git, or both)
+The view has three panes: **files**, **branches**, and **history**. Both the jj and
+Git panes are shown together; `tab` or `left` / `right` chooses which repository
+the shortcuts target.
+
+- `1` / `2` / `3`: switch between files, branches, and history
+- `up` / `down` or `j` / `k`: select an entry
+- `tab` or `left` / `right`: switch the active repository
 - `space`: stage or unstage the selected Git file
-- `enter`: open the full diff viewer
+- `enter`: open the diff viewer for a file, or switch to the selected branch/commit
+- `n`: create a branch/bookmark (at the selected commit in history)
+- `m`: rename the selected branch/bookmark
+- `x`: delete the selected branch/bookmark
+- `f` / `p` / `l`: fetch, push, and pull
 - `o`: open the optional external tool
 - `r`: refresh status
 - `q` / `esc`: return to the conversation
 
-Repository-specific shortcuts appear in the footer: Git uses `c`, `a`, `h`, `u`,
-`f`, `p`, and `l`; jj uses `d`, `n`, `s`, `b`, `a`, `e`, `v`, `w`, `i`, `f`, and
-`p`.
+File shortcuts appear in the footer: Git uses `c`, `a`, `h`, and `u`; jj uses `d`,
+`s`, `b`, `a`, `e`, `v`, `w`, and `i`.
 
 ## Built-in actions
 
 jj:
 
 - Review changes in the OpenCode diff viewer
+- Browse bookmarks and history, and switch to a bookmark or change
+- Create, rename, and delete bookmarks
 - Describe the current change
 - Create a new change
 - Squash into the parent
@@ -67,6 +85,8 @@ jj:
 Git:
 
 - Review changes
+- Browse branches and history, and switch to a branch or commit
+- Create, rename, and delete branches
 - Commit staged changes with a message
 - Stage everything and commit in one action
 - Stage or unstage selected files

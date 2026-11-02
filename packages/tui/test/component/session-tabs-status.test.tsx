@@ -314,30 +314,26 @@ test.each([SESSION_SIDEBAR_WIDTH, 18])(
           })),
         )
 
-      const idleAbove = cellRow(3)
       const idleTitle = cellRow(4)
       const idleDetail = cellRow(5)
-      const idleBelow = cellRow(6)
+      const idleLine = cellRow(6)
 
       setBusy(true)
       await app.renderOnce()
       clock.setTime(1850)
       await app.renderOnce()
 
-      const runningAbove = cellRow(3)
       const runningTitle = cellRow(4)
       const runningDetail = cellRow(5)
-      const runningBelow = cellRow(6)
+      const runningLine = cellRow(6)
       const rightEdge = railWidth - 1
 
-      expect(runningAbove.slice(0, railWidth).map((cell) => cell.char)).toEqual(Array(railWidth).fill("▄"))
-      expect(runningBelow.slice(0, railWidth).map((cell) => cell.char)).toEqual(Array(railWidth).fill("▀"))
-      expect(runningAbove[rightEdge]!.fg).not.toBe(idleAbove[rightEdge]!.bg)
-      expect(runningBelow[rightEdge]!.fg).not.toBe(idleBelow[rightEdge]!.bg)
+      expect(idleLine.slice(0, railWidth).map((cell) => cell.char)).toEqual(Array(railWidth).fill(" "))
+      expect(runningLine[rightEdge]!.bg).not.toBe(idleLine[rightEdge]!.bg)
       expect(runningTitle[rightEdge]!.bg).not.toBe(idleTitle[rightEdge]!.bg)
       expect(runningDetail[rightEdge]!.bg).not.toBe(idleDetail[rightEdge]!.bg)
       expect(runningTitle[railWidth]!.bg).toBe(idleTitle[railWidth]!.bg)
-      expect(runningBelow[railWidth]!.char).toBe(" ")
+      expect(runningLine[railWidth]!.bg).toBe(idleLine[railWidth]!.bg)
     } finally {
       app.renderer.destroy()
     }

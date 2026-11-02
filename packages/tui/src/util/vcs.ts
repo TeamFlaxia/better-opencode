@@ -34,6 +34,15 @@ export type VcsFile = {
   readonly conflict?: boolean
 }
 
+export type VcsListEntry = {
+  readonly id: string
+  readonly label: string
+  readonly detail?: string
+  readonly current?: boolean
+}
+
+export type VcsBranchAction = "create" | "delete" | "rename"
+
 export type VcsHunk = {
   readonly header: string
   readonly text: string
@@ -147,6 +156,76 @@ export function parseGitStatus(output: string): VcsFile[] {
     })
   }
   return files
+}
+
+export function parseGitBranches(output: string): VcsListEntry[] {
+  return output
+    .split("\n")
+    .filter(Boolean)
+    .flatMap((line) => {
+      const [head, name, commit, ...subject] = line.split("\t")
+      if (!name || name.startsWith("(")) return []
+      return [
+        {
+          id: name,
+          label: name,
+          current: head.trim() === "*",
+          detail: [commit, subject.join("\t")].filter(Boolean).join(" · "),
+        },
+      ]
+    })
+}
+
+export function parseGitHistory(output: string): VcsListEntry[] {
+  return output
+    .split("\n")
+    .filter(Boolean)
+    .flatMap((line) => {
+      const [id, date, author, ...subject] = line.split("\t")
+      if (!id) return []
+      return [
+        {
+          id,
+          label: subject.join("\t") || "(no subject)",
+          detail: [id, date, author].filter(Boolean).join(" · "),
+        },
+      ]
+    })
+}
+
+export function parseJjBookmarks(output: string, currentChange?: string): VcsListEntry[] {
+  return output
+    .split("\n")
+    .filter(Boolean)
+    .flatMap((line) => {
+      const [name, change, commit, ...subject] = line.split("\t")
+      if (!name) return []
+      return [
+        {
+          id: name,
+          label: name,
+          current: currentChange !== undefined && change === currentChange,
+          detail: [commit, subject.join("\t")].filter(Boolean).join(" · "),
+        },
+      ]
+    })
+}
+
+export function parseJjHistory(output: string): VcsListEntry[] {
+  return output
+    .split("\n")
+    .filter(Boolean)
+    .flatMap((line) => {
+      const [change, commit, bookmarks, ...description] = line.split("\t")
+      if (!change) return []
+      return [
+        {
+          id: change,
+          label: description.join("\t") || "(no description)",
+          detail: [change, commit, bookmarks].filter(Boolean).join(" · "),
+        },
+      ]
+    })
 }
 
 export function parseGitDiffHunks(patch: string): VcsHunkPatch {

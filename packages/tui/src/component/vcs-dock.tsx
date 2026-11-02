@@ -35,7 +35,7 @@ export function VcsDock(props: {
   const tool = () => vcs.tool()
   const dockWidth = () => props.width ?? VCS_DOCK_WIDTH
   const compact = () => props.orientation !== "below" && dockWidth() < 12
-  const kind = () => {
+  const repository = () => {
     const kinds = vcs.summaries().map((item) => item.kind)
     if (kinds.length > 1) return kinds.join("+")
     const value = summary()?.kind
@@ -141,10 +141,16 @@ export function VcsDock(props: {
               >
                 <box height={1} flexDirection="row" paddingLeft={1} gap={1}>
                   <text fg={theme.text.base} selectable={false}>
-                    <b>{kind()}</b>
+                    <b>VCS</b>
+                  </text>
+                  <text fg={theme.text.muted} selectable={false}>
+                    {repository()}
+                  </text>
+                  <text fg={theme.text.muted} selectable={false}>
+                    ·
                   </text>
                   <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
-                    {Locale.truncateWidth(label(), Math.max(1, dockWidth() - 10))}
+                    {Locale.truncateWidth(label(), Math.max(1, dockWidth() - 14))}
                   </text>
                   <box flexGrow={1} />
                   <text fg={statusColor()} selectable={false}>
@@ -170,7 +176,7 @@ export function VcsDock(props: {
             >
               <box height={1} flexDirection="row" justifyContent="center">
                 <text fg={theme.text.base} selectable={false}>
-                  <b>{kind()}</b>
+                  <b>V</b>
                 </text>
               </box>
               <box height={1} flexDirection="row" justifyContent="center">
@@ -193,7 +199,13 @@ export function VcsDock(props: {
           {...pointer}
         >
           <text fg={theme.text.base} selectable={false}>
-            <b>{kind()}</b>
+            <b>VCS</b>
+          </text>
+          <text fg={theme.text.muted} selectable={false}>
+            {repository()}
+          </text>
+          <text fg={theme.text.muted} selectable={false}>
+            ·
           </text>
           <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
             {label()}
@@ -206,7 +218,7 @@ export function VcsDock(props: {
           </text>
           <box flexGrow={1} />
           <text fg={theme.text.muted} wrapMode="none" selectable={false}>
-            vcs ⟨leader+v⟩
+            ⟨leader+v⟩
           </text>
         </box>
       </Show>

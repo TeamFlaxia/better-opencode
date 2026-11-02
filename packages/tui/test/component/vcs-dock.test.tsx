@@ -73,7 +73,7 @@ test("shows jj status and opens the built-in version control view on click", asy
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("jj") && frame.includes("main") && frame.includes("fix tabs"))
+    await app.waitForFrame((frame) => frame.includes("VCS") && frame.includes("jj") && frame.includes("main") && frame.includes("fix tabs"))
     expect(app.captureCharFrame()).toContain("2")
     await app.mockMouse.click(2, 0)
     await app.waitFor(() => opened() === 1)
@@ -109,8 +109,8 @@ test("keeps the status legible in the compact vertical rail", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("jj") && frame.includes("2"))
-    expect(app.captureCharFrame().split("\n")[0]?.slice(0, 5)).toBe("  jj ")
+    await app.waitForFrame((frame) => frame.includes("V") && frame.includes("2"))
+    expect(app.captureCharFrame().split("\n")[0]?.slice(0, 5)).toBe("  V  ")
   } finally {
     app.renderer.destroy()
   }
@@ -141,7 +141,7 @@ test("shows a conflict and exposes the menu on right click", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("jj") && frame.includes("conflict"))
+    await app.waitForFrame((frame) => frame.includes("VCS") && frame.includes("jj") && frame.includes("conflict"))
     await app.mockMouse.click(2, 0, MouseButton.RIGHT)
     await app.waitForFrame((frame) => frame.includes("Version control") && frame.includes("Open lazyjj"))
   } finally {

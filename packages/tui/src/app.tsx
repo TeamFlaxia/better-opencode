@@ -517,7 +517,26 @@ function App() {
   const local = useLocal()
   const sessionTabs = useSessionTabs()
   const vcs = useVcs()
-  const [vcsOpen, setVcsOpen] = createSignal(false)
+  // VCS is a view owned by the current session tab, so switching tabs does not carry it over.
+  const [vcsOpenKeys, setVcsOpenKeys] = createSignal<ReadonlySet<string>>(new Set())
+  const vcsKey = () => {
+    if (route.data.type === "session") return `session:${route.data.sessionID}`
+    if (route.data.type === "home") return "home"
+  }
+  const vcsOpen = () => {
+    const key = vcsKey()
+    return key !== undefined && vcsOpenKeys().has(key)
+  }
+  const setVcsOpen = (open: boolean) => {
+    const key = vcsKey()
+    if (!key) return
+    setVcsOpenKeys((keys) => {
+      const next = new Set(keys)
+      if (open) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }
   const panels = usePanel()
   const keymap = Keymap.use()
   const event = useEvent()
@@ -649,9 +668,6 @@ function App() {
     dimensions().width >= VCS_DOCK_MIN_TERMINAL_WIDTH
   const vcsDockBelow = () => vcsDockVisible() && !tabsVertical() && !vcsDockRight()
   const tabsWidthForDock = () => dimensions().width - (vcsDockRight() ? VCS_DOCK_WIDTH : 0)
-  createEffect(() => {
-    if (route.data.type === "plugin") setVcsOpen(false)
-  })
 
   // Measure the prospective split layout, even while full-screen hides the tabs.
   createEffect(() => panels.setWidth(dimensions().width - (tabsAvailable() && tabsVertical() ? tabsWidth() : 0)))
