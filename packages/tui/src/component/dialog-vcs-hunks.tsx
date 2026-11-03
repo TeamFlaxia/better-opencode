@@ -119,6 +119,7 @@ export function DialogVcsHunks(props: {
             ref={(value) => (scroll = value)}
             height={height()}
             backgroundColor={overlay.background.raised.high}
+            scrollX={false}
             scrollbarOptions={{ visible: false }}
             scrollAcceleration={scrollAcceleration()}
           >

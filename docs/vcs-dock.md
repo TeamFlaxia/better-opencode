@@ -55,9 +55,10 @@ opaque selection foreground so the accent highlight stays readable even when the
 normal page background is transparent. The footer groups contextual and global
 shortcuts on separate rows.
 
-Polling updates the panels in place. A refresh keeps the previous list and preview
-visible while the next fetch runs, so rows, selection, and scroll position do not
-reset every refresh interval. Editing a file inside the current jj change updates the
+Panel lists scroll vertically only; long paths are truncated instead of adding a
+horizontal scrollbar under the panel. Polling updates the panels in place. A refresh
+keeps the previous list and preview visible while the next fetch runs, so rows,
+selection, and scroll position do not reset every refresh interval. Editing a file inside the current jj change updates the
 file row and diff in place without clearing the panel, because the working-copy
 commit ID is not part of the panel cache key. Moving the selection scrolls only enough
 to keep the active row visible; it does not pin that row to the top of the panel.
@@ -74,6 +75,7 @@ change log; a Git repository fills them with branches and commits.
 - `1` / `2` / `3` / `4`: focus status, files, bookmarks/branches, or changes/commits
 - `tab` or `left` / `right`: cycle the focused panel
 - `up` / `down` or `j` / `k`: select an entry in the focused panel
+- `pageup` / `pagedown`: move by one visible page
 - `space`: stage or unstage the selected Git file
 - `enter`: open the diff viewer for a file; edit a mutable bookmark/change; start a
   new change on top of an immutable one; or switch to a Git branch/commit
