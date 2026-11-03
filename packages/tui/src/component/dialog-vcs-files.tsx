@@ -16,6 +16,7 @@ import {
 } from "../ui/dialog"
 import type { VcsFile } from "../util/vcs"
 import { getScrollAcceleration } from "../util/scroll"
+import { revealSelectionOffset } from "../ui/select-controller"
 
 function statusLabel(status: VcsFile["status"]) {
   if (status === "added") return "A"
@@ -48,7 +49,15 @@ export function DialogVcsFiles(props: {
   const move = (delta: number) => {
     const index = Math.max(0, Math.min(props.files.length - 1, store.index + delta))
     setStore("index", index)
-    queueMicrotask(() => scroll?.scrollTo(index))
+    queueMicrotask(() => {
+      if (!scroll) return
+      const offset = revealSelectionOffset(scroll.scrollTop, {
+        count: props.files.length,
+        limit: height(),
+        selected: index,
+      })
+      if (offset !== scroll.scrollTop) scroll.scrollTo(offset)
+    })
   }
   const confirm = () => {
     const paths = selected()

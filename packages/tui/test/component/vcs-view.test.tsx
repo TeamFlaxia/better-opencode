@@ -168,6 +168,34 @@ test("space unstages the selected staged git file", async () => {
   }
 })
 
+test("scrolls only when the selection leaves the viewport", async () => {
+  const files = Array.from({ length: 8 }, (_, index) => ({
+    file: `src/f${index}.ts`,
+    status: "modified" as const,
+    staged: false,
+    unstaged: true,
+  }))
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView controller={controller({ summary: { ...jj, dirty: files.length, files } })} onClose={() => {}} />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/f0.ts"))
+    app.mockInput.pressArrow("down")
+    await app.waitForFrame((frame) => frame.includes("src/f0.ts") && frame.includes("src/f1.ts"))
+    for (let index = 0; index < 7; index++) app.mockInput.pressArrow("down")
+    await app.waitForFrame((frame) => frame.includes("src/f7.ts"))
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
 const jjBranches: VcsListEntry[] = [
   { id: "main", label: "main", detail: "mntrunsmtoom · current", current: true },
   { id: "feature-jj", label: "feature-jj", detail: "qywvssxltvqq · work in progress" },

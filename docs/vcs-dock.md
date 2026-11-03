@@ -50,7 +50,8 @@ and global shortcuts on separate rows.
 
 Polling updates the panels in place. A refresh keeps the previous list and preview
 visible while the next fetch runs, so rows, selection, and scroll position do not
-reset every refresh interval.
+reset every refresh interval. Moving the selection scrolls only enough to keep the
+active row visible; it does not pin that row to the top of the panel.
 
 Right-click the dock for quick links to the diff viewer, change and commit ID
 copying, and the optional external tool.

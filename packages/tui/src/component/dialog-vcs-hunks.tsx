@@ -13,6 +13,7 @@ import {
   useDialog,
   type DialogContext,
 } from "../ui/dialog"
+import { revealSelectionOffset } from "../ui/select-controller"
 import { getScrollAcceleration } from "../util/scroll"
 
 export function DialogVcsHunks(props: {
@@ -39,7 +40,15 @@ export function DialogVcsHunks(props: {
   const move = (delta: number) => {
     const index = Math.max(0, Math.min(props.patch.hunks.length - 1, store.index + delta))
     setStore("index", index)
-    queueMicrotask(() => scroll?.scrollTo(index))
+    queueMicrotask(() => {
+      if (!scroll) return
+      const offset = revealSelectionOffset(scroll.scrollTop, {
+        count: props.patch.hunks.length,
+        limit: height(),
+        selected: index,
+      })
+      if (offset !== scroll.scrollTop) scroll.scrollTo(offset)
+    })
   }
   const confirm = () => {
     const hunks = selected()

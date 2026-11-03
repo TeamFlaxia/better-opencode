@@ -29,6 +29,7 @@ import { DialogConfirm } from "../ui/dialog-confirm"
 import { useDialog } from "../ui/dialog"
 import { DialogPrompt } from "../ui/dialog-prompt"
 import { FilePath } from "../ui/file-path"
+import { revealSelectionOffset } from "../ui/select-controller"
 import { useToast } from "../ui/toast"
 import { DialogVcsFiles } from "./dialog-vcs-files"
 import { DialogVcsHunks } from "./dialog-vcs-hunks"
@@ -262,7 +263,18 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   createEffect(() => {
     const panel = focus()
     const index = selectedFor(panel)
-    queueMicrotask(() => scrolls[panel]?.scrollTo(index))
+    queueMicrotask(() => {
+      const scroll = scrolls[panel]
+      if (!scroll) return
+      const limit = scroll.viewport.height
+      if (limit <= 0) return
+      const offset = revealSelectionOffset(scroll.scrollTop, {
+        count: countFor(panel),
+        limit,
+        selected: index,
+      })
+      if (offset !== scroll.scrollTop) scroll.scrollTo(offset)
+    })
   })
 
   const cyclePanel = (delta: number) => {
