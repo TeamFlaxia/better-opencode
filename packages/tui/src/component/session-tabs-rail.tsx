@@ -39,7 +39,7 @@ export function SessionTabsRailControls(props: { width: number; tabs: SessionTab
         selectable={false}
         wrapMode="none"
       >
-        🔍
+        ⌕
       </text>
     </box>
   )
