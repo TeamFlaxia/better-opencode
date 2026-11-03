@@ -69,6 +69,7 @@ export type VcsSummary = {
   readonly detail: string
   readonly change?: string
   readonly commit?: string
+  readonly bookmarks?: string
   readonly description?: string
   readonly dirty: number
   readonly conflict: boolean
@@ -271,6 +272,7 @@ export function summarizeJj(log: string, diff: string): VcsSummary {
     files,
     ...(parsed.change ? { change: parsed.change } : {}),
     ...(parsed.commit ? { commit: parsed.commit } : {}),
+    ...(parsed.bookmarks ? { bookmarks: parsed.bookmarks } : {}),
     ...(parsed.description ? { description: parsed.description } : {}),
   }
 }
@@ -294,7 +296,8 @@ export function mutationCommands(
       return value && paths.length ? [{ command: "jj", args: ["split", "-p", "-m", value, "--", ...paths] }] : []
     if (action === "edit") return value ? [{ command: "jj", args: ["edit", value] }] : []
     if (action === "fetch") return [{ command: "jj", args: ["git", "fetch"] }]
-    if (action === "push") return [{ command: "jj", args: ["git", "push"] }]
+    if (action === "push")
+      return value ? [{ command: "jj", args: ["git", "push", "--bookmark", value] }] : [{ command: "jj", args: ["git", "push"] }]
     return []
   }
   if (kind === "git") {

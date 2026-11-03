@@ -31,6 +31,11 @@ shows both IDs and the dock menu can copy either one. The view does not render a
 separate Git history; the colocated Git repository is jj's storage, not a second
 repository to browse.
 
+jj has no checked-out branch. The Status panel shows the working-copy change as
+`@ <change ID>`, and bookmarks pointing at that change are listed separately. A `@`
+marker in the bookmarks list means the bookmark points at the working-copy change; it
+does not mean the bookmark is "checked out".
+
 Click the dock (or run `vcs.open`) to open the built-in version control view.
 The view replaces the session transcript instead of opening a modal dialog, so the
 file list and diff stay visible while the tab bar and dock remain in place.
@@ -73,7 +78,8 @@ change log; a Git repository fills them with branches and commits.
 - `n`: create a bookmark/branch (at the selected change/commit in changes/commits)
 - `m`: rename the selected local bookmark/branch
 - `x`: delete the selected local bookmark/branch
-- `f` / `p` / `l`: fetch, push, and pull (`l` is Git only)
+- `f` / `p` / `l`: fetch, push, and pull (`l` is Git only). For jj, push uses a
+  selected local bookmark, asking which one when necessary.
 - `o`: open the optional external tool when one is installed
 - `r`: refresh status
 - `q` / `esc`: return to the conversation
@@ -81,7 +87,7 @@ change log; a Git repository fills them with branches and commits.
 Remote jj bookmarks appear as `name@remote`. Their commits are normally immutable, so
 selecting one starts a new change on top of it instead of editing it in place. The
 internal `git` remote is hidden because it only mirrors local bookmarks. Remote
-bookmarks cannot be renamed or deleted from the view.
+bookmarks cannot be renamed, deleted, or pushed from the view.
 
 File shortcuts appear in the footer: Git uses `c`, `a`, `h`, and `u`; jj uses `d`,
 `s`, `b`, `a`, `e`, `v`, `w`, and `i`.
@@ -103,7 +109,9 @@ jj:
 - Edit an existing change by revset
 - Set a bookmark
 - Copy the current change ID or commit ID from the dock menu
-- Fetch and push with the Git backend
+- Fetch with the Git backend
+- Push a selected local bookmark with `jj git push --bookmark`; the view asks for the
+  bookmark when more than one is local
 
 Git:
 

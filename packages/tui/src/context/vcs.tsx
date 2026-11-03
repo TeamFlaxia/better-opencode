@@ -249,7 +249,10 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       try {
         for (const command of commands) await run(command.command, command.args, cwd)
         await refresh()
-        toast.show({ variant: "success", message: `Version control: ${action} completed` })
+        toast.show({
+          variant: "success",
+          message: action === "push" && input ? `Version control: pushed ${input}` : `Version control: ${action} completed`,
+        })
       } catch (error) {
         toast.show({
           variant: "error",

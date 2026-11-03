@@ -19,6 +19,7 @@ const jj: VcsSummary = {
   label: "main",
   detail: "fix tabs",
   change: "znnsty",
+  bookmarks: "main",
   description: "fix tabs",
   dirty: 1,
   conflict: false,
@@ -227,7 +228,9 @@ test("lists bookmarks and edits the selected bookmark", async () => {
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("src/a.ts"))
     app.mockInput.pressKey("3")
-    await app.waitForFrame((frame) => frame.includes("feature-jj") && frame.includes("Bookmarks · 2"))
+    await app.waitForFrame(
+      (frame) => frame.includes("feature-jj") && frame.includes("Bookmarks · 2") && frame.includes("@ main"),
+    )
 
     app.mockInput.pressArrow("down")
     app.mockInput.pressEnter()
@@ -275,6 +278,63 @@ test("keeps the selected row while the summary refreshes", async () => {
     app.mockInput.pressEnter()
     await app.waitFor(() => switched.length === 1)
     expect(switched).toEqual(["feature-jj"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("pushes the selected jj bookmark", async () => {
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            branches: () => jjBranches,
+            execute: (action, value, paths) => executed.push([action, value, paths]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("feature-jj"))
+    app.mockInput.pressKey("3")
+    app.mockInput.pressArrow("down")
+    app.mockInput.pressKey("p")
+    await app.waitFor(() => executed.length === 1)
+    expect(executed[0]).toEqual(["push", "feature-jj", undefined])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("chooses a jj bookmark to push when none is focused", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({ summary: jj, branches: () => jjBranches })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("feature-jj"))
+    app.mockInput.pressKey("1")
+    app.mockInput.pressKey("p")
+    await app.waitForFrame(
+      (frame) => frame.includes("Push bookmark") && frame.includes("main") && frame.includes("feature-jj"),
+    )
   } finally {
     app.renderer.destroy()
   }

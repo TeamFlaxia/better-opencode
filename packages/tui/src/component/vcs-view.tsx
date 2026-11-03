@@ -28,6 +28,7 @@ import {
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { useDialog } from "../ui/dialog"
 import { DialogPrompt } from "../ui/dialog-prompt"
+import { DialogSelect } from "../ui/dialog-select"
 import { FilePath } from "../ui/file-path"
 import { revealSelectionOffset } from "../ui/select-controller"
 import { useToast } from "../ui/toast"
@@ -224,7 +225,8 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const statusDetail = () => {
     const summary = current()
     if (!summary) return ""
-    return summary.description || (summary.change ? `change ${summary.change}` : summary.detail)
+    if (summary.kind !== "jj") return summary.detail
+    return [summary.bookmarks, summary.description].filter(Boolean).join(" · ") || summary.detail
   }
   const rowBackground = (panel: VcsPanel, index: number) => {
     if (selectedFor(panel) !== index) return undefined
@@ -471,6 +473,44 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (!kind()) return
     void vcs.execute(action)
   }
+  const pushBookmarks = () => {
+    const repository = kind()
+    if (!repository) return
+    if (repository !== "jj") {
+      runAction("push")
+      return
+    }
+    const local = branchEntries().filter((item) => !item.remote)
+    if (local.length === 0) {
+      toast.show({ variant: "warning", message: "No local bookmarks to push." })
+      return
+    }
+    const selected = focus() === "branches" ? branch() : undefined
+    if (selected && !selected.remote) {
+      void vcs.execute("push", selected.label)
+      return
+    }
+    if (local.length === 1) {
+      void vcs.execute("push", local[0]!.label)
+      return
+    }
+    dialog.replace(() => (
+      <DialogSelect
+        title="Push bookmark"
+        options={local.map((item) => ({
+          title: item.label,
+          value: item.label,
+          description: item.current ? "at @" : item.detail,
+        }))}
+        current={local.find((item) => item.current)?.label}
+        onSelect={(option) => {
+          dialog.clear()
+          void vcs.execute("push", option.value)
+        }}
+        onCancel={() => dialog.clear()}
+      />
+    ))
+  }
 
   useKeyboard((event) => {
     if (dialog.stack.length > 0) return
@@ -549,7 +589,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     if (key === "p" && repository) {
       handled()
-      runAction("push")
+      pushBookmarks()
       return
     }
     if (key === "l" && repository === "git") {
@@ -833,9 +873,19 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                     <b>{kind() ?? "vcs"}</b>
                   </text>
                   <box flexGrow={1} minWidth={0}>
-                    <text fg={theme.text.base} wrapMode="none" truncate selectable={false}>
-                      {` ${current()!.label}`}
-                    </text>
+                    <Show
+                      when={kind() === "jj" && current()!.change}
+                      fallback={
+                        <text fg={theme.text.base} wrapMode="none" truncate selectable={false}>
+                          {` ${current()!.label}`}
+                        </text>
+                      }
+                    >
+                      <text fg={theme.text.base} wrapMode="none" truncate selectable={false}>
+                        <span style={{ fg: theme.text.muted }}> @ </span>
+                        {current()!.change}
+                      </text>
+                    </Show>
                   </box>
                   <text fg={statusColor(current()!)} selectable={false}>
                     {status(current()!)}
@@ -917,7 +967,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                               width={2}
                               selectable={false}
                             >
-                              {item().current ? "*" : " "}
+                              {item().current ? (kind() === "jj" ? "@" : "*") : " "}
                             </text>
                             <text
                               fg={branchColor("branches", index, item())}
@@ -968,7 +1018,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                               width={2}
                               selectable={false}
                             >
-                              {isCurrent() ? "*" : " "}
+                              {isCurrent() ? (kind() === "jj" ? "@" : "*") : " "}
                             </text>
                             <text
                               fg={historyColor("history", index, item())}
@@ -1065,27 +1115,39 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                   <text fg={theme.text.feedback.info.base} selectable={false}>
                     <b>{kind() ?? "vcs"}</b>
                   </text>
-                  <text fg={theme.text.base} selectable={false}>
-                    {` ${current()!.label}`}
-                  </text>
+                  <Show
+                    when={kind() === "jj" && current()!.change}
+                    fallback={
+                      <text fg={theme.text.base} selectable={false}>
+                        {` ${current()!.label}`}
+                      </text>
+                    }
+                  >
+                    <text fg={theme.text.muted} selectable={false}>
+                      {" @ "}
+                    </text>
+                    <text fg={theme.text.base} selectable={false}>
+                      {current()!.change}
+                    </text>
+                  </Show>
                 </box>
                 <text fg={statusColor(current()!)} selectable={false}>
                   {status(current()!)}
                 </text>
+                <Show when={current()!.bookmarks}>
+                  <box height={1} flexDirection="row">
+                    <text fg={theme.text.muted} selectable={false}>
+                      bookmarks{" "}
+                    </text>
+                    <text fg={theme.text.feedback.success.base} selectable={false}>
+                      {current()!.bookmarks}
+                    </text>
+                  </box>
+                </Show>
                 <Show when={current()!.description}>
                   <text fg={theme.text.muted} selectable={false}>
                     {current()!.description!}
                   </text>
-                </Show>
-                <Show when={current()!.change}>
-                  <box height={1} flexDirection="row">
-                    <text fg={theme.text.muted} selectable={false}>
-                      change{" "}
-                    </text>
-                    <text fg={theme.text.feedback.info.base} selectable={false}>
-                      {current()!.change}
-                    </text>
-                  </box>
                 </Show>
                 <Show when={current()!.commit}>
                   <box height={1} flexDirection="row">

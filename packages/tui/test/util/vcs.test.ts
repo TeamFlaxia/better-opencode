@@ -220,6 +220,7 @@ describe("summarizeJj", () => {
       detail: "fix tabs",
       change: "znnstyupywvs",
       commit: "62730de940ae",
+      bookmarks: "main",
       description: "fix tabs",
       dirty: 2,
       conflict: false,
@@ -255,6 +256,10 @@ describe("mutationCommands", () => {
     expect(mutationCommands("jj", "new")).toEqual([{ command: "jj", args: ["new"] }])
     expect(mutationCommands("jj", "squash")).toEqual([{ command: "jj", args: ["squash", "--use-destination-message"] }])
     expect(mutationCommands("jj", "fetch")).toEqual([{ command: "jj", args: ["git", "fetch"] }])
+    expect(mutationCommands("jj", "push", "main")).toEqual([
+      { command: "jj", args: ["git", "push", "--bookmark", "main"] },
+    ])
+    expect(mutationCommands("jj", "push")).toEqual([{ command: "jj", args: ["git", "push"] }])
     expect(mutationCommands("jj", "split", "split msg", ["a.ts", "b.ts"])).toEqual([
       { command: "jj", args: ["split", "-m", "split msg", "--", "a.ts", "b.ts"] },
     ])
