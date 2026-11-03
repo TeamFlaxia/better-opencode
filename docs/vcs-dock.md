@@ -26,10 +26,10 @@ Mercurial it uses the existing VCS API, so the dock reflects the same state as t
 rest of OpenCode.
 
 jj stores changes as Git commits. `jj describe` rewrites the current change's
-message, which changes its commit ID while keeping the change ID. History shows both
-IDs and the dock menu can copy either one. The view does not render a separate Git
-history; the colocated Git repository is jj's storage, not a second repository to
-browse.
+message, which changes its commit ID while keeping the change ID. The Changes panel
+shows both IDs and the dock menu can copy either one. The view does not render a
+separate Git history; the colocated Git repository is jj's storage, not a second
+repository to browse.
 
 Click the dock (or run `vcs.open`) to open the built-in version control view.
 The view replaces the session transcript instead of opening a modal dialog, so the
@@ -40,28 +40,28 @@ When a jj repository is colocated with Git, the view renders jj only. jj manages
 the colocated Git repository, so listing both would repeat the same files, bookmarks,
 and history. Git-backed operations such as fetch and push still run through jj.
 
-The layout follows lazygit's panel structure: the active files/bookmarks/history
-panel and a preview panel. The header shows the backend, current bookmark or branch,
-and status, so a single repository does not get a separate selector row. The list
-panel uses the accent border to show where keyboard input goes, and the footer groups
-contextual and global shortcuts on separate rows.
+The layout follows lazygit: **Status**, **Files**, **Bookmarks/Branches**, and
+**Changes/Commits** are stacked on the left, and the focused panel opens its diff or
+details in the main panel on the right. The focused panel uses the accent border and
+takes extra height, while the others keep a minimum row so every list stays visible.
+The footer groups contextual and global shortcuts on separate rows.
 
 Right-click the dock for quick links to the diff viewer, change and commit ID
 copying, and the optional external tool.
 
 ## Keyboard
 
-The view has three panes: **files**, **bookmarks** / **branches**, and **history**.
-A jj repository fills them with changed files, bookmarks, and the change log; a Git
-repository fills them with changed files, branches, and commits.
+The view has four panels: **Status**, **Files**, **Bookmarks** / **Branches**, and
+**Changes** / **Commits**. A jj repository fills the last two with bookmarks and the
+change log; a Git repository fills them with branches and commits.
 
-- `1` / `2` / `3`: switch between files, bookmarks/branches, and history
-- `tab` or `left` / `right`: cycle panes
-- `up` / `down` or `j` / `k`: select an entry
+- `1` / `2` / `3` / `4`: focus status, files, bookmarks/branches, or changes/commits
+- `tab` or `left` / `right`: cycle the focused panel
+- `up` / `down` or `j` / `k`: select an entry in the focused panel
 - `space`: stage or unstage the selected Git file
 - `enter`: open the diff viewer for a file; edit a mutable bookmark/change; start a
   new change on top of an immutable one; or switch to a Git branch/commit
-- `n`: create a bookmark/branch (at the selected change/commit in history)
+- `n`: create a bookmark/branch (at the selected change/commit in changes/commits)
 - `m`: rename the selected local bookmark/branch
 - `x`: delete the selected local bookmark/branch
 - `f` / `p` / `l`: fetch, push, and pull (`l` is Git only)

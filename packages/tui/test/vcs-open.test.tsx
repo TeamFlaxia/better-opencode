@@ -14,9 +14,7 @@ test("opens the full-pane version control view in place of the conversation", as
   setup.mockInput.pressKey("x", { ctrl: true })
   setup.mockInput.pressKey("v")
 
-  await setup.waitForFrame(
-    (frame) => frame.includes("VCS") && frame.includes("No Git, jj, or Mercurial repository"),
-  )
+  await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
   const frame = setup.captureCharFrame()
   expect(frame).not.toContain("Ask anything")
   expect(frame).not.toContain("OpenCode crashed")

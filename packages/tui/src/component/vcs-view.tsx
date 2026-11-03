@@ -1,7 +1,17 @@
 /** @jsxImportSource @opentui/solid */
 import { TextAttributes, type BoxRenderable, type ScrollBoxRenderable } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
-import { createEffect, createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js"
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js"
 import { Keymap } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { useVcs } from "../context/vcs"
@@ -42,8 +52,8 @@ export type VcsViewController = Pick<
   | "applyHunks"
 >
 
-type VcsPane = "files" | "branches" | "history"
-const panes = ["files", "branches", "history"] as const
+type VcsPanel = "status" | "files" | "branches" | "history"
+const panels = ["status", "files", "branches", "history"] as const
 
 export function VcsView(props: { onClose: () => void; controller?: VcsViewController }) {
   const vcs = props.controller ?? useVcs()
@@ -52,9 +62,14 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const dialog = useDialog()
   const toast = useToast()
   const keymap = Keymap.use()
-  const [pane, setPane] = createSignal<VcsPane>("files")
-  const [selected, setSelected] = createSignal(0)
-  let sidebar: ScrollBoxRenderable | undefined
+  const [focus, setFocus] = createSignal<VcsPanel>("files")
+  const [selection, setSelection] = createSignal<Record<VcsPanel, number>>({
+    status: 0,
+    files: 0,
+    branches: 0,
+    history: 0,
+  })
+  const scrolls: Partial<Record<VcsPanel, ScrollBoxRenderable>> = {}
   let root: BoxRenderable | undefined
   onMount(() => {
     const timer = setTimeout(() => {
@@ -66,36 +81,84 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const current = () => vcs.summary()
   const kind = () => current()?.kind
   const files = createMemo(() => current()?.files ?? [])
-  const file = createMemo(() => files().at(selected()))
-  const [lists] = createResource(
-    () => {
-      const currentPane = pane()
-      if (currentPane === "files" || !current()) return
-      return { pane: currentPane, summary: current()! }
-    },
-    async (input) => {
-      try {
-        return input.pane === "branches" ? await vcs.branches() : await vcs.history()
-      } catch {
-        return []
-      }
-    },
-  )
-  const entries = createMemo<VcsListEntry[]>(() => (pane() === "files" ? [] : (lists() ?? [])))
-  const entry = createMemo(() => entries().at(selected()))
-  const previewLabel = () =>
-    pane() === "files" ? (file()?.file ?? current()?.detail ?? "") : (entry()?.label ?? current()?.detail ?? "")
+  const [branchList] = createResource(current, async () => {
+    try {
+      return await vcs.branches()
+    } catch {
+      return []
+    }
+  })
+  const [historyList] = createResource(current, async () => {
+    try {
+      return await vcs.history()
+    } catch {
+      return []
+    }
+  })
+  const branchEntries = createMemo<VcsListEntry[]>(() => branchList() ?? [])
+  const historyEntries = createMemo<VcsListEntry[]>(() => historyList() ?? [])
+  const selectedFor = (panel: VcsPanel) => selection()[panel]
+  const setSelectedFor = (panel: VcsPanel, index: number) =>
+    setSelection((value) => ({ ...value, [panel]: index }))
+  const file = createMemo(() => files().at(selectedFor("files")))
+  const branch = createMemo(() => branchEntries().at(selectedFor("branches")))
+  const historyEntry = createMemo(() => historyEntries().at(selectedFor("history")))
+  const focusedEntry = () => (focus() === "branches" ? branch() : focus() === "history" ? historyEntry() : undefined)
+  const focusedItem = () =>
+    focus() === "files" ? file() : focus() === "branches" ? branch() : focus() === "history" ? historyEntry() : undefined
+  const countFor = (panel: VcsPanel) => {
+    if (panel === "files") return files().length
+    if (panel === "branches") return branchEntries().length
+    if (panel === "history") return historyEntries().length
+    return 0
+  }
+  const sidebarWidth = () => Math.max(32, Math.min(56, Math.floor(dimensions().width * 0.4)))
   const previewLabelWidth = () => Math.max(8, dimensions().width - sidebarWidth() - 36)
-  const count = () => (pane() === "files" ? files().length : entries().length)
-  const sidebarWidth = () => Math.max(30, Math.min(52, Math.floor(dimensions().width * 0.36)))
+  const previewLabel = () => {
+    if (focus() === "files") return file()?.file ?? current()?.detail ?? ""
+    if (focus() === "branches") return branch()?.label ?? current()?.detail ?? ""
+    if (focus() === "history") return historyEntry()?.label ?? current()?.detail ?? ""
+    return current()?.label ?? ""
+  }
+  const previewDetail = () => {
+    if (focus() === "status") return current() ? status(current()!) : ""
+    if (focus() === "files") {
+      const item = file()
+      if (kind() !== "git" || !item) return ""
+      return item.staged && !item.unstaged ? "staged" : "unstaged"
+    }
+    const item = focusedEntry()
+    return Locale.truncateWidth(
+      item?.detail ??
+        (focus() === "branches"
+          ? kind() === "jj"
+            ? "bookmark"
+            : "branch"
+          : kind() === "jj"
+            ? "change"
+            : "commit"),
+      24,
+    )
+  }
+  const previewTitle = () => {
+    if (focus() === "status") return "Repository"
+    if (focus() === "files") return "Diff"
+    if (focus() === "branches") return kind() === "jj" ? "Bookmark" : "Branch"
+    return kind() === "jj" ? "Change" : "Commit"
+  }
+  const emptyPreview = () => {
+    if (focus() === "files") return "No changed files"
+    if (focus() === "branches") return kind() === "jj" ? "No bookmarks" : "No branches"
+    return kind() === "jj" ? "No changes" : "No commits"
+  }
   const source = createMemo(() => {
     if (!current()) return
-    if (pane() === "files") {
+    if (focus() === "files") {
       const item = file()
       if (!item) return
       return { type: "file" as const, id: item.file, staged: item.staged && !item.unstaged }
     }
-    const item = entry()
+    const item = focusedEntry()
     if (!item) return
     return { type: "ref" as const, id: item.id }
   })
@@ -110,29 +173,40 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
 
   const status = (summary: VcsSummary) =>
     summary.conflict ? "conflict" : summary.dirty === 0 ? "clean" : `${summary.dirty} changed`
-
-  createEffect(() => {
-    setSelected((index) => Math.max(0, Math.min(index, Math.max(0, count() - 1))))
-  })
-
-  createEffect(() => {
-    const index = selected()
-    queueMicrotask(() => sidebar?.scrollTo(index))
-  })
-
-  const choosePane = (next: VcsPane) => {
-    setPane(next)
-    setSelected(0)
-    queueMicrotask(() => sidebar?.scrollTo(0))
+  const statusDetail = () => {
+    const summary = current()
+    if (!summary) return ""
+    if (summary.change) return `change ${summary.change}${summary.commit ? ` · commit ${summary.commit}` : ""}`
+    return summary.description ?? summary.detail
   }
-  const cyclePane = (delta: number) => {
-    const index = panes.indexOf(pane())
-    choosePane(panes[(index + delta + panes.length) % panes.length]!)
+
+  createEffect(() => {
+    const panel = focus()
+    const total = countFor(panel)
+    setSelection((value) => {
+      const next = Math.max(0, Math.min(value[panel], Math.max(0, total - 1)))
+      return next === value[panel] ? value : { ...value, [panel]: next }
+    })
+  })
+
+  createEffect(() => {
+    const panel = focus()
+    const index = selectedFor(panel)
+    queueMicrotask(() => scrolls[panel]?.scrollTo(index))
+  })
+
+  const cyclePanel = (delta: number) => {
+    const index = panels.indexOf(focus())
+    setFocus(panels[(index + delta + panels.length) % panels.length]!)
   }
   const move = (delta: number) => {
-    const total = count()
+    const panel = focus()
+    const total = countFor(panel)
     if (total === 0) return
-    setSelected((index) => Math.max(0, Math.min(total - 1, index + delta)))
+    setSelection((value) => ({
+      ...value,
+      [panel]: Math.max(0, Math.min(total - 1, value[panel] + delta)),
+    }))
   }
 
   const prompt = (
@@ -191,10 +265,10 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     ))
   }
   const switchReference = () => {
-    const item = entry()
+    const item = focusedEntry()
     if (!item) return
     const start = kind() === "jj" && item.immutable
-    if (pane() === "history") {
+    if (focus() === "history") {
       const noun = kind() === "jj" ? "change" : "commit"
       dialog.replace(() => (
         <DialogConfirm
@@ -223,8 +297,8 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   }
   const deleteReference = () => {
     const repository = kind()
-    const item = entry()
-    if (!repository || !item || pane() !== "branches") return
+    const item = branch()
+    if (!repository || !item || focus() !== "branches") return
     if (item.remote) {
       toast.show({ variant: "info", message: "Remote bookmarks are managed by jj git." })
       return
@@ -243,16 +317,16 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     ))
   }
   const createReference = () => {
-    if (pane() === "branches") {
+    if (focus() === "branches") {
       promptBranch("create")
       return
     }
-    const item = entry()
-    if (pane() === "history" && item) promptBranch("create", { target: item.id })
+    const item = historyEntry()
+    if (focus() === "history" && item) promptBranch("create", { target: item.id })
   }
   const renameReference = () => {
-    const item = entry()
-    if (pane() !== "branches" || !item) return
+    const item = branch()
+    if (focus() !== "branches" || !item) return
     if (item.remote) {
       toast.show({ variant: "info", message: "Remote bookmarks are managed by jj git." })
       return
@@ -261,12 +335,12 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   }
   const stageSelected = () => {
     const item = file()
-    if (!item || kind() !== "git") return
+    if (!item || focus() !== "files" || kind() !== "git") return
     void vcs.execute(item.unstaged ? "stage" : "unstage", undefined, [item.file])
   }
   const openHunks = async (staged: boolean) => {
     const item = file()
-    if (!item || kind() !== "git") return
+    if (!item || focus() !== "files" || kind() !== "git") return
     try {
       const patch = await vcs.hunks(item.file, staged)
       if (patch.hunks.length === 0) {
@@ -332,27 +406,32 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     if (key === "1") {
       handled()
-      choosePane("files")
+      setFocus("status")
       return
     }
     if (key === "2") {
       handled()
-      choosePane("branches")
+      setFocus("files")
       return
     }
     if (key === "3") {
       handled()
-      choosePane("history")
+      setFocus("branches")
+      return
+    }
+    if (key === "4") {
+      handled()
+      setFocus("history")
       return
     }
     if (key === "tab" || key === "right") {
       handled()
-      cyclePane(1)
+      cyclePanel(1)
       return
     }
     if (key === "left") {
       handled()
-      cyclePane(-1)
+      cyclePanel(-1)
       return
     }
     if (key === "up" || key === "k") {
@@ -367,12 +446,12 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     if (key === "home" || key === "g") {
       handled()
-      setSelected(0)
+      setSelectedFor(focus(), 0)
       return
     }
     if (key === "end") {
       handled()
-      setSelected(Math.max(0, count() - 1))
+      setSelectedFor(focus(), Math.max(0, countFor(focus()) - 1))
       return
     }
     if (key === "r") {
@@ -402,33 +481,33 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     if (key === "enter" || key === "return") {
       handled()
-      if (pane() === "files") openDiff()
-      else switchReference()
+      if (focus() === "files") openDiff()
+      else if (focus() === "branches" || focus() === "history") switchReference()
       return
     }
-    if ((key === "space" || event.sequence === " ") && pane() === "files") {
+    if ((key === "space" || event.sequence === " ") && focus() === "files") {
       handled()
       stageSelected()
       return
     }
     if (key === "n") {
       handled()
-      if (pane() === "files") {
+      if (focus() === "files") {
         if (repository === "jj") runAction("new")
-      } else createReference()
+      } else if (focus() === "branches" || focus() === "history") createReference()
       return
     }
-    if (key === "x" && pane() === "branches") {
+    if (key === "x" && focus() === "branches") {
       handled()
       deleteReference()
       return
     }
-    if (key === "m" && pane() === "branches") {
+    if (key === "m" && focus() === "branches") {
       handled()
       renameReference()
       return
     }
-    if (pane() !== "files") return
+    if (focus() !== "files") return
     if (key === "c" && repository === "git") {
       handled()
       prompt("Commit staged changes", "Commit message", "", "commit")
@@ -512,20 +591,28 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     return undefined
   }
   type Hint = { readonly key: string; readonly label: string }
-  const paneLabel = (item: VcsPane) =>
-    item === "files" ? "files" : item === "branches" ? (kind() === "jj" ? "bookmarks" : "branches") : "history"
-  const paneTitle = () =>
-    pane() === "files" ? "Changes" : pane() === "branches" ? (kind() === "jj" ? "Bookmarks" : "Branches") : "History"
-  const previewTitle = () => {
-    if (pane() === "files") return "Diff"
-    if (pane() === "branches") return kind() === "jj" ? "Bookmark details" : "Branch details"
-    return kind() === "jj" ? "Change details" : "Commit details"
+  const panelLabel = (panel: VcsPanel) => {
+    if (panel === "status") return "status"
+    if (panel === "files") return "files"
+    if (panel === "branches") return kind() === "jj" ? "bookmarks" : "branches"
+    return kind() === "jj" ? "changes" : "commits"
   }
-  const referenceAction = () => (entry()?.immutable ? "new" : kind() === "jj" ? "edit" : "switch")
+  const panelTitle = (panel: VcsPanel) => {
+    if (panel === "status") return "Status"
+    if (panel === "files") return `Files · ${files().length}`
+    if (panel === "branches") return `${kind() === "jj" ? "Bookmarks" : "Branches"} · ${branchEntries().length}`
+    return `${kind() === "jj" ? "Changes" : "Commits"} · ${historyEntries().length}`
+  }
+  const referenceAction = () => (focusedEntry()?.immutable ? "new" : kind() === "jj" ? "edit" : "switch")
   const contextHints = (): Hint[] => {
     const repository = kind()
-    if (pane() === "branches") {
-      const local = !entry()?.remote
+    if (focus() === "status")
+      return [
+        { key: "f", label: "fetch" },
+        { key: "p", label: "push" },
+      ]
+    if (focus() === "branches") {
+      const local = !branch()?.remote
       return [
         { key: "enter", label: referenceAction() },
         { key: "n", label: "create" },
@@ -539,7 +626,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         { key: "p", label: "push" },
       ]
     }
-    if (pane() === "history")
+    if (focus() === "history")
       return [
         { key: "enter", label: referenceAction() },
         { key: "n", label: repository === "jj" ? "bookmark at change" : "branch at commit" },
@@ -548,6 +635,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       ]
     if (repository === "git")
       return [
+        { key: "enter", label: "diff" },
         { key: "space", label: "stage" },
         { key: "c", label: "commit" },
         { key: "a", label: "commit all" },
@@ -559,6 +647,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       ]
     if (repository === "jj")
       return [
+        { key: "enter", label: "diff" },
         { key: "d", label: "describe" },
         { key: "n", label: "new" },
         { key: "s", label: "squash" },
@@ -573,10 +662,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     return []
   }
   const globalHints = (): Hint[] => [
-    { key: "1", label: "files" },
-    { key: "2", label: paneLabel("branches") },
-    { key: "3", label: "history" },
-    ...(pane() === "files" ? [{ key: "enter", label: "diff" }] : []),
+    { key: "1", label: "status" },
+    { key: "2", label: "files" },
+    { key: "3", label: panelLabel("branches") },
+    { key: "4", label: panelLabel("history") },
+    { key: "tab", label: "panel" },
     ...(vcs.tool() ? [{ key: "o", label: "external" }] : []),
     { key: "r", label: "refresh" },
     { key: "q", label: "close" },
@@ -598,6 +688,29 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     </box>
   )
 
+  const listPanel = (panel: VcsPanel, title: string, body: JSX.Element) => (
+    <box
+      flexGrow={focus() === panel ? 2 : 1}
+      minHeight={3}
+      flexDirection="column"
+      border
+      borderColor={focus() === panel ? theme.background.action.primary.focused : theme.border.base}
+      title={title}
+      titleColor={focus() === panel ? theme.text.base : theme.text.muted}
+      backgroundColor={theme.background.raised.base}
+      onMouseDown={() => setFocus(panel)}
+    >
+      {body}
+    </box>
+  )
+  const emptyRow = (message: string) => (
+    <box height={1} paddingLeft={1}>
+      <text fg={theme.text.muted} selectable={false}>
+        {message}
+      </text>
+    </box>
+  )
+
   return (
     <box
       ref={(node: BoxRenderable) => (root = node)}
@@ -608,36 +721,6 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       backgroundColor={theme.background.base}
       onMouseDown={() => root?.focus()}
     >
-      <box
-        height={1}
-        flexDirection="row"
-        paddingLeft={1}
-        paddingRight={1}
-        backgroundColor={theme.background.raised.base}
-      >
-        <text fg={theme.text.base} selectable={false}>
-          <b>VCS</b>
-        </text>
-        <box flexGrow={1} minWidth={0}>
-          <Show when={current()}>
-            <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
-              {`  ${current()!.kind} · ${current()!.label}`}
-            </text>
-          </Show>
-        </box>
-        <Show when={current()}>
-          <text fg={current()!.conflict ? theme.text.feedback.error.base : theme.text.muted} selectable={false}>
-            {`${status(current()!)}  `}
-          </text>
-        </Show>
-        <text fg={theme.text.muted} selectable={false}>
-          {vcs.refreshing() ? "refreshing…  " : ""}
-        </text>
-        <text fg={theme.text.muted} selectable={false}>
-          esc close
-        </text>
-      </box>
-      <box height={1} flexShrink={0} backgroundColor={theme.border.base} />
       <Show
         when={current()}
         fallback={
@@ -647,137 +730,184 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         }
       >
         <box flexGrow={1} minHeight={0} flexDirection="row" gap={1} paddingLeft={1} paddingRight={1} paddingBottom={1}>
-          <box width={sidebarWidth()} flexShrink={0} flexDirection="column" gap={1}>
+          <box width={sidebarWidth()} flexShrink={0} flexDirection="column">
             <box
-              flexGrow={1}
-              minHeight={0}
+              height={4}
+              flexShrink={0}
+              flexDirection="column"
               border
-              borderColor={theme.background.action.primary.focused}
-              title={`${paneTitle()} · ${count()}`}
-              titleColor={theme.text.base}
+              borderColor={
+                focus() === "status" ? theme.background.action.primary.focused : theme.border.base
+              }
+              title="Status"
+              titleColor={focus() === "status" ? theme.text.base : theme.text.muted}
               backgroundColor={theme.background.raised.base}
+              onMouseDown={() => setFocus("status")}
             >
-              <box height={1} flexDirection="row" paddingLeft={1} gap={2}>
-                <For each={panes}>
-                  {(item) => (
-                    <text
-                      fg={pane() === item ? theme.text.base : theme.text.muted}
-                      attributes={pane() === item ? TextAttributes.BOLD : undefined}
-                      selectable={false}
-                      onMouseUp={() => choosePane(item)}
-                    >
-                      {paneLabel(item)}
+              <box height={2} flexDirection="column" paddingLeft={1} paddingRight={1}>
+                <box height={1} flexDirection="row">
+                  <text fg={theme.text.base} selectable={false}>
+                    <b>{kind() ?? "vcs"}</b>
+                  </text>
+                  <box flexGrow={1} minWidth={0}>
+                    <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
+                      {` ${current()!.label}`}
                     </text>
-                  )}
-                </For>
+                  </box>
+                  <text
+                    fg={current()!.conflict ? theme.text.feedback.error.base : theme.text.muted}
+                    selectable={false}
+                  >
+                    {vcs.refreshing() ? "refreshing…" : status(current()!)}
+                  </text>
+                </box>
+                <box height={1}>
+                  <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
+                    {statusDetail()}
+                  </text>
+                </box>
               </box>
-              <scrollbox ref={(node) => (sidebar = node)} flexGrow={1} scrollbarOptions={{ visible: true }}>
-                <Show
-                  when={pane() === "files"}
-                  fallback={
-                    <Show
-                      when={!lists.loading}
-                      fallback={
-                        <box height={1} paddingLeft={2}>
-                          <text fg={theme.text.muted} selectable={false}>
-                            Loading…
-                          </text>
-                        </box>
-                      }
-                    >
-                      <Show
-                        when={entries().length > 0}
-                        fallback={
-                          <box height={1} paddingLeft={2}>
-                            <text fg={theme.text.muted} selectable={false}>
-                              {pane() === "branches"
-                                ? kind() === "jj"
-                                  ? "no bookmarks"
-                                  : "no branches"
-                                : "no history"}
-                            </text>
-                          </box>
-                        }
-                      >
-                        <For each={entries()}>
-                          {(item, index) => {
-                            const active = () => selected() === index()
-                            return (
-                              <box
-                                height={1}
-                                flexDirection="row"
-                                paddingLeft={1}
-                                paddingRight={1}
-                                backgroundColor={active() ? theme.background.action.primary.focused : undefined}
-                                onMouseUp={() => setSelected(index())}
-                              >
-                                <text fg={theme.text.muted} width={2} selectable={false}>
-                                  {item.current ? "*" : " "}
-                                </text>
-                                <text
-                                  fg={active() ? theme.text.base : theme.text.muted}
-                                  wrapMode="none"
-                                  selectable={false}
-                                >
-                                  {Locale.truncateWidth(item.label, sidebarWidth() - 15)}
-                                </text>
-                                <box flexGrow={1} />
-                                <text fg={theme.text.muted} selectable={false}>
-                                  {Locale.truncateWidth(item.detail?.split(" · ")[0] ?? "", 8)}
-                                </text>
-                              </box>
-                            )
+            </box>
+            {listPanel(
+              "files",
+              panelTitle("files"),
+              <scrollbox ref={(node) => (scrolls.files = node)} flexGrow={1} scrollbarOptions={{ visible: true }}>
+                <Show when={files().length > 0} fallback={emptyRow("No changed files")}>
+                  <For each={files()}>
+                    {(item, index) => {
+                      const active = () => focus() === "files" && selectedFor("files") === index()
+                      return (
+                        <box
+                          height={1}
+                          flexDirection="row"
+                          paddingLeft={1}
+                          paddingRight={1}
+                          backgroundColor={active() ? theme.background.action.primary.focused : undefined}
+                          onMouseUp={() => {
+                            setFocus("files")
+                            setSelectedFor("files", index())
                           }}
-                        </For>
-                      </Show>
-                    </Show>
-                  }
+                        >
+                          <text fg={markerColor(item)} selectable={false}>
+                            {marker(item)}
+                          </text>
+                          <box width={1} />
+                          <FilePath
+                            value={item.file}
+                            maxWidth={sidebarWidth() - 9}
+                            fg={active() ? theme.text.base : theme.text.muted}
+                          />
+                          <box flexGrow={1} />
+                          <Show when={item.staged}>
+                            <text fg={theme.text.muted} selectable={false}>
+                              +
+                            </text>
+                          </Show>
+                        </box>
+                      )
+                    }}
+                  </For>
+                </Show>
+              </scrollbox>,
+            )}
+            {listPanel(
+              "branches",
+              panelTitle("branches"),
+              <scrollbox ref={(node) => (scrolls.branches = node)} flexGrow={1} scrollbarOptions={{ visible: true }}>
+                <Show
+                  when={!branchList.loading}
+                  fallback={emptyRow("Loading…")}
                 >
                   <Show
-                    when={files().length > 0}
-                    fallback={
-                      <box height={1} paddingLeft={2}>
-                        <text fg={theme.text.muted} selectable={false}>
-                          clean
-                        </text>
-                      </box>
-                    }
+                    when={branchEntries().length > 0}
+                    fallback={emptyRow(kind() === "jj" ? "No bookmarks" : "No branches")}
                   >
-                    <For each={files()}>
+                    <For each={branchEntries()}>
                       {(item, index) => {
-                        const active = () => selected() === index()
+                        const active = () => focus() === "branches" && selectedFor("branches") === index()
                         return (
                           <box
                             height={1}
                             flexDirection="row"
-                            paddingLeft={2}
+                            paddingLeft={1}
                             paddingRight={1}
                             backgroundColor={active() ? theme.background.action.primary.focused : undefined}
-                            onMouseUp={() => setSelected(index())}
+                            onMouseUp={() => {
+                              setFocus("branches")
+                              setSelectedFor("branches", index())
+                            }}
                           >
-                            <text fg={markerColor(item)} selectable={false}>
-                              {marker(item)}
+                            <text fg={theme.text.muted} width={2} selectable={false}>
+                              {item.current ? "*" : " "}
                             </text>
-                            <box width={1} />
-                            <FilePath
-                              value={item.file}
-                              maxWidth={sidebarWidth() - 9}
+                            <text
                               fg={active() ? theme.text.base : theme.text.muted}
-                            />
+                              wrapMode="none"
+                              selectable={false}
+                            >
+                              {Locale.truncateWidth(item.label, sidebarWidth() - 15)}
+                            </text>
                             <box flexGrow={1} />
-                            <Show when={item.staged}>
-                              <text fg={theme.text.muted} selectable={false}>
-                                +
-                              </text>
-                            </Show>
+                            <text fg={theme.text.muted} selectable={false}>
+                              {Locale.truncateWidth(item.detail?.split(" · ")[0] ?? "", 8)}
+                            </text>
                           </box>
                         )
                       }}
                     </For>
                   </Show>
                 </Show>
-              </scrollbox>
-            </box>
+              </scrollbox>,
+            )}
+            {listPanel(
+              "history",
+              panelTitle("history"),
+              <scrollbox ref={(node) => (scrolls.history = node)} flexGrow={1} scrollbarOptions={{ visible: true }}>
+                <Show
+                  when={!historyList.loading}
+                  fallback={emptyRow("Loading…")}
+                >
+                  <Show
+                    when={historyEntries().length > 0}
+                    fallback={emptyRow(kind() === "jj" ? "No changes" : "No commits")}
+                  >
+                    <For each={historyEntries()}>
+                      {(item, index) => {
+                        const active = () => focus() === "history" && selectedFor("history") === index()
+                        return (
+                          <box
+                            height={1}
+                            flexDirection="row"
+                            paddingLeft={1}
+                            paddingRight={1}
+                            backgroundColor={active() ? theme.background.action.primary.focused : undefined}
+                            onMouseUp={() => {
+                              setFocus("history")
+                              setSelectedFor("history", index())
+                            }}
+                          >
+                            <text fg={theme.text.muted} width={2} selectable={false}>
+                              {item.current ? "*" : " "}
+                            </text>
+                            <text
+                              fg={active() ? theme.text.base : theme.text.muted}
+                              wrapMode="none"
+                              selectable={false}
+                            >
+                              {Locale.truncateWidth(item.label, sidebarWidth() - 15)}
+                            </text>
+                            <box flexGrow={1} />
+                            <text fg={theme.text.muted} selectable={false}>
+                              {Locale.truncateWidth(item.detail?.split(" · ")[0] ?? "", 8)}
+                            </text>
+                          </box>
+                        )
+                      }}
+                    </For>
+                  </Show>
+                </Show>
+              </scrollbox>,
+            )}
           </box>
           <box
             flexGrow={1}
@@ -795,81 +925,90 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                 </text>
               </box>
               <text fg={theme.text.muted} selectable={false}>
-                {pane() === "files"
-                  ? kind() === "git" && file()
-                    ? file()!.staged && !file()!.unstaged
-                      ? "staged"
-                      : "unstaged"
-                    : ""
-                  : Locale.truncateWidth(
-                      entry()?.detail ??
-                        (pane() === "branches"
-                          ? kind() === "jj"
-                            ? "bookmark"
-                            : "branch"
-                          : kind() === "jj"
-                            ? "change"
-                            : "commit"),
-                      24,
-                    )}
+                {previewDetail()}
               </text>
             </box>
             <Show
-              when={pane() === "files" ? file() : entry()}
+              when={focus() === "status"}
               fallback={
-                <box paddingLeft={1} paddingTop={1}>
-                  <text fg={theme.text.muted} selectable={false}>
-                    {pane() === "files"
-                      ? current()?.detail || "No changes"
-                      : pane() === "branches"
-                        ? kind() === "jj"
-                          ? "No bookmarks"
-                          : "No branches"
-                        : "No history"}
-                  </text>
-                  <Show when={current()?.change}>
-                    <text fg={theme.text.muted} selectable={false}>
-                      {`change ${current()!.change}${current()!.commit ? ` · commit ${current()!.commit}` : ""}`}
-                    </text>
-                  </Show>
-                </box>
-              }
-            >
-              <Show
-                when={!diff.loading}
-                fallback={
-                  <box paddingLeft={1} paddingTop={1}>
-                    <text fg={theme.text.muted}>Loading…</text>
-                  </box>
-                }
-              >
                 <Show
-                  when={lines().length > 0 && lines()[0] !== ""}
+                  when={focusedItem()}
                   fallback={
                     <box paddingLeft={1} paddingTop={1}>
-                      <text fg={theme.text.muted}>
-                        {pane() === "files" ? "No diff for this file." : "No details for this entry."}
+                      <text fg={theme.text.muted} selectable={false}>
+                        {emptyPreview()}
                       </text>
                     </box>
                   }
                 >
-                  <scrollbox flexGrow={1} scrollbarOptions={{ visible: true }}>
-                    <For each={lines()}>
-                      {(line) => (
-                        <text
-                          fg={diffColor(line)}
-                          bg={diffBackground(line)}
-                          attributes={line.startsWith("@@") ? TextAttributes.BOLD : undefined}
-                          wrapMode="none"
-                          selectable={false}
-                        >
-                          {line || " "}
-                        </text>
-                      )}
-                    </For>
-                  </scrollbox>
+                  <Show
+                    when={!diff.loading}
+                    fallback={
+                      <box paddingLeft={1} paddingTop={1}>
+                        <text fg={theme.text.muted}>Loading…</text>
+                      </box>
+                    }
+                  >
+                    <Show
+                      when={lines().length > 0 && lines()[0] !== ""}
+                      fallback={
+                        <box paddingLeft={1} paddingTop={1}>
+                          <text fg={theme.text.muted}>
+                            {focus() === "files" ? "No diff for this file." : "No details for this entry."}
+                          </text>
+                        </box>
+                      }
+                    >
+                      <scrollbox flexGrow={1} scrollbarOptions={{ visible: true }}>
+                        <For each={lines()}>
+                          {(line) => (
+                            <text
+                              fg={diffColor(line)}
+                              bg={diffBackground(line)}
+                              attributes={line.startsWith("@@") ? TextAttributes.BOLD : undefined}
+                              wrapMode="none"
+                              selectable={false}
+                            >
+                              {line || " "}
+                            </text>
+                          )}
+                        </For>
+                      </scrollbox>
+                    </Show>
+                  </Show>
                 </Show>
-              </Show>
+              }
+            >
+              <box flexDirection="column" paddingLeft={1} paddingTop={1}>
+                <box height={1} flexDirection="row">
+                  <text fg={theme.text.base} selectable={false}>
+                    <b>{kind() ?? "vcs"}</b>
+                  </text>
+                  <text fg={theme.text.muted} selectable={false}>
+                    {` ${current()!.label}`}
+                  </text>
+                </box>
+                <text
+                  fg={current()!.conflict ? theme.text.feedback.error.base : theme.text.muted}
+                  selectable={false}
+                >
+                  {status(current()!)}
+                </text>
+                <Show when={current()!.description}>
+                  <text fg={theme.text.muted} selectable={false}>
+                    {current()!.description!}
+                  </text>
+                </Show>
+                <Show when={current()!.change}>
+                  <text fg={theme.text.muted} selectable={false}>{`change ${current()!.change}`}</text>
+                </Show>
+                <Show when={current()!.commit}>
+                  <text fg={theme.text.muted} selectable={false}>{`commit ${current()!.commit}`}</text>
+                </Show>
+                <text fg={theme.text.muted} selectable={false}>
+                  {current()!.detail}
+                </text>
+              </box>
             </Show>
           </box>
         </box>

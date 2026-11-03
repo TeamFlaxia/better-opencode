@@ -94,16 +94,23 @@ test("shows the preferred repository and its files", async () => {
   try {
     app.renderer.start()
     await app.waitForFrame(
-      (frame) => frame.includes("VCS") && frame.includes("jj · main") && frame.includes("src/a.ts"),
+      (frame) =>
+        frame.includes("Status") &&
+        frame.includes("jj") &&
+        frame.includes("main") &&
+        frame.includes("Files · 1") &&
+        frame.includes("src/a.ts"),
     )
-    expect(app.captureCharFrame()).not.toContain("src/b.ts")
-    expect(app.captureCharFrame()).toContain("bookmarks")
+    const frame = app.captureCharFrame()
+    expect(frame).not.toContain("src/b.ts")
+    expect(frame).toContain("Bookmarks")
+    expect(frame).toContain("Changes")
   } finally {
     app.renderer.destroy()
   }
 })
 
-test("cycles panes with tab and the arrow keys", async () => {
+test("cycles panels with tab and the arrow keys", async () => {
   const app = await testRender(
     () => (
       <Providers>
@@ -118,13 +125,17 @@ test("cycles panes with tab and the arrow keys", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("Changes · 1"))
+    await app.waitForFrame((frame) => frame.includes("d describe") && frame.includes("enter diff"))
     app.mockInput.pressTab()
-    await app.waitForFrame((frame) => frame.includes("Bookmarks · 2"))
+    await app.waitForFrame((frame) => frame.includes("n create") && frame.includes("enter edit"))
     app.mockInput.pressArrow("right")
-    await app.waitForFrame((frame) => frame.includes("History · 2"))
+    await app.waitForFrame((frame) => frame.includes("n bookmark at change"))
     app.mockInput.pressArrow("left")
-    await app.waitForFrame((frame) => frame.includes("Bookmarks · 2"))
+    await app.waitForFrame((frame) => frame.includes("n create") && frame.includes("enter edit"))
+    app.mockInput.pressKey("1")
+    await app.waitForFrame((frame) => frame.includes("Repository"))
+    app.mockInput.pressKey("2")
+    await app.waitForFrame((frame) => frame.includes("Diff") && frame.includes("enter diff"))
   } finally {
     app.renderer.destroy()
   }
@@ -188,8 +199,8 @@ test("lists bookmarks and edits the selected bookmark", async () => {
   try {
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("src/a.ts"))
-    app.mockInput.pressKey("2")
-    await app.waitForFrame((frame) => frame.includes("feature-jj") && frame.includes("Bookmarks"))
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("feature-jj") && frame.includes("Bookmarks · 2"))
 
     app.mockInput.pressArrow("down")
     app.mockInput.pressEnter()
@@ -225,7 +236,7 @@ test("starts a new change from an immutable bookmark", async () => {
   try {
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("src/a.ts"))
-    app.mockInput.pressKey("2")
+    app.mockInput.pressKey("3")
     await app.waitForFrame((frame) => frame.includes("main@origin") && frame.includes("enter new"))
     app.mockInput.pressEnter()
     await app.waitFor(() => started.length === 1)
@@ -260,9 +271,13 @@ test("shows history and previews the selected change", async () => {
   try {
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("src/a.ts"))
-    app.mockInput.pressKey("3")
+    app.mockInput.pressKey("4")
     await app.waitForFrame(
-      (frame) => frame.includes("working copy") && frame.includes("feat: previous chan") && frame.includes("+added"),
+      (frame) =>
+        frame.includes("working copy") &&
+        frame.includes("feat: previous chan") &&
+        frame.includes("Changes · 2") &&
+        frame.includes("+added"),
     )
     expect(shown.at(-1)).toBe("qywvssxltvqq")
   } finally {
@@ -291,8 +306,8 @@ test("creates a bookmark at the selected history entry", async () => {
   try {
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("src/a.ts"))
-    app.mockInput.pressKey("3")
-    await app.waitForFrame((frame) => frame.includes("working copy"))
+    app.mockInput.pressKey("4")
+    await app.waitForFrame((frame) => frame.includes("working copy") && frame.includes("n bookmark at change"))
     app.mockInput.pressKey("n")
     await app.waitForFrame((frame) => frame.includes("Create bookmark"))
     app.mockInput.typeText("feature")
@@ -347,8 +362,8 @@ test("does not delete or rename a remote bookmark", async () => {
   try {
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("src/a.ts"))
-    app.mockInput.pressKey("2")
-    await app.waitForFrame((frame) => frame.includes("main@origin"))
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("main@origin") && frame.includes("enter edit"))
     app.mockInput.pressKey("x")
     app.mockInput.pressKey("m")
     await app.waitForFrame(
