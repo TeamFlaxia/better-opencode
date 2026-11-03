@@ -15,10 +15,9 @@ import { emptyThemeSource } from "../fixture/fixture"
 import { TestTuiContexts } from "../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
 
-function controller(summary: VcsSummary, summaries: readonly VcsSummary[] = [summary]): VcsDockController {
+function controller(summary: VcsSummary): VcsDockController {
   return {
     visible: () => true,
-    summaries: () => summaries,
     summary: () => summary,
     refreshing: () => false,
     tool: () => ({ id: "lazyjj", label: "lazyjj", command: "/usr/bin/lazyjj" }),
@@ -128,6 +127,7 @@ test("shows a conflict and exposes the menu on right click", async () => {
               label: "main",
               detail: "resolving",
               change: "znnsty",
+              commit: "62730de940ae",
               dirty: 1,
               conflict: true,
               files: [],
@@ -143,35 +143,34 @@ test("shows a conflict and exposes the menu on right click", async () => {
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("VCS") && frame.includes("jj") && frame.includes("conflict"))
     await app.mockMouse.click(2, 0, MouseButton.RIGHT)
-    await app.waitForFrame((frame) => frame.includes("Version control") && frame.includes("Open lazyjj"))
+    await app.waitForFrame(
+      (frame) =>
+        frame.includes("Version control") &&
+        frame.includes("Open lazyjj") &&
+        frame.includes("Copy change ID") &&
+        frame.includes("Copy commit ID"),
+    )
   } finally {
     app.renderer.destroy()
   }
 })
 
-test("labels a colocated jj and git repository with both kinds", async () => {
-  const jj: VcsSummary = {
-    kind: "jj",
-    label: "main",
-    detail: "1 changed file",
-    change: "znnsty",
-    dirty: 1,
-    conflict: false,
-    files: [],
-  }
-  const git: VcsSummary = {
-    kind: "git",
-    label: "main",
-    detail: "clean",
-    dirty: 0,
-    conflict: false,
-    files: [],
-  }
+test("labels a git repository", async () => {
   const app = await testRender(
     () => (
       <Providers>
         <box width="100%" height="100%" flexDirection="column">
-          <VcsDock orientation="below" controller={controller(jj, [jj, git])} />
+          <VcsDock
+            orientation="below"
+            controller={controller({
+              kind: "git",
+              label: "main",
+              detail: "clean",
+              dirty: 0,
+              conflict: false,
+              files: [],
+            })}
+          />
         </box>
       </Providers>
     ),
@@ -180,7 +179,7 @@ test("labels a colocated jj and git repository with both kinds", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("jj+git"))
+    await app.waitForFrame((frame) => frame.includes("VCS") && frame.includes("git") && frame.includes("main"))
   } finally {
     app.renderer.destroy()
   }
@@ -196,19 +195,11 @@ test("keeps the narrow right dock inside its width", async () => {
     conflict: false,
     files: [],
   }
-  const git: VcsSummary = {
-    kind: "git",
-    label: "main",
-    detail: "1 changed file",
-    dirty: 1,
-    conflict: false,
-    files: [],
-  }
   const app = await testRender(
     () => (
       <Providers>
         <box width="100%" height="100%" flexDirection="column">
-          <VcsDock orientation="right" width={24} controller={controller(jj, [jj, git])} />
+          <VcsDock orientation="right" width={24} controller={controller(jj)} />
         </box>
       </Providers>
     ),
@@ -217,9 +208,9 @@ test("keeps the narrow right dock inside its width", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("VCS") && frame.includes("jj+git"))
+    await app.waitForFrame((frame) => frame.includes("VCS") && frame.includes("jj"))
     const line = app.captureCharFrame().split("\n")[0]!
-    expect(line.slice(0, 24)).toContain("VCS jj+git")
+    expect(line.slice(0, 24)).toContain("VCS jj")
     expect(app.captureCharFrame()).not.toContain("1 changed file")
   } finally {
     app.renderer.destroy()

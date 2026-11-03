@@ -12,10 +12,10 @@ export const VCS_DOCK_WIDTH = 24
 export const VCS_DOCK_MIN_TERMINAL_WIDTH = 96
 
 type VcsDockOrientation = "right" | "below" | "vertical"
-type VcsAction = "actions" | "open" | "diff" | "copy" | "refresh"
+type VcsAction = "actions" | "open" | "diff" | "copy" | "copy_change" | "copy_commit" | "refresh"
 export type VcsDockController = Pick<
   ReturnType<typeof useVcs>,
-  "visible" | "summaries" | "summary" | "refreshing" | "tool" | "openTool" | "refresh"
+  "visible" | "summary" | "refreshing" | "tool" | "openTool" | "refresh"
 >
 
 export function VcsDock(props: {
@@ -38,8 +38,6 @@ export function VcsDock(props: {
   const labelWidth = () => Math.max(1, dockWidth() - 4 - detailWidth())
   const compact = () => props.orientation !== "below" && dockWidth() < 12
   const repository = () => {
-    const kinds = vcs.summaries().map((item) => item.kind)
-    if (kinds.length > 1) return kinds.join("+")
     const value = summary()?.kind
     return value === "jj" ? "jj" : value === "hg" ? "hg" : "git"
   }
@@ -74,7 +72,12 @@ export function VcsDock(props: {
         : []),
       { title: "Open diff viewer", value: "diff" as const, description: "Review changes inside OpenCode" },
       ...(current?.change
-        ? [{ title: "Copy change ID", value: "copy" as const, description: current.change }]
+        ? [
+            { title: "Copy change ID", value: "copy_change" as const, description: current.change },
+            ...(current.commit
+              ? [{ title: "Copy commit ID", value: "copy_commit" as const, description: current.commit }]
+              : []),
+          ]
         : current
           ? [{ title: "Copy branch", value: "copy" as const, description: current.label }]
           : []),
@@ -88,8 +91,9 @@ export function VcsDock(props: {
     if (action === "diff") return keymap.dispatch("diff.open")
     if (action === "refresh") return void vcs.refresh()
     const current = summary()
-    if (!current) return
-    const value = current.change ?? current.label
+    const value =
+      action === "copy_change" ? current?.change : action === "copy_commit" ? current?.commit : current?.label
+    if (!value) return
     void clipboard
       .write(value)
       .then(() => toast.show({ message: "Version control identifier copied", variant: "info" }))

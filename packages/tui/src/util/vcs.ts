@@ -39,6 +39,8 @@ export type VcsListEntry = {
   readonly label: string
   readonly detail?: string
   readonly current?: boolean
+  readonly remote?: boolean
+  readonly immutable?: boolean
 }
 
 export type VcsBranchAction = "create" | "delete" | "rename"
@@ -66,6 +68,7 @@ export type VcsSummary = {
   readonly label: string
   readonly detail: string
   readonly change?: string
+  readonly commit?: string
   readonly description?: string
   readonly dirty: number
   readonly conflict: boolean
@@ -79,26 +82,23 @@ const PREFERRED_TOOLS: Record<VcsKind, readonly VcsToolID[]> = {
   none: [],
 }
 
-export function detectVcsKinds(canonical: string): VcsKind[] {
-  const kinds: VcsKind[] = []
-  if (existsSync(path.join(canonical, ".jj"))) kinds.push("jj")
-  if (existsSync(path.join(canonical, ".git"))) kinds.push("git")
-  if (kinds.length === 0 && existsSync(path.join(canonical, ".hg"))) kinds.push("hg")
-  return kinds
-}
-
 export function detectVcsKind(canonical: string): VcsKind {
-  return detectVcsKinds(canonical)[0] ?? "none"
+  // A colocated Git repository is part of jj's storage, not a second project to render.
+  if (existsSync(path.join(canonical, ".jj"))) return "jj"
+  if (existsSync(path.join(canonical, ".git"))) return "git"
+  if (existsSync(path.join(canonical, ".hg"))) return "hg"
+  return "none"
 }
 
 export function parseJjLog(output: string) {
   const line = output.trimEnd().split("\n").at(-1) ?? ""
   const parts = line.split("\t")
   // A description may contain tabs, so only the fixed leading and trailing fields are positional.
-  const description = parts.slice(2, -2).join("\t")
+  const description = parts.slice(3, -2).join("\t")
   return {
     change: parts[0] ?? "",
-    bookmarks: parts[1] ?? "",
+    commit: parts[1] ?? "",
+    bookmarks: parts[2] ?? "",
     description,
     empty: parts.at(-2) === "true",
     conflict: parts.at(-1) === "true",
@@ -198,14 +198,21 @@ export function parseJjBookmarks(output: string, currentChange?: string): VcsLis
     .split("\n")
     .filter(Boolean)
     .flatMap((line) => {
-      const [name, change, commit, ...subject] = line.split("\t")
-      if (!name) return []
+      const [name, change, commit, ...rest] = line.split("\t")
+      const immutable = rest.at(-1) === "true"
+      const remote = rest.at(-2) ?? ""
+      // The colocated Git repository appears as the internal `git` remote; it mirrors
+      // the local bookmarks and would only duplicate them in the list.
+      if (!name || remote === "git") return []
+      const subject = rest.slice(0, -2).join("\t")
       return [
         {
           id: name,
           label: name,
-          current: currentChange !== undefined && change === currentChange,
-          detail: [commit, subject.join("\t")].filter(Boolean).join(" · "),
+          current: !remote && currentChange !== undefined && change === currentChange,
+          detail: [commit, subject].filter(Boolean).join(" · "),
+          ...(remote ? { remote: true } : {}),
+          ...(immutable ? { immutable: true } : {}),
         },
       ]
     })
@@ -216,13 +223,15 @@ export function parseJjHistory(output: string): VcsListEntry[] {
     .split("\n")
     .filter(Boolean)
     .flatMap((line) => {
-      const [change, commit, bookmarks, ...description] = line.split("\t")
+      const [change, commit, bookmarks, ...rest] = line.split("\t")
       if (!change) return []
+      const immutable = rest.at(-1) === "true"
       return [
         {
           id: change,
-          label: description.join("\t") || "(no description)",
+          label: rest.slice(0, -1).join("\t") || "(no description)",
           detail: [change, commit, bookmarks].filter(Boolean).join(" · "),
+          ...(immutable ? { immutable: true } : {}),
         },
       ]
     })
@@ -261,6 +270,7 @@ export function summarizeJj(log: string, diff: string): VcsSummary {
     conflict: parsed.conflict,
     files,
     ...(parsed.change ? { change: parsed.change } : {}),
+    ...(parsed.commit ? { commit: parsed.commit } : {}),
     ...(parsed.description ? { description: parsed.description } : {}),
   }
 }

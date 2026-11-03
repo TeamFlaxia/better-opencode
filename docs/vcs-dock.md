@@ -20,46 +20,59 @@ shown when a repository is detected and session tabs are visible.
 
 ## Status
 
-For jj the dock reads the current change, bookmarks, description, conflict state,
-and changed file count from `jj log` and `jj diff --summary`. For Git and
+For jj the dock reads the current change, commit, bookmarks, description, conflict
+state, and changed file count from `jj log` and `jj diff --summary`. For Git and
 Mercurial it uses the existing VCS API, so the dock reflects the same state as the
 rest of OpenCode.
+
+jj stores changes as Git commits. `jj describe` rewrites the current change's
+message, which changes its commit ID while keeping the change ID. History shows both
+IDs and the dock menu can copy either one. The view does not render a separate Git
+history; the colocated Git repository is jj's storage, not a second repository to
+browse.
 
 Click the dock (or run `vcs.open`) to open the built-in version control view.
 The view replaces the session transcript instead of opening a modal dialog, so the
 file list and diff stay visible while the tab bar and dock remain in place.
 Switching to another session tab closes the view and shows that tab's conversation.
 
-When a jj repository is colocated with Git, the view lists both repositories and
-their files together. Use `tab` or the left/right arrows to switch which repository
-the action shortcuts target.
+When a jj repository is colocated with Git, the view renders jj only. jj manages
+the colocated Git repository, so listing both would repeat the same files, bookmarks,
+and history. Git-backed operations such as fetch and push still run through jj.
 
-The layout follows lazygit's panel structure: a repositories panel, the active
-files/branches/commits panel, and a preview panel. The list panel uses the accent
-border to show where keyboard input goes, and the footer groups contextual and
-global shortcuts on separate rows.
+The layout follows lazygit's panel structure: the active files/bookmarks/history
+panel and a preview panel. The header shows the backend, current bookmark or branch,
+and status, so a single repository does not get a separate selector row. The list
+panel uses the accent border to show where keyboard input goes, and the footer groups
+contextual and global shortcuts on separate rows.
 
-Right-click the dock for quick links to the diff viewer and the optional external
-tool.
+Right-click the dock for quick links to the diff viewer, change and commit ID
+copying, and the optional external tool.
 
 ## Keyboard
 
-The view has three panes: **files**, **branches**, and **history**. Both the jj and
-Git panes are shown together; `tab` or `left` / `right` chooses which repository
-the shortcuts target.
+The view has three panes: **files**, **bookmarks** / **branches**, and **history**.
+A jj repository fills them with changed files, bookmarks, and the change log; a Git
+repository fills them with changed files, branches, and commits.
 
-- `1` / `2` / `3`: switch between files, branches, and history
+- `1` / `2` / `3`: switch between files, bookmarks/branches, and history
+- `tab` or `left` / `right`: cycle panes
 - `up` / `down` or `j` / `k`: select an entry
-- `tab` or `left` / `right`: switch the active repository
 - `space`: stage or unstage the selected Git file
-- `enter`: open the diff viewer for a file, or switch to the selected branch/commit
-- `n`: create a branch/bookmark (at the selected commit in history)
-- `m`: rename the selected branch/bookmark
-- `x`: delete the selected branch/bookmark
-- `f` / `p` / `l`: fetch, push, and pull
-- `o`: open the optional external tool
+- `enter`: open the diff viewer for a file; edit a mutable bookmark/change; start a
+  new change on top of an immutable one; or switch to a Git branch/commit
+- `n`: create a bookmark/branch (at the selected change/commit in history)
+- `m`: rename the selected local bookmark/branch
+- `x`: delete the selected local bookmark/branch
+- `f` / `p` / `l`: fetch, push, and pull (`l` is Git only)
+- `o`: open the optional external tool when one is installed
 - `r`: refresh status
 - `q` / `esc`: return to the conversation
+
+Remote jj bookmarks appear as `name@remote`. Their commits are normally immutable, so
+selecting one starts a new change on top of it instead of editing it in place. The
+internal `git` remote is hidden because it only mirrors local bookmarks. Remote
+bookmarks cannot be renamed or deleted from the view.
 
 File shortcuts appear in the footer: Git uses `c`, `a`, `h`, and `u`; jj uses `d`,
 `s`, `b`, `a`, `e`, `v`, `w`, and `i`.
@@ -69,8 +82,9 @@ File shortcuts appear in the footer: Git uses `c`, `a`, `h`, and `u`; jj uses `d
 jj:
 
 - Review changes in the OpenCode diff viewer
-- Browse bookmarks and history, and switch to a bookmark or change
-- Create, rename, and delete bookmarks
+- Browse local and remote bookmarks and history, editing mutable entries or starting
+  a new change from an immutable one
+- Create, rename, and delete local bookmarks
 - Describe the current change
 - Create a new change
 - Squash into the parent
@@ -79,6 +93,7 @@ jj:
 - Split interactively with jj's diff editor in a terminal
 - Edit an existing change by revset
 - Set a bookmark
+- Copy the current change ID or commit ID from the dock menu
 - Fetch and push with the Git backend
 
 Git:

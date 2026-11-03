@@ -3,7 +3,7 @@ import { execFile } from "node:child_process"
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { useConfig } from "../config"
 import {
-  detectVcsKinds,
+  detectVcsKind,
   mutationCommands,
   parseGitBranches,
   parseGitDiffHunks,
@@ -31,11 +31,11 @@ import { useSessionTabs } from "./session-tabs"
 import { useSessionTerminals } from "./session-terminals"
 
 const JJ_LOG_TEMPLATE =
-  'change_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ empty ++ "\\t" ++ conflict ++ "\\n"'
+  'change_id.short() ++ "\\t" ++ commit_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ empty ++ "\\t" ++ conflict ++ "\\n"'
 const JJ_BOOKMARK_TEMPLATE =
-  'name ++ "\\t" ++ normal_target.change_id().short() ++ "\\t" ++ normal_target.commit_id().short() ++ "\\t" ++ normal_target.description().first_line() ++ "\\n"'
+  'name ++ if(remote, "@" ++ remote, "") ++ "\\t" ++ normal_target.change_id().short() ++ "\\t" ++ normal_target.commit_id().short() ++ "\\t" ++ normal_target.description().first_line() ++ "\\t" ++ remote ++ "\\t" ++ normal_target.immutable() ++ "\\n"'
 const JJ_HISTORY_TEMPLATE =
-  'change_id.short() ++ "\\t" ++ commit_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\n"'
+  'change_id.short() ++ "\\t" ++ commit_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ immutable ++ "\\n"'
 
 function run(command: string, args: readonly string[], cwd: string, input?: string) {
   return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
@@ -69,7 +69,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
     const sessions = useSessionTerminals()
     const toast = useToast()
     const enabled = () => config.data.experimental?.["vcs-dock"] === true
-    const [summaries, setSummaries] = createSignal<readonly VcsSummary[]>([])
+    const [summary, setSummary] = createSignal<VcsSummary>()
     const [refreshing, setRefreshing] = createSignal(false)
     const sessionID = createMemo(() => {
       if (route.data.type === "session") return route.data.sessionID
@@ -86,13 +86,12 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       return target ? data.location.info(target) : undefined
     })
     const canonical = createMemo(() => info()?.project.canonical)
-    const visible = () => enabled() && summaries().length > 0
-    const summary = createMemo(() => summaries().at(0))
-    const tool = (kind?: VcsKind) => {
-      const current = kind ? summaries().find((item) => item.kind === kind) : summary()
+    const visible = () => enabled() && summary() !== undefined
+    const tool = createMemo(() => {
+      const current = summary()
       if (!current) return
       return resolveVcsTool(current.kind, config.data.vcs.tool)
-    }
+    })
     let generation = 0
     let running = false
     let queued = false
@@ -110,31 +109,20 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       const attempt = ++generation
       setRefreshing(true)
       try {
-        const kinds = detectVcsKinds(current.project.canonical)
-        const next = (
-          await Promise.all(
-            kinds.map(async (kind) => {
-              try {
-                return kind === "jj"
-                  ? await collectJj(current.project.canonical)
-                  : kind === "git"
-                    ? await collectGit(target, current.project.canonical)
-                    : await collectApi(kind, target)
-              } catch {
-                return undefined
-              }
-            }),
-          )
-        ).filter((item): item is VcsSummary => item !== undefined)
-        if (attempt === generation)
-          setSummaries((previous) =>
-            kinds.flatMap((kind) => {
-              const nextSummary = next.find((item) => item.kind === kind)
-              const previousSummary = previous.find((item) => item.kind === kind)
-              const summary = nextSummary ?? previousSummary
-              return summary ? [summary] : []
-            }),
-          )
+        // jj owns its colocated Git repository, so render only the preferred kind instead of
+        // listing the same files, bookmarks, and history twice.
+        const kind = detectVcsKind(current.project.canonical)
+        if (kind === "none") {
+          if (attempt === generation) setSummary(undefined)
+          return
+        }
+        const next = await (kind === "jj"
+          ? collectJj(current.project.canonical)
+          : kind === "git"
+            ? collectGit(target, current.project.canonical)
+            : collectApi(kind, target)
+        ).catch(() => undefined)
+        if (attempt === generation) setSummary((previous) => next ?? previous)
       } finally {
         running = false
         if (attempt === generation) setRefreshing(false)
@@ -231,10 +219,10 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       }
     }
 
-    const openTool = async (kind?: VcsKind) => {
-      const current = kind ? summaries().find((item) => item.kind === kind) : summary()
+    const openTool = async () => {
+      const current = summary()
       if (!current) return
-      const selected = resolveVcsTool(current.kind, config.data.vcs.tool)
+      const selected = tool()
       if (!selected) {
         const suggestion = current.kind === "jj" ? "lazyjj or jjui" : current.kind === "git" ? "lazygit" : undefined
         toast.show({
@@ -253,8 +241,8 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       await launch(title, command, args)
     }
 
-    const execute = async (action: VcsMutation, input?: string, paths: readonly string[] = [], kind?: VcsKind) => {
-      const current = kind ? summaries().find((item) => item.kind === kind) : summary()
+    const execute = async (action: VcsMutation, input?: string, paths: readonly string[] = []) => {
+      const current = summary()
       const target = info()
       if (!current || !target) return
       const commands = mutationCommands(current.kind, action, input, paths)
@@ -274,9 +262,11 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       }
     }
 
-    const patch = async (kind: VcsKind, file: string, staged: boolean) => {
+    const patch = async (file: string, staged: boolean) => {
+      const current = summary()
       const target = info()
-      if (!target) return ""
+      if (!current || !target) return ""
+      const kind = current.kind
       if (kind === "git")
         return (await run("git", ["diff", ...(staged ? ["--cached"] : []), "--", file], target.project.canonical))
           .stdout
@@ -286,9 +276,11 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       return ""
     }
 
-    const branches = async (kind: VcsKind): Promise<VcsListEntry[]> => {
+    const branches = async (): Promise<VcsListEntry[]> => {
+      const current = summary()
       const target = info()
-      if (!target) return []
+      if (!current || !target) return []
+      const kind = current.kind
       if (kind === "git") {
         const result = await run(
           "git",
@@ -300,17 +292,19 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       if (kind === "jj") {
         const result = await run(
           "jj",
-          ["--no-pager", "--color=never", "bookmark", "list", "-T", JJ_BOOKMARK_TEMPLATE],
+          ["--no-pager", "--color=never", "bookmark", "list", "--all-remotes", "-T", JJ_BOOKMARK_TEMPLATE],
           target.project.canonical,
         )
-        return parseJjBookmarks(result.stdout, summaries().find((summary) => summary.kind === "jj")?.change)
+        return parseJjBookmarks(result.stdout, current.change)
       }
       return []
     }
 
-    const history = async (kind: VcsKind): Promise<VcsListEntry[]> => {
+    const history = async (): Promise<VcsListEntry[]> => {
+      const current = summary()
       const target = info()
-      if (!target) return []
+      if (!current || !target) return []
+      const kind = current.kind
       if (kind === "git") {
         const result = await run(
           "git",
@@ -330,9 +324,11 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       return []
     }
 
-    const show = async (kind: VcsKind, ref: string) => {
+    const show = async (ref: string) => {
+      const current = summary()
       const target = info()
-      if (!target) return ""
+      if (!current || !target) return ""
+      const kind = current.kind
       if (kind === "git")
         return (
           await run(
@@ -347,9 +343,11 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       return ""
     }
 
-    const switchTo = async (kind: VcsKind, ref: string) => {
+    const switchTo = async (ref: string) => {
+      const current = summary()
       const target = info()
-      if (!target) return
+      if (!current || !target) return
+      const kind = current.kind
       try {
         if (kind === "git") await run("git", ["switch", ref], target.project.canonical)
         else if (kind === "jj") await run("jj", ["edit", ref], target.project.canonical)
@@ -364,13 +362,31 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       }
     }
 
+    const startChange = async (ref: string) => {
+      const current = summary()
+      const target = info()
+      if (!current || current.kind !== "jj" || !target) return
+      try {
+        await run("jj", ["new", ref], target.project.canonical)
+        await refresh()
+        toast.show({ variant: "success", message: `Version control: started a change from ${ref}` })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: "Version control action failed",
+          message: errorMessage(error),
+        })
+      }
+    }
+
     const branchAction = async (
-      kind: VcsKind,
       action: VcsBranchAction,
       input: { name?: string; previous?: string; target?: string },
     ) => {
+      const current = summary()
       const target = info()
-      if (!target) return
+      if (!current || !target) return
+      const kind = current.kind
       try {
         if (kind === "git") {
           if (action === "create" && input.name) {
@@ -428,14 +444,14 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
 
     createEffect(() => {
       if (!enabled()) {
-        setSummaries([])
+        setSummary(undefined)
         return
       }
       if (!canonical()) {
-        setSummaries([])
+        setSummary(undefined)
         return
       }
-      setSummaries([])
+      setSummary(undefined)
       let disposed = false
       void refresh()
       const interval = setInterval(() => {
@@ -449,7 +465,6 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
 
     return {
       visible,
-      summaries,
       summary,
       refreshing,
       tool,
@@ -462,6 +477,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       history,
       show,
       switchTo,
+      startChange,
       branchAction,
       hunks,
       applyHunks,

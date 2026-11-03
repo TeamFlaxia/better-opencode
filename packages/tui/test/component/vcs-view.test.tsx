@@ -9,7 +9,7 @@ import { TuiI18nProvider } from "../../src/i18n"
 import { VcsView, type VcsViewController } from "../../src/component/vcs-view"
 import { DialogProvider } from "../../src/ui/dialog"
 import { ToastProvider } from "../../src/ui/toast"
-import type { VcsBranchAction, VcsKind, VcsListEntry, VcsMutation, VcsSummary } from "../../src/util/vcs"
+import type { VcsBranchAction, VcsListEntry, VcsMutation, VcsSummary } from "../../src/util/vcs"
 import { emptyThemeSource } from "../fixture/fixture"
 import { TestTuiContexts } from "../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
@@ -34,30 +34,30 @@ const git: VcsSummary = {
 }
 
 function controller(input: {
-  summaries: readonly VcsSummary[]
-  execute?: (action: VcsMutation, input?: string, paths?: readonly string[], kind?: VcsSummary["kind"]) => void
-  branches?: (kind: VcsKind) => VcsListEntry[]
-  history?: (kind: VcsKind) => VcsListEntry[]
-  show?: (kind: VcsKind, ref: string) => string
-  switchTo?: (kind: VcsKind, ref: string) => void
-  branchAction?: (kind: VcsKind, action: VcsBranchAction, input: Record<string, string | undefined>) => void
+  summary: VcsSummary
+  execute?: (action: VcsMutation, input?: string, paths?: readonly string[]) => void
+  branches?: () => VcsListEntry[]
+  history?: () => VcsListEntry[]
+  show?: (ref: string) => string
+  switchTo?: (ref: string) => void
+  startChange?: (ref: string) => void
+  branchAction?: (action: VcsBranchAction, input: Record<string, string | undefined>) => void
 }): VcsViewController {
   return {
-    summaries: () => input.summaries,
-    summary: () => input.summaries[0],
+    summary: () => input.summary,
     refreshing: () => false,
     tool: () => undefined,
     refresh: async () => {},
     openTool: async () => {},
     openCommand: async () => {},
-    execute: async (action, value, paths, kind) => input.execute?.(action, value, paths, kind),
-    patch: async (kind, file) =>
-      `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1 +1 @@\n-old ${kind}\n+new ${kind}\n`,
-    branches: async (kind) => input.branches?.(kind) ?? [],
-    history: async (kind) => input.history?.(kind) ?? [],
-    show: async (kind, ref) => input.show?.(kind, ref) ?? `commit ${ref}`,
-    switchTo: async (kind, ref) => input.switchTo?.(kind, ref),
-    branchAction: async (kind, action, value) => input.branchAction?.(kind, action, value),
+    execute: async (action, value, paths) => input.execute?.(action, value, paths),
+    patch: async (file) => `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1 +1 @@\n-old\n+new\n`,
+    branches: async () => input.branches?.() ?? [],
+    history: async () => input.history?.() ?? [],
+    show: async (ref) => input.show?.(ref) ?? `commit ${ref}`,
+    switchTo: async (ref) => input.switchTo?.(ref),
+    startChange: async (ref) => input.startChange?.(ref),
+    branchAction: async (action, value) => input.branchAction?.(action, value),
     hunks: async () => ({ header: "", hunks: [] }),
     applyHunks: async () => {},
   }
@@ -81,11 +81,11 @@ function Providers(props: ParentProps) {
   )
 }
 
-test("shows jj and git together and switches the active repository", async () => {
+test("shows the preferred repository and its files", async () => {
   const app = await testRender(
     () => (
       <Providers>
-        <VcsView controller={controller({ summaries: [jj, git] })} onClose={() => {}} />
+        <VcsView controller={controller({ summary: jj })} onClose={() => {}} />
       </Providers>
     ),
     { width: 100, height: 24, kittyKeyboard: true },
@@ -94,25 +94,51 @@ test("shows jj and git together and switches the active repository", async () =>
   try {
     app.renderer.start()
     await app.waitForFrame(
-      (frame) =>
-        frame.includes("jj") && frame.includes("git") && frame.includes("src/a.ts") && frame.includes("src/b.ts"),
+      (frame) => frame.includes("VCS") && frame.includes("jj · main") && frame.includes("src/a.ts"),
     )
+    expect(app.captureCharFrame()).not.toContain("src/b.ts")
+    expect(app.captureCharFrame()).toContain("bookmarks")
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("cycles panes with tab and the arrow keys", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({ summary: jj, branches: () => jjBranches, history: () => jjHistory })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("Changes · 1"))
+    app.mockInput.pressTab()
+    await app.waitForFrame((frame) => frame.includes("Bookmarks · 2"))
     app.mockInput.pressArrow("right")
-    await app.waitForFrame((frame) => frame.includes("git src/b.ts") && frame.includes("staged"))
+    await app.waitForFrame((frame) => frame.includes("History · 2"))
+    app.mockInput.pressArrow("left")
+    await app.waitForFrame((frame) => frame.includes("Bookmarks · 2"))
   } finally {
     app.renderer.destroy()
   }
 })
 
 test("space unstages the selected staged git file", async () => {
-  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined, string | undefined]> = []
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined]> = []
   const app = await testRender(
     () => (
       <Providers>
         <VcsView
           controller={controller({
-            summaries: [jj, git],
-            execute: (action, value, paths, kind) => executed.push([action, value, paths, kind]),
+            summary: git,
+            execute: (action, value, paths) => executed.push([action, value, paths]),
           })}
           onClose={() => {}}
         />
@@ -124,10 +150,9 @@ test("space unstages the selected staged git file", async () => {
   try {
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("src/b.ts"))
-    app.mockInput.pressArrow("right")
     app.mockInput.pressKey(" ")
     await app.waitFor(() => executed.length === 1)
-    expect(executed[0]).toEqual(["unstage", undefined, ["src/b.ts"], "git"])
+    expect(executed[0]).toEqual(["unstage", undefined, ["src/b.ts"]])
   } finally {
     app.renderer.destroy()
   }
@@ -137,29 +162,21 @@ const jjBranches: VcsListEntry[] = [
   { id: "main", label: "main", detail: "mntrunsmtoom · current", current: true },
   { id: "feature-jj", label: "feature-jj", detail: "qywvssxltvqq · work in progress" },
 ]
-const gitBranches: VcsListEntry[] = [
-  { id: "main", label: "main", detail: "62730de940ae · current", current: true },
-  { id: "feature-git", label: "feature-git", detail: "2c35b8929271 · topic" },
-]
 const jjHistory: VcsListEntry[] = [
   { id: "qywvssxltvqq", label: "working copy", detail: "qywvssxltvqq · 62730de940ae" },
   { id: "mntrunsmtoom", label: "feat: previous change", detail: "mntrunsmtoom · 2c35b8929271 · main" },
 ]
-const gitHistory: VcsListEntry[] = [
-  { id: "62730de940", label: "wip", detail: "62730de940 · 2026-11-02 · Mikan256" },
-  { id: "2c35b89292", label: "feat: previous change", detail: "2c35b89292 · 2026-11-02 · Mikan256" },
-]
 
-test("lists branches for both repositories and switches the selected branch", async () => {
-  const switched: Array<[VcsKind, string]> = []
+test("lists bookmarks and edits the selected bookmark", async () => {
+  const switched: string[] = []
   const app = await testRender(
     () => (
       <Providers>
         <VcsView
           controller={controller({
-            summaries: [jj, git],
-            branches: (kind) => (kind === "jj" ? jjBranches : gitBranches),
-            switchTo: (kind, ref) => switched.push([kind, ref]),
+            summary: jj,
+            branches: () => jjBranches,
+            switchTo: (ref) => switched.push(ref),
           })}
           onClose={() => {}}
         />
@@ -172,36 +189,65 @@ test("lists branches for both repositories and switches the selected branch", as
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("src/a.ts"))
     app.mockInput.pressKey("2")
-    await app.waitForFrame((frame) => frame.includes("feature-jj") && frame.includes("feature-git"))
+    await app.waitForFrame((frame) => frame.includes("feature-jj") && frame.includes("Bookmarks"))
 
     app.mockInput.pressArrow("down")
     app.mockInput.pressEnter()
     await app.waitFor(() => switched.length === 1)
-    expect(switched[0]).toEqual(["jj", "feature-jj"])
-
-    app.mockInput.pressArrow("right")
-    app.mockInput.pressArrow("down")
-    await app.waitForFrame((frame) => frame.includes("git feature-git"))
-    app.mockInput.pressEnter()
-    await app.waitFor(() => switched.length === 2)
-    expect(switched[1]).toEqual(["git", "feature-git"])
+    expect(switched[0]).toBe("feature-jj")
   } finally {
     app.renderer.destroy()
   }
 })
 
-test("shows history and previews the selected commit", async () => {
-  const shown: Array<[VcsKind, string]> = []
+test("starts a new change from an immutable bookmark", async () => {
+  const switched: string[] = []
+  const started: string[] = []
   const app = await testRender(
     () => (
       <Providers>
         <VcsView
           controller={controller({
-            summaries: [jj, git],
-            history: (kind) => (kind === "jj" ? jjHistory : gitHistory),
-            show: (kind, ref) => {
-              shown.push([kind, ref])
-              return `commit ${kind} ${ref}\n+added`
+            summary: jj,
+            branches: () => [
+              { id: "main@origin", label: "main@origin", detail: "62730de940ae · main", remote: true, immutable: true },
+            ],
+            switchTo: (ref) => switched.push(ref),
+            startChange: (ref) => started.push(ref),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("2")
+    await app.waitForFrame((frame) => frame.includes("main@origin") && frame.includes("enter new"))
+    app.mockInput.pressEnter()
+    await app.waitFor(() => started.length === 1)
+    expect(started).toEqual(["main@origin"])
+    expect(switched).toEqual([])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("shows history and previews the selected change", async () => {
+  const shown: string[] = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            history: () => jjHistory,
+            show: (ref) => {
+              shown.push(ref)
+              return `change ${ref}\n+added`
             },
           })}
           onClose={() => {}}
@@ -218,22 +264,22 @@ test("shows history and previews the selected commit", async () => {
     await app.waitForFrame(
       (frame) => frame.includes("working copy") && frame.includes("feat: previous chan") && frame.includes("+added"),
     )
-    expect(shown.at(-1)).toEqual(["jj", "qywvssxltvqq"])
+    expect(shown.at(-1)).toBe("qywvssxltvqq")
   } finally {
     app.renderer.destroy()
   }
 })
 
 test("creates a bookmark at the selected history entry", async () => {
-  const actions: Array<[VcsKind, VcsBranchAction, Record<string, string | undefined>]> = []
+  const actions: Array<[VcsBranchAction, Record<string, string | undefined>]> = []
   const app = await testRender(
     () => (
       <Providers>
         <VcsView
           controller={controller({
-            summaries: [jj],
+            summary: jj,
             history: () => jjHistory,
-            branchAction: (kind, action, value) => actions.push([kind, action, value]),
+            branchAction: (action, value) => actions.push([action, value]),
           })}
           onClose={() => {}}
         />
@@ -252,7 +298,63 @@ test("creates a bookmark at the selected history entry", async () => {
     app.mockInput.typeText("feature")
     app.mockInput.pressEnter()
     await app.waitFor(() => actions.length === 1)
-    expect(actions[0]).toEqual(["jj", "create", { target: "qywvssxltvqq", name: "feature" }])
+    expect(actions[0]).toEqual(["create", { target: "qywvssxltvqq", name: "feature" }])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("hides git staging state in a jj repository", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView controller={controller({ summary: jj })} onClose={() => {}} />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    const frame = app.captureCharFrame()
+    expect(frame).not.toContain("unstaged")
+    expect(frame).not.toContain("stage hunks")
+    expect(frame).not.toContain("external")
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("does not delete or rename a remote bookmark", async () => {
+  const actions: Array<[VcsBranchAction, Record<string, string | undefined>]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            branches: () => [{ id: "main@origin", label: "main@origin", detail: "abc123", remote: true }],
+            branchAction: (action, value) => actions.push([action, value]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("2")
+    await app.waitForFrame((frame) => frame.includes("main@origin"))
+    app.mockInput.pressKey("x")
+    app.mockInput.pressKey("m")
+    await app.waitForFrame(
+      (frame) => frame.includes("main@origin") && !frame.includes("Delete bookmark") && !frame.includes("Rename bookmark"),
+    )
+    expect(actions).toEqual([])
   } finally {
     app.renderer.destroy()
   }

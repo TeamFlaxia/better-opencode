@@ -5,7 +5,6 @@ import path from "node:path"
 import {
   buildHunkPatch,
   detectVcsKind,
-  detectVcsKinds,
   findExecutable,
   mutationCommands,
   parseGitBranches,
@@ -34,9 +33,10 @@ afterEach(() => {
 })
 
 describe("parseJjLog", () => {
-  test("reads the change, bookmarks, description, and conflict state", () => {
-    expect(parseJjLog("znnstyupywvs\tmain feature\tfix tabs\tfalse\ttrue\n")).toEqual({
+  test("reads the change, commit, bookmarks, description, and conflict state", () => {
+    expect(parseJjLog("znnstyupywvs\t62730de940ae\tmain feature\tfix tabs\tfalse\ttrue\n")).toEqual({
       change: "znnstyupywvs",
+      commit: "62730de940ae",
       bookmarks: "main feature",
       description: "fix tabs",
       empty: false,
@@ -45,15 +45,16 @@ describe("parseJjLog", () => {
   })
 
   test("keeps tabs inside a description", () => {
-    expect(parseJjLog("znnstyupywvs\tmain\tfix\ttabs\tfalse\tfalse")).toMatchObject({
+    expect(parseJjLog("znnstyupywvs\t62730de940ae\tmain\tfix\ttabs\tfalse\tfalse")).toMatchObject({
       description: "fix\ttabs",
       conflict: false,
     })
   })
 
   test("keeps an empty bookmark list empty", () => {
-    expect(parseJjLog("znnstyupywvs\t\t\tfalse\tfalse")).toMatchObject({
+    expect(parseJjLog("znnstyupywvs\t62730de940ae\t\t\tfalse\tfalse")).toMatchObject({
       change: "znnstyupywvs",
+      commit: "62730de940ae",
       bookmarks: "",
       description: "",
       empty: false,
@@ -116,7 +117,7 @@ describe("branch and history parsing", () => {
   test("marks the bookmark that points at the current jj change", () => {
     expect(
       parseJjBookmarks(
-        "main\tqywvssxltvqq\t62730de940ae\tfeat: current\nfeature\tmntrunsmtoom\t2c35b8929271\ttopic\n",
+        "main\tqywvssxltvqq\t62730de940ae\tfeat: current\t\tfalse\nfeature\tmntrunsmtoom\t2c35b8929271\ttopic\t\tfalse\n",
         "qywvssxltvqq",
       ),
     ).toEqual([
@@ -125,13 +126,33 @@ describe("branch and history parsing", () => {
     ])
   })
 
-  test("reads jj history with change, commit, and bookmarks", () => {
-    expect(parseJjHistory("qywvssxltvqq\t62730de940ae\tmain\tfeat: current\nmntrunsmtoom\t2c35b8929271\t\t\n")).toEqual(
-      [
-        { id: "qywvssxltvqq", label: "feat: current", detail: "qywvssxltvqq · 62730de940ae · main" },
-        { id: "mntrunsmtoom", label: "(no description)", detail: "mntrunsmtoom · 2c35b8929271" },
-      ],
-    )
+  test("reads remote bookmarks and hides the internal git remote", () => {
+    expect(
+      parseJjBookmarks(
+        "feature@origin\tvvzvywyospvl\tf5d5ee3aad41\tfeature work\torigin\ttrue\nmain@git\tsrxnovrooxut\t950167a677e5\tfirst\tgit\ttrue\n",
+        "vvzvywyospvl",
+      ),
+    ).toEqual([
+      {
+        id: "feature@origin",
+        label: "feature@origin",
+        current: false,
+        detail: "f5d5ee3aad41 · feature work",
+        remote: true,
+        immutable: true,
+      },
+    ])
+  })
+
+  test("reads jj history with change, commit, bookmarks, and immutability", () => {
+    expect(
+      parseJjHistory(
+        "qywvssxltvqq\t62730de940ae\tmain\tfeat: current\tfalse\nmntrunsmtoom\t2c35b8929271\t\t\ttrue\n",
+      ),
+    ).toEqual([
+      { id: "qywvssxltvqq", label: "feat: current", detail: "qywvssxltvqq · 62730de940ae · main" },
+      { id: "mntrunsmtoom", label: "(no description)", detail: "mntrunsmtoom · 2c35b8929271", immutable: true },
+    ])
   })
 })
 
@@ -190,12 +211,15 @@ describe("git hunks", () => {
 })
 
 describe("summarizeJj", () => {
-  test("uses the bookmark, description, and changed file count", () => {
-    expect(summarizeJj("znnstyupywvs\tmain\tfix tabs\tfalse\tfalse\n", "M src/app.tsx\nA src/vcs.ts\n")).toEqual({
+  test("uses the bookmark, description, commit, and changed file count", () => {
+    expect(
+      summarizeJj("znnstyupywvs\t62730de940ae\tmain\tfix tabs\tfalse\tfalse\n", "M src/app.tsx\nA src/vcs.ts\n"),
+    ).toEqual({
       kind: "jj",
       label: "main",
       detail: "fix tabs",
       change: "znnstyupywvs",
+      commit: "62730de940ae",
       description: "fix tabs",
       dirty: 2,
       conflict: false,
@@ -207,15 +231,16 @@ describe("summarizeJj", () => {
   })
 
   test("falls back to the change id and a clean detail", () => {
-    expect(summarizeJj("znnstyupywvs\t\t\tfalse\tfalse\n", "")).toMatchObject({
+    expect(summarizeJj("znnstyupywvs\t62730de940ae\t\t\tfalse\tfalse\n", "")).toMatchObject({
       label: "znnstyupywvs",
       detail: "clean",
       dirty: 0,
+      commit: "62730de940ae",
     })
   })
 
   test("surfaces a conflict", () => {
-    expect(summarizeJj("znnstyupywvs\t\t\tfalse\ttrue\n", "")).toMatchObject({ conflict: true })
+    expect(summarizeJj("znnstyupywvs\t62730de940ae\t\t\tfalse\ttrue\n", "")).toMatchObject({ conflict: true })
   })
 })
 
@@ -281,22 +306,18 @@ describe("detectVcsKind", () => {
     mkdirSync(path.join(root, ".jj"))
     mkdirSync(path.join(root, ".git"))
     expect(detectVcsKind(root)).toBe("jj")
-    expect(detectVcsKinds(root)).toEqual(["jj", "git"])
   })
 
   test("detects git, hg, and a plain directory", () => {
     const git = directory()
     mkdirSync(path.join(git, ".git"))
     expect(detectVcsKind(git)).toBe("git")
-    expect(detectVcsKinds(git)).toEqual(["git"])
 
     const hg = directory()
     mkdirSync(path.join(hg, ".hg"))
     expect(detectVcsKind(hg)).toBe("hg")
-    expect(detectVcsKinds(hg)).toEqual(["hg"])
 
     expect(detectVcsKind(directory())).toBe("none")
-    expect(detectVcsKinds(directory())).toEqual([])
   })
 })
 

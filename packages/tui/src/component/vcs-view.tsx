@@ -10,7 +10,6 @@ import { Locale } from "../util/locale"
 import {
   type VcsBranchAction,
   type VcsFile,
-  type VcsKind,
   type VcsListEntry,
   type VcsMutation,
   type VcsSummary,
@@ -25,7 +24,6 @@ import { DialogVcsHunks } from "./dialog-vcs-hunks"
 
 export type VcsViewController = Pick<
   ReturnType<typeof useVcs>,
-  | "summaries"
   | "summary"
   | "refreshing"
   | "tool"
@@ -38,6 +36,7 @@ export type VcsViewController = Pick<
   | "history"
   | "show"
   | "switchTo"
+  | "startChange"
   | "branchAction"
   | "hunks"
   | "applyHunks"
@@ -54,7 +53,6 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const toast = useToast()
   const keymap = Keymap.use()
   const [pane, setPane] = createSignal<VcsPane>("files")
-  const [activeKind, setActiveKind] = createSignal<VcsKind>()
   const [selected, setSelected] = createSignal(0)
   let sidebar: ScrollBoxRenderable | undefined
   let root: BoxRenderable | undefined
@@ -65,62 +63,45 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     onCleanup(() => clearTimeout(timer))
   })
 
-  const summaries = () => vcs.summaries()
-  const active = createMemo(() => summaries().find((summary) => summary.kind === activeKind()) ?? summaries().at(0))
-  const files = createMemo(() => active()?.files ?? [])
+  const current = () => vcs.summary()
+  const kind = () => current()?.kind
+  const files = createMemo(() => current()?.files ?? [])
   const file = createMemo(() => files().at(selected()))
   const [lists] = createResource(
     () => {
       const currentPane = pane()
-      const current = summaries()
-      if (currentPane === "files" || current.length === 0) return
-      return { pane: currentPane, summaries: current }
+      if (currentPane === "files" || !current()) return
+      return { pane: currentPane, summary: current()! }
     },
     async (input) => {
-      const result = new Map<VcsKind, VcsListEntry[]>()
-      await Promise.all(
-        input.summaries.map(async (summary) => {
-          try {
-            result.set(
-              summary.kind,
-              input.pane === "branches" ? await vcs.branches(summary.kind) : await vcs.history(summary.kind),
-            )
-          } catch {
-            result.set(summary.kind, [])
-          }
-        }),
-      )
-      return result
+      try {
+        return input.pane === "branches" ? await vcs.branches() : await vcs.history()
+      } catch {
+        return []
+      }
     },
   )
-  const entries = createMemo(() => {
-    const current = active()
-    if (!current || pane() === "files") return []
-    return lists()?.get(current.kind) ?? []
-  })
+  const entries = createMemo<VcsListEntry[]>(() => (pane() === "files" ? [] : (lists() ?? [])))
   const entry = createMemo(() => entries().at(selected()))
   const previewLabel = () =>
-    pane() === "files" ? (file()?.file ?? active()?.detail ?? "") : (entry()?.label ?? active()?.detail ?? "")
+    pane() === "files" ? (file()?.file ?? current()?.detail ?? "") : (entry()?.label ?? current()?.detail ?? "")
   const previewLabelWidth = () => Math.max(8, dimensions().width - sidebarWidth() - 36)
   const count = () => (pane() === "files" ? files().length : entries().length)
   const sidebarWidth = () => Math.max(30, Math.min(52, Math.floor(dimensions().width * 0.36)))
   const source = createMemo(() => {
-    const summary = active()
-    if (!summary) return
+    if (!current()) return
     if (pane() === "files") {
       const item = file()
       if (!item) return
-      return { kind: summary.kind, type: "file" as const, id: item.file, staged: item.staged && !item.unstaged }
+      return { type: "file" as const, id: item.file, staged: item.staged && !item.unstaged }
     }
     const item = entry()
     if (!item) return
-    return { kind: summary.kind, type: "ref" as const, id: item.id }
+    return { type: "ref" as const, id: item.id }
   })
   const [diff] = createResource(source, async (input) => {
     try {
-      return input.type === "file"
-        ? await vcs.patch(input.kind, input.id, input.staged)
-        : await vcs.show(input.kind, input.id)
+      return input.type === "file" ? await vcs.patch(input.id, input.staged) : await vcs.show(input.id)
     } catch {
       return ""
     }
@@ -130,59 +111,28 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const status = (summary: VcsSummary) =>
     summary.conflict ? "conflict" : summary.dirty === 0 ? "clean" : `${summary.dirty} changed`
 
-  const countFor = (summary: VcsSummary) =>
-    pane() === "files" ? summary.files.length : (lists()?.get(summary.kind)?.length ?? 0)
-
-  const offsetFor = (kind: VcsKind, index: number) => {
-    let offset = 0
-    for (const summary of summaries()) {
-      if (summary.kind === kind) return offset + 1 + index
-      offset += 1 + Math.max(1, countFor(summary)) + 1
-    }
-    return offset
-  }
-
   createEffect(() => {
-    const kinds = summaries().map((summary) => summary.kind)
-    if (kinds.length === 0) {
-      setActiveKind(undefined)
-      setSelected(0)
-      return
-    }
-    if (!activeKind() || !kinds.includes(activeKind()!)) {
-      setActiveKind(kinds[0])
-      setSelected(0)
-      return
-    }
     setSelected((index) => Math.max(0, Math.min(index, Math.max(0, count() - 1))))
   })
 
   createEffect(() => {
-    const kind = activeKind()
-    if (!kind) return
-    const offset = offsetFor(kind, selected())
-    queueMicrotask(() => sidebar?.scrollTo(offset))
+    const index = selected()
+    queueMicrotask(() => sidebar?.scrollTo(index))
   })
 
-  const selectKind = (kind: VcsKind) => {
-    setActiveKind(kind)
-    setSelected(0)
-  }
   const choosePane = (next: VcsPane) => {
     setPane(next)
     setSelected(0)
     queueMicrotask(() => sidebar?.scrollTo(0))
   }
+  const cyclePane = (delta: number) => {
+    const index = panes.indexOf(pane())
+    choosePane(panes[(index + delta + panes.length) % panes.length]!)
+  }
   const move = (delta: number) => {
     const total = count()
     if (total === 0) return
     setSelected((index) => Math.max(0, Math.min(total - 1, index + delta)))
-  }
-  const cycleKind = (delta: number) => {
-    const kinds = summaries().map((summary) => summary.kind)
-    if (kinds.length < 2) return
-    const index = kinds.indexOf(activeKind() ?? kinds[0]!)
-    selectKind(kinds[(index + delta + kinds.length) % kinds.length]!)
   }
 
   const prompt = (
@@ -190,7 +140,6 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     placeholder: string,
     value: string,
     action: VcsMutation,
-    kind: VcsKind,
     paths: readonly string[] = [],
   ) => {
     dialog.replace(() => (
@@ -202,29 +151,29 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
           const next = input.trim()
           if (!next) return
           dialog.clear()
-          void vcs.execute(action, next, paths, kind)
+          void vcs.execute(action, next, paths)
         }}
         onCancel={() => dialog.clear()}
       />
     ))
   }
-  const confirm = (title: string, message: string, action: VcsMutation, kind: VcsKind) => {
+  const confirm = (title: string, message: string, action: VcsMutation) => {
     dialog.replace(() => (
       <DialogConfirm
         title={title}
         message={message}
         onConfirm={() => {
           dialog.clear()
-          void vcs.execute(action, undefined, [], kind)
+          void vcs.execute(action)
         }}
         onCancel={() => dialog.clear()}
       />
     ))
   }
   const promptBranch = (action: VcsBranchAction, input: { previous?: string; target?: string } = {}, value = "") => {
-    const kind = active()?.kind
-    if (!kind) return
-    const noun = kind === "jj" ? "bookmark" : "branch"
+    const repository = kind()
+    if (!repository) return
+    const noun = repository === "jj" ? "bookmark" : "branch"
     const title = action === "rename" ? `Rename ${noun}` : action === "create" ? `Create ${noun}` : `Delete ${noun}`
     dialog.replace(() => (
       <DialogPrompt
@@ -235,44 +184,59 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
           const name = text.trim()
           if (!name) return
           dialog.clear()
-          void vcs.branchAction(kind, action, { ...input, name })
+          void vcs.branchAction(action, { ...input, name })
         }}
         onCancel={() => dialog.clear()}
       />
     ))
   }
   const switchReference = () => {
-    const kind = active()?.kind
     const item = entry()
-    if (!kind || !item) return
+    if (!item) return
+    const start = kind() === "jj" && item.immutable
     if (pane() === "history") {
+      const noun = kind() === "jj" ? "change" : "commit"
       dialog.replace(() => (
         <DialogConfirm
-          title={`Switch to ${item.id}?`}
-          message="This moves the working copy to the selected commit."
+          title={start ? `Start a new change from ${item.id}?` : `Switch to ${item.id}?`}
+          message={
+            start
+              ? "This creates a new empty change on top of the selected change."
+              : `This moves the working copy to the selected ${noun}.`
+          }
+          label={start ? { confirm: "new" } : undefined}
           onConfirm={() => {
             dialog.clear()
-            void vcs.switchTo(kind, item.id)
+            if (start) void vcs.startChange(item.id)
+            else void vcs.switchTo(item.id)
           }}
           onCancel={() => dialog.clear()}
         />
       ))
       return
     }
-    void vcs.switchTo(kind, item.id)
+    if (start) {
+      void vcs.startChange(item.id)
+      return
+    }
+    void vcs.switchTo(item.id)
   }
   const deleteReference = () => {
-    const kind = active()?.kind
+    const repository = kind()
     const item = entry()
-    if (!kind || !item || pane() !== "branches") return
-    const noun = kind === "jj" ? "bookmark" : "branch"
+    if (!repository || !item || pane() !== "branches") return
+    if (item.remote) {
+      toast.show({ variant: "info", message: "Remote bookmarks are managed by jj git." })
+      return
+    }
+    const noun = repository === "jj" ? "bookmark" : "branch"
     dialog.replace(() => (
       <DialogConfirm
         title={`Delete ${noun} ${item.label}?`}
         message={`This deletes the ${noun}.`}
         onConfirm={() => {
           dialog.clear()
-          void vcs.branchAction(kind, "delete", { previous: item.label })
+          void vcs.branchAction("delete", { previous: item.label })
         }}
         onCancel={() => dialog.clear()}
       />
@@ -289,17 +253,20 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const renameReference = () => {
     const item = entry()
     if (pane() !== "branches" || !item) return
+    if (item.remote) {
+      toast.show({ variant: "info", message: "Remote bookmarks are managed by jj git." })
+      return
+    }
     promptBranch("rename", { previous: item.label }, item.label)
   }
   const stageSelected = () => {
     const item = file()
-    const current = active()
-    if (!item || current?.kind !== "git") return
-    void vcs.execute(item.unstaged ? "stage" : "unstage", undefined, [item.file], "git")
+    if (!item || kind() !== "git") return
+    void vcs.execute(item.unstaged ? "stage" : "unstage", undefined, [item.file])
   }
   const openHunks = async (staged: boolean) => {
     const item = file()
-    if (!item || active()?.kind !== "git") return
+    if (!item || kind() !== "git") return
     try {
       const patch = await vcs.hunks(item.file, staged)
       if (patch.hunks.length === 0) {
@@ -319,28 +286,21 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
   }
   const splitFiles = async (parallel: boolean) => {
-    const current = active()
-    if (current?.kind !== "jj" || current.files.length === 0) return
+    const repository = current()
+    if (repository?.kind !== "jj" || repository.files.length === 0) return
     const paths = await DialogVcsFiles.show(dialog, {
       title: parallel ? "Split files into parallel change" : "Split files into new change",
       description: "Select the files that move into the new change.",
       confirmLabel: "split",
-      files: current.files,
+      files: repository.files,
     })
     if (!paths?.length) return
-    prompt(
-      "Split description",
-      "Description for the new change",
-      "",
-      parallel ? "split_parallel" : "split",
-      "jj",
-      paths,
-    )
+    prompt("Split description", "Description for the new change", "", parallel ? "split_parallel" : "split", paths)
   }
   const openExternal = () => {
-    const kind = active()?.kind
+    if (!vcs.tool()) return
     props.onClose()
-    void vcs.openTool(kind)
+    void vcs.openTool()
   }
   const openInteractiveSplit = () => {
     props.onClose()
@@ -351,16 +311,15 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     keymap.dispatch("diff.open")
   }
   const runAction = (action: VcsMutation) => {
-    const kind = active()?.kind
-    if (!kind) return
-    void vcs.execute(action, undefined, [], kind)
+    if (!kind()) return
+    void vcs.execute(action)
   }
 
   useKeyboard((event) => {
     if (dialog.stack.length > 0) return
     // Let modified shortcuts reach the global keymap, e.g. ctrl+tab for session tabs.
     if (event.ctrl || event.meta || event.option || event.super || event.hyper || event.shift) return
-    const kind = active()?.kind
+    const repository = kind()
     const key = event.name
     const handled = () => {
       event.preventDefault()
@@ -388,12 +347,12 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     if (key === "tab" || key === "right") {
       handled()
-      cycleKind(1)
+      cyclePane(1)
       return
     }
     if (key === "left") {
       handled()
-      cycleKind(-1)
+      cyclePane(-1)
       return
     }
     if (key === "up" || key === "k") {
@@ -421,6 +380,21 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       void vcs.refresh()
       return
     }
+    if (key === "f" && repository) {
+      handled()
+      runAction("fetch")
+      return
+    }
+    if (key === "p" && repository) {
+      handled()
+      runAction("push")
+      return
+    }
+    if (key === "l" && repository === "git") {
+      handled()
+      runAction("pull")
+      return
+    }
     if (key === "o") {
       handled()
       openExternal()
@@ -440,7 +414,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (key === "n") {
       handled()
       if (pane() === "files") {
-        if (kind === "jj") runAction("new")
+        if (repository === "jj") runAction("new")
       } else createReference()
       return
     }
@@ -454,92 +428,62 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       renameReference()
       return
     }
-    if (pane() !== "files") {
-      if (key === "f" && kind) {
-        handled()
-        runAction("fetch")
-        return
-      }
-      if (key === "p" && kind) {
-        handled()
-        runAction("push")
-        return
-      }
-      if (key === "l" && kind === "git") {
-        handled()
-        runAction("pull")
-      }
-      return
-    }
-    if (key === "c" && kind === "git") {
+    if (pane() !== "files") return
+    if (key === "c" && repository === "git") {
       handled()
-      prompt("Commit staged changes", "Commit message", "", "commit", "git")
+      prompt("Commit staged changes", "Commit message", "", "commit")
       return
     }
-    if (key === "a" && (kind === "git" || kind === "jj")) {
+    if (key === "a" && (repository === "git" || repository === "jj")) {
       handled()
-      if (kind === "git") prompt("Commit all changes", "Commit message", "", "commit_all", "git")
-      else confirm("Abandon change?", "The current change and its description will be abandoned.", "abandon", "jj")
+      if (repository === "git") prompt("Commit all changes", "Commit message", "", "commit_all")
+      else confirm("Abandon change?", "The current change and its description will be abandoned.", "abandon")
       return
     }
-    if (key === "d" && kind === "jj") {
+    if (key === "d" && repository === "jj") {
       handled()
-      prompt("Describe change", "Change description", active()?.description ?? "", "describe", "jj")
+      prompt("Describe change", "Change description", current()?.description ?? "", "describe")
       return
     }
-    if (key === "s" && kind === "jj") {
+    if (key === "s" && repository === "jj") {
       handled()
       runAction("squash")
       return
     }
-    if (key === "b" && kind === "jj") {
+    if (key === "b" && repository === "jj") {
       handled()
-      prompt("Set bookmark", "Bookmark name", "", "bookmark", "jj")
+      prompt("Set bookmark", "Bookmark name", "", "bookmark")
       return
     }
-    if (key === "e" && kind === "jj") {
+    if (key === "e" && repository === "jj") {
       handled()
-      prompt("Edit change", "Revset", "@-", "edit", "jj")
+      prompt("Edit change", "Revset", "@-", "edit")
       return
     }
-    if (key === "v" && kind === "jj") {
+    if (key === "v" && repository === "jj") {
       handled()
       void splitFiles(false)
       return
     }
-    if (key === "w" && kind === "jj") {
+    if (key === "w" && repository === "jj") {
       handled()
       void splitFiles(true)
       return
     }
-    if (key === "i" && kind === "jj") {
+    if (key === "i" && repository === "jj") {
       handled()
       openInteractiveSplit()
       return
     }
-    if (key === "h" && kind === "git") {
+    if (key === "h" && repository === "git") {
       handled()
       void openHunks(false)
       return
     }
-    if (key === "u" && kind === "git") {
+    if (key === "u" && repository === "git") {
       handled()
       void openHunks(true)
       return
-    }
-    if (key === "f" && kind) {
-      handled()
-      runAction("fetch")
-      return
-    }
-    if (key === "p" && kind) {
-      handled()
-      runAction("push")
-      return
-    }
-    if (key === "l" && kind === "git") {
-      handled()
-      runAction("pull")
     }
   })
 
@@ -568,27 +512,41 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     return undefined
   }
   type Hint = { readonly key: string; readonly label: string }
-  const paneTitle = () => (pane() === "files" ? "Changes" : pane() === "branches" ? "Branches" : "Commits")
-  const previewTitle = () => (pane() === "files" ? "Diff" : pane() === "branches" ? "Branch details" : "Commit details")
+  const paneLabel = (item: VcsPane) =>
+    item === "files" ? "files" : item === "branches" ? (kind() === "jj" ? "bookmarks" : "branches") : "history"
+  const paneTitle = () =>
+    pane() === "files" ? "Changes" : pane() === "branches" ? (kind() === "jj" ? "Bookmarks" : "Branches") : "History"
+  const previewTitle = () => {
+    if (pane() === "files") return "Diff"
+    if (pane() === "branches") return kind() === "jj" ? "Bookmark details" : "Branch details"
+    return kind() === "jj" ? "Change details" : "Commit details"
+  }
+  const referenceAction = () => (entry()?.immutable ? "new" : kind() === "jj" ? "edit" : "switch")
   const contextHints = (): Hint[] => {
-    const kind = active()?.kind
-    if (pane() === "branches")
+    const repository = kind()
+    if (pane() === "branches") {
+      const local = !entry()?.remote
       return [
-        { key: "enter", label: "switch" },
+        { key: "enter", label: referenceAction() },
         { key: "n", label: "create" },
-        { key: "m", label: "rename" },
-        { key: "x", label: "delete" },
+        ...(local
+          ? [
+              { key: "m", label: "rename" },
+              { key: "x", label: "delete" },
+            ]
+          : []),
         { key: "f", label: "fetch" },
         { key: "p", label: "push" },
       ]
+    }
     if (pane() === "history")
       return [
-        { key: "enter", label: "switch" },
-        { key: "n", label: "branch at commit" },
+        { key: "enter", label: referenceAction() },
+        { key: "n", label: repository === "jj" ? "bookmark at change" : "branch at commit" },
         { key: "f", label: "fetch" },
         { key: "p", label: "push" },
       ]
-    if (kind === "git")
+    if (repository === "git")
       return [
         { key: "space", label: "stage" },
         { key: "c", label: "commit" },
@@ -599,7 +557,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         { key: "p", label: "push" },
         { key: "l", label: "pull" },
       ]
-    if (kind === "jj")
+    if (repository === "jj")
       return [
         { key: "d", label: "describe" },
         { key: "n", label: "new" },
@@ -616,11 +574,10 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   }
   const globalHints = (): Hint[] => [
     { key: "1", label: "files" },
-    { key: "2", label: "branches" },
+    { key: "2", label: paneLabel("branches") },
     { key: "3", label: "history" },
-    ...(summaries().length > 1 ? [{ key: "tab", label: "repo" }] : []),
     ...(pane() === "files" ? [{ key: "enter", label: "diff" }] : []),
-    { key: "o", label: "external" },
+    ...(vcs.tool() ? [{ key: "o", label: "external" }] : []),
     { key: "r", label: "refresh" },
     { key: "q", label: "close" },
   ]
@@ -661,14 +618,18 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         <text fg={theme.text.base} selectable={false}>
           <b>VCS</b>
         </text>
-        <Show when={summaries().length > 0}>
-          <text fg={theme.text.muted} selectable={false}>
-            {`  ${summaries()
-              .map((summary) => summary.kind)
-              .join(" + ")}`}
+        <box flexGrow={1} minWidth={0}>
+          <Show when={current()}>
+            <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
+              {`  ${current()!.kind} · ${current()!.label}`}
+            </text>
+          </Show>
+        </box>
+        <Show when={current()}>
+          <text fg={current()!.conflict ? theme.text.feedback.error.base : theme.text.muted} selectable={false}>
+            {`${status(current()!)}  `}
           </text>
         </Show>
-        <box flexGrow={1} />
         <text fg={theme.text.muted} selectable={false}>
           {vcs.refreshing() ? "refreshing…  " : ""}
         </text>
@@ -678,7 +639,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       </box>
       <box height={1} flexShrink={0} backgroundColor={theme.border.base} />
       <Show
-        when={summaries().length > 0}
+        when={current()}
         fallback={
           <box flexGrow={1} paddingLeft={1} paddingTop={1}>
             <text fg={theme.text.muted}>No Git, jj, or Mercurial repository in this project.</text>
@@ -687,41 +648,6 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       >
         <box flexGrow={1} minHeight={0} flexDirection="row" gap={1} paddingLeft={1} paddingRight={1} paddingBottom={1}>
           <box width={sidebarWidth()} flexShrink={0} flexDirection="column" gap={1}>
-            <box
-              height={summaries().length + 2}
-              flexShrink={0}
-              border
-              borderColor={theme.border.base}
-              title="Repositories"
-              titleColor={theme.text.muted}
-              backgroundColor={theme.background.raised.base}
-            >
-              <For each={summaries()}>
-                {(summary) => (
-                  <box
-                    height={1}
-                    flexDirection="row"
-                    paddingLeft={1}
-                    paddingRight={1}
-                    backgroundColor={
-                      active()?.kind === summary.kind ? theme.background.action.primary.focused : undefined
-                    }
-                    onMouseUp={() => selectKind(summary.kind)}
-                  >
-                    <text fg={theme.text.base} selectable={false}>
-                      <b>{summary.kind}</b>
-                    </text>
-                    <text fg={theme.text.muted} wrapMode="none" selectable={false}>
-                      {` ${Locale.truncateWidth(summary.label, sidebarWidth() - 16)}`}
-                    </text>
-                    <box flexGrow={1} />
-                    <text fg={summary.conflict ? theme.text.feedback.error.base : theme.text.muted} selectable={false}>
-                      {status(summary)}
-                    </text>
-                  </box>
-                )}
-              </For>
-            </box>
             <box
               flexGrow={1}
               minHeight={0}
@@ -740,142 +666,116 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                       selectable={false}
                       onMouseUp={() => choosePane(item)}
                     >
-                      {item}
+                      {paneLabel(item)}
                     </text>
                   )}
                 </For>
               </box>
               <scrollbox ref={(node) => (sidebar = node)} flexGrow={1} scrollbarOptions={{ visible: true }}>
-                <For each={summaries()}>
-                  {(summary) => (
-                    <>
-                      <box
-                        height={1}
-                        flexDirection="row"
-                        paddingLeft={1}
-                        paddingRight={1}
-                        backgroundColor={
-                          active()?.kind === summary.kind ? theme.background.raised.high : theme.background.raised.base
-                        }
-                        onMouseUp={() => selectKind(summary.kind)}
-                      >
-                        <text fg={theme.text.base} selectable={false}>
-                          <b>{summary.kind}</b>
-                        </text>
-                        <text fg={theme.text.muted} selectable={false}>
-                          {` ${Locale.truncateWidth(summary.label, sidebarWidth() - 9)}`}
-                        </text>
-                      </box>
+                <Show
+                  when={pane() === "files"}
+                  fallback={
+                    <Show
+                      when={!lists.loading}
+                      fallback={
+                        <box height={1} paddingLeft={2}>
+                          <text fg={theme.text.muted} selectable={false}>
+                            Loading…
+                          </text>
+                        </box>
+                      }
+                    >
                       <Show
-                        when={pane() === "files"}
+                        when={entries().length > 0}
                         fallback={
-                          <Show
-                            when={!lists.loading}
-                            fallback={
-                              <box height={1} paddingLeft={2}>
+                          <box height={1} paddingLeft={2}>
+                            <text fg={theme.text.muted} selectable={false}>
+                              {pane() === "branches"
+                                ? kind() === "jj"
+                                  ? "no bookmarks"
+                                  : "no branches"
+                                : "no history"}
+                            </text>
+                          </box>
+                        }
+                      >
+                        <For each={entries()}>
+                          {(item, index) => {
+                            const active = () => selected() === index()
+                            return (
+                              <box
+                                height={1}
+                                flexDirection="row"
+                                paddingLeft={1}
+                                paddingRight={1}
+                                backgroundColor={active() ? theme.background.action.primary.focused : undefined}
+                                onMouseUp={() => setSelected(index())}
+                              >
+                                <text fg={theme.text.muted} width={2} selectable={false}>
+                                  {item.current ? "*" : " "}
+                                </text>
+                                <text
+                                  fg={active() ? theme.text.base : theme.text.muted}
+                                  wrapMode="none"
+                                  selectable={false}
+                                >
+                                  {Locale.truncateWidth(item.label, sidebarWidth() - 15)}
+                                </text>
+                                <box flexGrow={1} />
                                 <text fg={theme.text.muted} selectable={false}>
-                                  Loading…
+                                  {Locale.truncateWidth(item.detail?.split(" · ")[0] ?? "", 8)}
                                 </text>
                               </box>
-                            }
-                          >
-                            <Show
-                              when={(lists()?.get(summary.kind)?.length ?? 0) > 0}
-                              fallback={
-                                <box height={1} paddingLeft={2}>
-                                  <text fg={theme.text.muted} selectable={false}>
-                                    {pane() === "branches" ? "no branches" : "no history"}
-                                  </text>
-                                </box>
-                              }
-                            >
-                              <For each={lists()?.get(summary.kind) ?? []}>
-                                {(item, index) => {
-                                  const current = () => active()?.kind === summary.kind && selected() === index()
-                                  return (
-                                    <box
-                                      height={1}
-                                      flexDirection="row"
-                                      paddingLeft={1}
-                                      paddingRight={1}
-                                      backgroundColor={current() ? theme.background.action.primary.focused : undefined}
-                                      onMouseUp={() => {
-                                        setActiveKind(summary.kind)
-                                        setSelected(index())
-                                      }}
-                                    >
-                                      <text fg={theme.text.muted} width={2} selectable={false}>
-                                        {item.current ? "*" : " "}
-                                      </text>
-                                      <text
-                                        fg={current() ? theme.text.base : theme.text.muted}
-                                        wrapMode="none"
-                                        selectable={false}
-                                      >
-                                        {Locale.truncateWidth(item.label, sidebarWidth() - 15)}
-                                      </text>
-                                      <box flexGrow={1} />
-                                      <text fg={theme.text.muted} selectable={false}>
-                                        {Locale.truncateWidth(item.detail?.split(" · ")[0] ?? "", 8)}
-                                      </text>
-                                    </box>
-                                  )
-                                }}
-                              </For>
-                            </Show>
-                          </Show>
-                        }
-                      >
-                        <Show
-                          when={summary.files.length > 0}
-                          fallback={
-                            <box height={1} paddingLeft={2}>
-                              <text fg={theme.text.muted} selectable={false}>
-                                clean
-                              </text>
-                            </box>
-                          }
-                        >
-                          <For each={summary.files}>
-                            {(item, index) => {
-                              const current = () => active()?.kind === summary.kind && selected() === index()
-                              return (
-                                <box
-                                  height={1}
-                                  flexDirection="row"
-                                  paddingLeft={2}
-                                  paddingRight={1}
-                                  backgroundColor={current() ? theme.background.action.primary.focused : undefined}
-                                  onMouseUp={() => {
-                                    setActiveKind(summary.kind)
-                                    setSelected(index())
-                                  }}
-                                >
-                                  <text fg={markerColor(item)} selectable={false}>
-                                    {marker(item)}
-                                  </text>
-                                  <box width={1} />
-                                  <FilePath
-                                    value={item.file}
-                                    maxWidth={sidebarWidth() - 9}
-                                    fg={current() ? theme.text.base : theme.text.muted}
-                                  />
-                                  <box flexGrow={1} />
-                                  <Show when={item.staged}>
-                                    <text fg={theme.text.muted} selectable={false}>
-                                      +
-                                    </text>
-                                  </Show>
-                                </box>
-                              )
-                            }}
-                          </For>
-                        </Show>
+                            )
+                          }}
+                        </For>
                       </Show>
-                      <box height={1} />
-                    </>
-                  )}
-                </For>
+                    </Show>
+                  }
+                >
+                  <Show
+                    when={files().length > 0}
+                    fallback={
+                      <box height={1} paddingLeft={2}>
+                        <text fg={theme.text.muted} selectable={false}>
+                          clean
+                        </text>
+                      </box>
+                    }
+                  >
+                    <For each={files()}>
+                      {(item, index) => {
+                        const active = () => selected() === index()
+                        return (
+                          <box
+                            height={1}
+                            flexDirection="row"
+                            paddingLeft={2}
+                            paddingRight={1}
+                            backgroundColor={active() ? theme.background.action.primary.focused : undefined}
+                            onMouseUp={() => setSelected(index())}
+                          >
+                            <text fg={markerColor(item)} selectable={false}>
+                              {marker(item)}
+                            </text>
+                            <box width={1} />
+                            <FilePath
+                              value={item.file}
+                              maxWidth={sidebarWidth() - 9}
+                              fg={active() ? theme.text.base : theme.text.muted}
+                            />
+                            <box flexGrow={1} />
+                            <Show when={item.staged}>
+                              <text fg={theme.text.muted} selectable={false}>
+                                +
+                              </text>
+                            </Show>
+                          </box>
+                        )
+                      }}
+                    </For>
+                  </Show>
+                </Show>
               </scrollbox>
             </box>
           </box>
@@ -889,22 +789,29 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
             backgroundColor={theme.background.raised.base}
           >
             <box height={1} flexDirection="row" paddingLeft={1} paddingRight={1}>
-              <text fg={theme.text.base} selectable={false}>
-                <b>{active()?.kind ?? "vcs"}</b>
-              </text>
               <box flexGrow={1} minWidth={0}>
-                <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
-                  {` ${Locale.truncateWidth(previewLabel(), previewLabelWidth())}`}
+                <text fg={theme.text.base} wrapMode="none" truncate selectable={false}>
+                  {Locale.truncateWidth(previewLabel(), previewLabelWidth())}
                 </text>
               </box>
               <text fg={theme.text.muted} selectable={false}>
                 {pane() === "files"
-                  ? file()
+                  ? kind() === "git" && file()
                     ? file()!.staged && !file()!.unstaged
                       ? "staged"
                       : "unstaged"
                     : ""
-                  : Locale.truncateWidth(entry()?.detail ?? (pane() === "branches" ? "branch" : "commit"), 24)}
+                  : Locale.truncateWidth(
+                      entry()?.detail ??
+                        (pane() === "branches"
+                          ? kind() === "jj"
+                            ? "bookmark"
+                            : "branch"
+                          : kind() === "jj"
+                            ? "change"
+                            : "commit"),
+                      24,
+                    )}
               </text>
             </box>
             <Show
@@ -913,13 +820,17 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                 <box paddingLeft={1} paddingTop={1}>
                   <text fg={theme.text.muted} selectable={false}>
                     {pane() === "files"
-                      ? active()?.detail || "No changes"
+                      ? current()?.detail || "No changes"
                       : pane() === "branches"
-                        ? "No branches"
+                        ? kind() === "jj"
+                          ? "No bookmarks"
+                          : "No branches"
                         : "No history"}
                   </text>
-                  <Show when={active()?.change}>
-                    <text fg={theme.text.muted} selectable={false}>{`change ${active()?.change}`}</text>
+                  <Show when={current()?.change}>
+                    <text fg={theme.text.muted} selectable={false}>
+                      {`change ${current()!.change}${current()!.commit ? ` · commit ${current()!.commit}` : ""}`}
+                    </text>
                   </Show>
                 </box>
               }
