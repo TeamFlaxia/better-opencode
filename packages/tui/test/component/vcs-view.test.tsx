@@ -1,4 +1,5 @@
 /** @jsxImportSource @opentui/solid */
+import { Renderable, ScrollBoxRenderable } from "@opentui/core"
 import { testRender } from "@opentui/solid"
 import { expect, test } from "bun:test"
 import { createSignal, type ParentProps } from "solid-js"
@@ -65,6 +66,13 @@ function controller(input: {
     hunks: async () => ({ header: "", hunks: [] }),
     applyHunks: async () => {},
   }
+}
+
+function findScrollBoxes(node: Renderable): ScrollBoxRenderable[] {
+  return [
+    ...(node instanceof ScrollBoxRenderable ? [node] : []),
+    ...node.getChildren().flatMap(findScrollBoxes),
+  ]
 }
 
 function Providers(props: ParentProps) {
@@ -196,6 +204,60 @@ test("scrolls only when the selection leaves the viewport", async () => {
     await app.waitForFrame((frame) => frame.includes("src/f0.ts") && frame.includes("src/f1.ts"))
     for (let index = 0; index < 7; index++) app.mockInput.pressArrow("down")
     await app.waitForFrame((frame) => frame.includes("src/f7.ts"))
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("does not draw a horizontal scrollbar under the panels", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: {
+              ...jj,
+              files: [
+                {
+                  file: "packages/tui/src/feature-plugins/system/storybook/some/deeply/nested/file.tsx",
+                  status: "modified",
+                  staged: false,
+                  unstaged: true,
+                },
+              ],
+            },
+            branches: () => [
+              {
+                id: "main",
+                label: "feature/a-really-long-branch-name-that-overflows-the-sidebar",
+                detail: "62730de940ae · current",
+                current: true,
+              },
+            ],
+            history: () => [
+              {
+                id: "abc",
+                label: "fix(tui): a really long commit subject that overflows the sidebar",
+                detail: "abc · 62730de940ae",
+              },
+            ],
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("Bookmarks · 1") && frame.includes("Changes · 1"))
+    const scrolls = findScrollBoxes(app.renderer.root)
+    expect(scrolls.length).toBeGreaterThan(0)
+    for (const scroll of scrolls) {
+      expect(scroll.horizontalScrollBar.visible).toBe(false)
+      expect(scroll.verticalScrollBar.visible).toBe(true)
+    }
   } finally {
     app.renderer.destroy()
   }

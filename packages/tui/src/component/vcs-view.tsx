@@ -1146,7 +1146,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
             {listPanel(
               "files",
               panelTitle("files"),
-              <scrollbox ref={(node) => (scrolls.files = node)} flexGrow={1} scrollX={false} scrollbarOptions={{ visible: true }}>
+              <scrollbox ref={(node) => (scrolls.files = node)} flexGrow={1} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
                 <Show when={files().length > 0} fallback={emptyRow("No changed files")}>
                   <Index each={files()}>
                     {(item, index) => {
@@ -1191,7 +1191,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
             {listPanel(
               "branches",
               panelTitle("branches"),
-              <scrollbox ref={(node) => (scrolls.branches = node)} flexGrow={1} scrollX={false} scrollbarOptions={{ visible: true }}>
+              <scrollbox ref={(node) => (scrolls.branches = node)} flexGrow={1} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
                 <Show when={!branchesLoading()} fallback={emptyRow("Loading…")}>
                   <Show
                     when={branchEntries().length > 0}
@@ -1216,7 +1216,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
             {listPanel(
               "history",
               panelTitle("history"),
-              <scrollbox ref={(node) => (scrolls.history = node)} flexGrow={1} scrollX={false} scrollbarOptions={{ visible: true }}>
+              <scrollbox ref={(node) => (scrolls.history = node)} flexGrow={1} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
                 <Show when={!historyLoading()} fallback={emptyRow("Loading…")}>
                   <Show
                     when={historyEntries().length > 0}
@@ -1319,7 +1319,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                         </box>
                       }
                     >
-                      <scrollbox flexGrow={1} scrollX={false} scrollbarOptions={{ visible: true }}>
+                      <scrollbox flexGrow={1} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
                         <For each={lines()}>
                           {(line) => (
                             <text
@@ -1339,7 +1339,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                 </Show>
               }
             >
-              <scrollbox flexGrow={1} scrollX={false} scrollbarOptions={{ visible: true }}>
+              <scrollbox flexGrow={1} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
                 <box flexDirection="column" paddingLeft={1} paddingTop={1}>
                   <box height={1} flexDirection="row">
                     <text fg={theme.text.feedback.info.base} selectable={false}>
