@@ -76,18 +76,24 @@ change log; a Git repository fills them with branches and commits.
 - `enter`: open the diff viewer for a file; edit a mutable bookmark/change; start a
   new change on top of an immutable one; or switch to a Git branch/commit
 - `n`: create a bookmark/branch (at the selected change/commit in changes/commits)
+- `b`: move the selected local bookmark to a revset; in changes/commits, choose a
+  local bookmark to move to the selected revision
 - `m`: rename the selected local bookmark/branch
 - `x`: delete the selected local bookmark/branch
-- `f` / `p` / `l`: fetch, push, and pull (`l` is Git only). For jj, push uses a
-  selected local bookmark, asking which one when necessary.
+- `t`: track or untrack the selected remote bookmark
+- `f` / `p` / `l`: fetch, push, and pull (`l` is Git only). For jj, fetch and push
+  ask for a remote when more than one is configured; push also asks for a bookmark
+  when necessary.
 - `o`: open the optional external tool when one is installed
 - `r`: refresh status
 - `q` / `esc`: return to the conversation
 
-Remote jj bookmarks appear as `name@remote`. Their commits are normally immutable, so
-selecting one starts a new change on top of it instead of editing it in place. The
-internal `git` remote is hidden because it only mirrors local bookmarks. Remote
-bookmarks cannot be renamed, deleted, or pushed from the view.
+Bookmarks are grouped into **Local** and **Remote** sections. Remote jj bookmarks
+appear as `name@remote` and show whether they are tracked or untracked; `t` toggles
+tracking. Their commits are normally immutable, so selecting one starts a new change
+on top of it instead of editing it in place. The internal `git` remote is hidden
+because it only mirrors local bookmarks. Remote bookmarks cannot be renamed, deleted,
+moved, or pushed from the view.
 
 File shortcuts appear in the footer: Git uses `c`, `a`, `h`, and `u`; jj uses `d`,
 `s`, `b`, `a`, `e`, `v`, `w`, and `i`.
@@ -97,9 +103,10 @@ File shortcuts appear in the footer: Git uses `c`, `a`, `h`, and `u`; jj uses `d
 jj:
 
 - Review changes in the OpenCode diff viewer
-- Browse local and remote bookmarks and history, editing mutable entries or starting
-  a new change from an immutable one
-- Create, rename, and delete local bookmarks
+- Browse grouped local and remote bookmarks and history, editing mutable entries or
+  starting a new change from an immutable one
+- Show tracked/untracked state for remote bookmarks and toggle it
+- Create, move, rename, and delete local bookmarks
 - Describe the current change
 - Create a new change
 - Squash into the parent
@@ -108,10 +115,12 @@ jj:
 - Split interactively with jj's diff editor in a terminal
 - Edit an existing change by revset
 - Set a bookmark
+- Show multiple bookmarks at `@` on separate lines in the repository preview
 - Copy the current change ID or commit ID from the dock menu
-- Fetch with the Git backend
-- Push a selected local bookmark with `jj git push --bookmark`; the view asks for the
-  bookmark when more than one is local
+- Fetch from a selected remote with `jj git fetch --remote`
+- Push a selected local bookmark to a selected remote with
+  `jj git push --bookmark <name> --remote <remote>`; the view asks for the bookmark
+  and remote when more than one is available
 
 Git:
 

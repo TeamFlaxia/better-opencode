@@ -33,7 +33,7 @@ import { useSessionTerminals } from "./session-terminals"
 const JJ_LOG_TEMPLATE =
   'change_id.short() ++ "\\t" ++ commit_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ empty ++ "\\t" ++ conflict ++ "\\n"'
 const JJ_BOOKMARK_TEMPLATE =
-  'name ++ if(remote, "@" ++ remote, "") ++ "\\t" ++ normal_target.change_id().short() ++ "\\t" ++ normal_target.commit_id().short() ++ "\\t" ++ normal_target.description().first_line() ++ "\\t" ++ remote ++ "\\t" ++ normal_target.immutable() ++ "\\n"'
+  'name ++ if(remote, "@" ++ remote, "") ++ "\\t" ++ normal_target.change_id().short() ++ "\\t" ++ normal_target.commit_id().short() ++ "\\t" ++ normal_target.description().first_line() ++ "\\t" ++ remote ++ "\\t" ++ normal_target.immutable() ++ "\\t" ++ tracked ++ "\\n"'
 const JJ_HISTORY_TEMPLATE =
   'change_id.short() ++ "\\t" ++ commit_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ immutable ++ "\\n"'
 
@@ -238,11 +238,16 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       await launch(title, command, args)
     }
 
-    const execute = async (action: VcsMutation, input?: string, paths: readonly string[] = []) => {
+    const execute = async (
+      action: VcsMutation,
+      input?: string,
+      paths: readonly string[] = [],
+      remote?: string,
+    ) => {
       const current = summary()
       const target = info()
       if (!current || !target) return
-      const commands = mutationCommands(current.kind, action, input, paths)
+      const commands = mutationCommands(current.kind, action, input, paths, remote)
       if (commands.length === 0) return
       // Version control commands print root-relative paths, so they run from the repository root.
       const cwd = current.kind === "jj" || current.kind === "git" ? target.project.canonical : target.directory
@@ -251,7 +256,10 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         await refresh()
         toast.show({
           variant: "success",
-          message: action === "push" && input ? `Version control: pushed ${input}` : `Version control: ${action} completed`,
+          message:
+            action === "push" && input
+              ? `Version control: pushed ${input}${remote ? ` to ${remote}` : ""}`
+              : `Version control: ${action} completed`,
         })
       } catch (error) {
         toast.show({
@@ -298,6 +306,25 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         return parseJjBookmarks(result.stdout, current.change)
       }
       return []
+    }
+
+    const remotes = async (): Promise<string[]> => {
+      const current = summary()
+      const target = info()
+      if (!current || !target || current.kind !== "jj") return []
+      try {
+        const result = await run(
+          "jj",
+          ["--no-pager", "--color=never", "git", "remote", "list"],
+          target.project.canonical,
+        )
+        return result.stdout
+          .split("\n")
+          .map((line) => line.trim().split(/\s+/)[0])
+          .filter((name): name is string => Boolean(name))
+      } catch {
+        return []
+      }
     }
 
     const history = async (): Promise<VcsListEntry[]> => {
@@ -370,6 +397,23 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         await run("jj", ["new", ref], target.project.canonical)
         await refresh()
         toast.show({ variant: "success", message: `Version control: started a change from ${ref}` })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: "Version control action failed",
+          message: errorMessage(error),
+        })
+      }
+    }
+
+    const moveBookmark = async (name: string, target: string) => {
+      const current = summary()
+      const targetLocation = info()
+      if (!current || current.kind !== "jj" || !targetLocation) return
+      try {
+        await run("jj", ["bookmark", "move", name, "--to", target], targetLocation.project.canonical)
+        await refresh()
+        toast.show({ variant: "success", message: `Version control: moved ${name} to ${target}` })
       } catch (error) {
         toast.show({
           variant: "error",
@@ -473,10 +517,12 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       execute,
       patch,
       branches,
+      remotes,
       history,
       show,
       switchTo,
       startChange,
+      moveBookmark,
       branchAction,
       hunks,
       applyHunks,

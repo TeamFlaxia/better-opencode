@@ -12,6 +12,8 @@ export type VcsMutation =
   | "bookmark"
   | "fetch"
   | "push"
+  | "track"
+  | "untrack"
   | "commit"
   | "commit_all"
   | "pull"
@@ -37,9 +39,12 @@ export type VcsFile = {
 export type VcsListEntry = {
   readonly id: string
   readonly label: string
+  readonly name?: string
   readonly detail?: string
   readonly current?: boolean
   readonly remote?: boolean
+  readonly remoteName?: string
+  readonly tracked?: boolean
   readonly immutable?: boolean
 }
 
@@ -199,20 +204,23 @@ export function parseJjBookmarks(output: string, currentChange?: string): VcsLis
     .split("\n")
     .filter(Boolean)
     .flatMap((line) => {
-      const [name, change, commit, ...rest] = line.split("\t")
-      const immutable = rest.at(-1) === "true"
-      const remote = rest.at(-2) ?? ""
+      const [label, change, commit, ...rest] = line.split("\t")
+      const tracked = rest.at(-1) === "true"
+      const immutable = rest.at(-2) === "true"
+      const remote = rest.at(-3) ?? ""
       // The colocated Git repository appears as the internal `git` remote; it mirrors
       // the local bookmarks and would only duplicate them in the list.
-      if (!name || remote === "git") return []
-      const subject = rest.slice(0, -2).join("\t")
+      if (!label || remote === "git") return []
+      const subject = rest.slice(0, -3).join("\t")
+      const name = remote ? label.slice(0, label.lastIndexOf("@")) : label
       return [
         {
-          id: name,
-          label: name,
+          id: label,
+          label,
+          name,
           current: !remote && currentChange !== undefined && change === currentChange,
           detail: [commit, subject].filter(Boolean).join(" · "),
-          ...(remote ? { remote: true } : {}),
+          ...(remote ? { remote: true, remoteName: remote, tracked } : {}),
           ...(immutable ? { immutable: true } : {}),
         },
       ]
@@ -282,6 +290,7 @@ export function mutationCommands(
   action: VcsMutation,
   input?: string,
   paths: readonly string[] = [],
+  remote?: string,
 ): VcsCommand[] {
   const value = input?.trim()
   if (kind === "jj") {
@@ -295,9 +304,17 @@ export function mutationCommands(
     if (action === "split_parallel")
       return value && paths.length ? [{ command: "jj", args: ["split", "-p", "-m", value, "--", ...paths] }] : []
     if (action === "edit") return value ? [{ command: "jj", args: ["edit", value] }] : []
-    if (action === "fetch") return [{ command: "jj", args: ["git", "fetch"] }]
+    if (action === "fetch")
+      return [{ command: "jj", args: ["git", "fetch", ...(remote ? ["--remote", remote] : [])] }]
     if (action === "push")
-      return value ? [{ command: "jj", args: ["git", "push", "--bookmark", value] }] : [{ command: "jj", args: ["git", "push"] }]
+      return [
+        {
+          command: "jj",
+          args: ["git", "push", ...(value ? ["--bookmark", value] : []), ...(remote ? ["--remote", remote] : [])],
+        },
+      ]
+    if (action === "track") return value ? [{ command: "jj", args: ["bookmark", "track", value] }] : []
+    if (action === "untrack") return value ? [{ command: "jj", args: ["bookmark", "untrack", value] }] : []
     return []
   }
   if (kind === "git") {

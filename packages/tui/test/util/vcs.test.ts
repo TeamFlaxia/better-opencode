@@ -117,28 +117,31 @@ describe("branch and history parsing", () => {
   test("marks the bookmark that points at the current jj change", () => {
     expect(
       parseJjBookmarks(
-        "main\tqywvssxltvqq\t62730de940ae\tfeat: current\t\tfalse\nfeature\tmntrunsmtoom\t2c35b8929271\ttopic\t\tfalse\n",
+        "main\tqywvssxltvqq\t62730de940ae\tfeat: current\t\tfalse\tfalse\nfeature\tmntrunsmtoom\t2c35b8929271\ttopic\t\tfalse\tfalse\n",
         "qywvssxltvqq",
       ),
     ).toEqual([
-      { id: "main", label: "main", current: true, detail: "62730de940ae · feat: current" },
-      { id: "feature", label: "feature", current: false, detail: "2c35b8929271 · topic" },
+      { id: "main", label: "main", name: "main", current: true, detail: "62730de940ae · feat: current" },
+      { id: "feature", label: "feature", name: "feature", current: false, detail: "2c35b8929271 · topic" },
     ])
   })
 
   test("reads remote bookmarks and hides the internal git remote", () => {
     expect(
       parseJjBookmarks(
-        "feature@origin\tvvzvywyospvl\tf5d5ee3aad41\tfeature work\torigin\ttrue\nmain@git\tsrxnovrooxut\t950167a677e5\tfirst\tgit\ttrue\n",
+        "feature@origin\tvvzvywyospvl\tf5d5ee3aad41\tfeature work\torigin\ttrue\ttrue\nmain@git\tsrxnovrooxut\t950167a677e5\tfirst\tgit\ttrue\ttrue\n",
         "vvzvywyospvl",
       ),
     ).toEqual([
       {
         id: "feature@origin",
         label: "feature@origin",
+        name: "feature",
         current: false,
         detail: "f5d5ee3aad41 · feature work",
         remote: true,
+        remoteName: "origin",
+        tracked: true,
         immutable: true,
       },
     ])
@@ -256,10 +259,22 @@ describe("mutationCommands", () => {
     expect(mutationCommands("jj", "new")).toEqual([{ command: "jj", args: ["new"] }])
     expect(mutationCommands("jj", "squash")).toEqual([{ command: "jj", args: ["squash", "--use-destination-message"] }])
     expect(mutationCommands("jj", "fetch")).toEqual([{ command: "jj", args: ["git", "fetch"] }])
+    expect(mutationCommands("jj", "fetch", undefined, [], "origin")).toEqual([
+      { command: "jj", args: ["git", "fetch", "--remote", "origin"] },
+    ])
     expect(mutationCommands("jj", "push", "main")).toEqual([
       { command: "jj", args: ["git", "push", "--bookmark", "main"] },
     ])
+    expect(mutationCommands("jj", "push", "main", [], "origin")).toEqual([
+      { command: "jj", args: ["git", "push", "--bookmark", "main", "--remote", "origin"] },
+    ])
     expect(mutationCommands("jj", "push")).toEqual([{ command: "jj", args: ["git", "push"] }])
+    expect(mutationCommands("jj", "track", "main@origin")).toEqual([
+      { command: "jj", args: ["bookmark", "track", "main@origin"] },
+    ])
+    expect(mutationCommands("jj", "untrack", "main@origin")).toEqual([
+      { command: "jj", args: ["bookmark", "untrack", "main@origin"] },
+    ])
     expect(mutationCommands("jj", "split", "split msg", ["a.ts", "b.ts"])).toEqual([
       { command: "jj", args: ["split", "-m", "split msg", "--", "a.ts", "b.ts"] },
     ])

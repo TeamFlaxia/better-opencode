@@ -45,10 +45,12 @@ export type VcsViewController = Pick<
   | "execute"
   | "patch"
   | "branches"
+  | "remotes"
   | "history"
   | "show"
   | "switchTo"
   | "startChange"
+  | "moveBookmark"
   | "branchAction"
   | "hunks"
   | "applyHunks"
@@ -108,10 +110,32 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const branchEntries = createMemo<VcsListEntry[]>(() => {
     const key = currentKey()
     if (!key) return []
-    if (branchList()?.key === key) return branchList()!.entries
-    if (branchList.latest?.key === key) return branchList.latest.entries
-    return []
+    const entries =
+      branchList()?.key === key
+        ? branchList()!.entries
+        : branchList.latest?.key === key
+          ? branchList.latest.entries
+          : []
+    return entries.toSorted(
+      (a, b) =>
+        Number(Boolean(a.remote)) - Number(Boolean(b.remote)) ||
+        Number(Boolean(b.current)) - Number(Boolean(a.current)) ||
+        a.label.localeCompare(b.label),
+    )
   })
+  const localBranchEntries = createMemo(() => branchEntries().filter((item) => !item.remote))
+  const remoteBranchEntries = createMemo(() => branchEntries().filter((item) => item.remote))
+  const branchRowIndex = (entryIndex: number) => {
+    const local = localBranchEntries().length
+    if (local === 0) return remoteBranchEntries().length > 0 ? entryIndex + 1 : entryIndex
+    return entryIndex < local ? entryIndex + 1 : entryIndex + 2
+  }
+  const contentCount = (panel: VcsPanel) => {
+    if (panel !== "branches") return countFor(panel)
+    return (
+      branchEntries().length + (localBranchEntries().length > 0 ? 1 : 0) + (remoteBranchEntries().length > 0 ? 1 : 0)
+    )
+  }
   const historyEntries = createMemo<VcsListEntry[]>(() => {
     const key = currentKey()
     if (!key) return []
@@ -145,6 +169,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     return 0
   }
   const sidebarWidth = () => Math.max(32, Math.min(56, Math.floor(dimensions().width * 0.4)))
+  const listMinHeight = () => (dimensions().height >= 24 ? 5 : 3)
   const previewLabelWidth = () => Math.max(8, dimensions().width - sidebarWidth() - 36)
   const previewLabel = () => {
     if (focus() === "files") return file()?.file ?? current()?.detail ?? ""
@@ -226,8 +251,13 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     const summary = current()
     if (!summary) return ""
     if (summary.kind !== "jj") return summary.detail
-    return [summary.bookmarks, summary.description].filter(Boolean).join(" · ") || summary.detail
+    return summary.description || summary.detail
   }
+  const bookmarkNames = createMemo(() => current()?.bookmarks?.split(" ").filter(Boolean) ?? [])
+  const branchDetail = (item: VcsListEntry) =>
+    item.remote ? (item.tracked ? "tracked" : "untracked") : (item.detail?.split(" · ")[0] ?? "")
+  const branchDetailColor = (item: VcsListEntry) =>
+    item.remote ? (item.tracked ? theme.text.feedback.success.base : theme.text.feedback.warning.base) : theme.text.muted
   const rowBackground = (panel: VcsPanel, index: number) => {
     if (selectedFor(panel) !== index) return undefined
     return focus() === panel ? theme.background.action.primary.focused : theme.background.raised.high
@@ -272,9 +302,9 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       const limit = scroll.viewport.height
       if (limit <= 0) return
       const offset = revealSelectionOffset(scroll.scrollTop, {
-        count: countFor(panel),
+        count: contentCount(panel),
         limit,
-        selected: index,
+        selected: panel === "branches" ? branchRowIndex(index) : index,
       })
       if (offset !== scroll.scrollTop) scroll.scrollTo(offset)
     })
@@ -473,25 +503,49 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (!kind()) return
     void vcs.execute(action)
   }
-  const pushBookmarks = () => {
+  const chooseRemote = async (title: string, run: (remote: string | undefined) => void) => {
+    const names = await vcs.remotes()
+    if (names.length <= 1) {
+      dialog.clear()
+      run(names[0])
+      return
+    }
+    const currentRemote = names.includes("origin") ? "origin" : names[0]
+    dialog.replace(() => (
+      <DialogSelect
+        title={title}
+        options={names.map((name) => ({ title: name, value: name }))}
+        current={currentRemote}
+        onSelect={(option) => {
+          dialog.clear()
+          run(option.value)
+        }}
+        onCancel={() => dialog.clear()}
+      />
+    ))
+  }
+  const pushToRemote = async (bookmark: string) => {
+    await chooseRemote("Push remote", (remote) => void vcs.execute("push", bookmark, [], remote))
+  }
+  const pushBookmarks = async () => {
     const repository = kind()
     if (!repository) return
     if (repository !== "jj") {
       runAction("push")
       return
     }
-    const local = branchEntries().filter((item) => !item.remote)
+    const local = localBranchEntries()
     if (local.length === 0) {
       toast.show({ variant: "warning", message: "No local bookmarks to push." })
       return
     }
     const selected = focus() === "branches" ? branch() : undefined
     if (selected && !selected.remote) {
-      void vcs.execute("push", selected.label)
+      await pushToRemote(selected.label)
       return
     }
     if (local.length === 1) {
-      void vcs.execute("push", local[0]!.label)
+      await pushToRemote(local[0]!.label)
       return
     }
     dialog.replace(() => (
@@ -503,9 +557,67 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
           description: item.current ? "at @" : item.detail,
         }))}
         current={local.find((item) => item.current)?.label}
+        onSelect={(option) => void pushToRemote(option.value)}
+        onCancel={() => dialog.clear()}
+      />
+    ))
+  }
+  const fetchRemotes = async () => {
+    const repository = kind()
+    if (!repository) return
+    if (repository !== "jj") {
+      runAction("fetch")
+      return
+    }
+    await chooseRemote("Fetch remote", (remote) => void vcs.execute("fetch", undefined, [], remote))
+  }
+  const toggleTracking = () => {
+    const item = branch()
+    if (focus() !== "branches" || !item?.remote) return
+    void vcs.execute(item.tracked ? "untrack" : "track", item.id)
+  }
+  const moveBookmarkToRevset = () => {
+    const item = branch()
+    if (focus() !== "branches" || !item || item.remote) return
+    dialog.replace(() => (
+      <DialogPrompt
+        title={`Move bookmark ${item.label}`}
+        placeholder="Target revset"
+        value="@"
+        onConfirm={(value) => {
+          const target = value.trim()
+          if (!target) return
+          dialog.clear()
+          void vcs.moveBookmark(item.label, target)
+        }}
+        onCancel={() => dialog.clear()}
+      />
+    ))
+  }
+  const moveBookmarkToChange = () => {
+    const target = historyEntry()
+    if (focus() !== "history" || !target || kind() !== "jj") return
+    const local = localBranchEntries()
+    if (local.length === 0) {
+      toast.show({ variant: "warning", message: "No local bookmarks to move." })
+      return
+    }
+    if (local.length === 1) {
+      void vcs.moveBookmark(local[0]!.label, target.id)
+      return
+    }
+    dialog.replace(() => (
+      <DialogSelect
+        title={`Move bookmark to ${target.id}`}
+        options={local.map((item) => ({
+          title: item.label,
+          value: item.label,
+          description: item.current ? "at @" : item.detail,
+        }))}
+        current={local.find((item) => item.current)?.label}
         onSelect={(option) => {
           dialog.clear()
-          void vcs.execute("push", option.value)
+          void vcs.moveBookmark(option.value, target.id)
         }}
         onCancel={() => dialog.clear()}
       />
@@ -584,12 +696,12 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     if (key === "f" && repository) {
       handled()
-      runAction("fetch")
+      void fetchRemotes()
       return
     }
     if (key === "p" && repository) {
       handled()
-      pushBookmarks()
+      void pushBookmarks()
       return
     }
     if (key === "l" && repository === "git") {
@@ -628,6 +740,21 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (key === "m" && focus() === "branches") {
       handled()
       renameReference()
+      return
+    }
+    if (key === "b" && focus() === "branches") {
+      handled()
+      moveBookmarkToRevset()
+      return
+    }
+    if (key === "b" && focus() === "history") {
+      handled()
+      moveBookmarkToChange()
+      return
+    }
+    if (key === "t" && focus() === "branches") {
+      handled()
+      toggleTracking()
       return
     }
     if (focus() !== "files") return
@@ -735,16 +862,18 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         { key: "p", label: "push" },
       ]
     if (focus() === "branches") {
-      const local = !branch()?.remote
+      const item = branch()
+      const local = !item?.remote
       return [
         { key: "enter", label: referenceAction() },
         { key: "n", label: "create" },
         ...(local
           ? [
+              { key: "b", label: "move" },
               { key: "m", label: "rename" },
               { key: "x", label: "delete" },
             ]
-          : []),
+          : [{ key: "t", label: item?.tracked ? "untrack" : "track" }]),
         { key: "f", label: "fetch" },
         { key: "p", label: "push" },
       ]
@@ -753,6 +882,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       return [
         { key: "enter", label: referenceAction() },
         { key: "n", label: repository === "jj" ? "bookmark at change" : "branch at commit" },
+        ...(repository === "jj" ? [{ key: "b", label: "move bookmark here" }] : []),
         { key: "f", label: "fetch" },
         { key: "p", label: "push" },
       ]
@@ -814,7 +944,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const listPanel = (panel: VcsPanel, title: string, body: JSX.Element) => (
     <box
       flexGrow={focus() === panel ? 2 : 1}
-      minHeight={3}
+      minHeight={listMinHeight()}
       flexDirection="column"
       border
       borderColor={focus() === panel ? theme.background.action.primary.focused : theme.border.base}
@@ -830,6 +960,41 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     <box height={1} paddingLeft={1}>
       <text fg={theme.text.muted} selectable={false}>
         {message}
+      </text>
+    </box>
+  )
+  const groupHeader = (label: string) => (
+    <box height={1} paddingLeft={1}>
+      <text fg={theme.text.muted} selectable={false}>
+        <b>{label}</b>
+      </text>
+    </box>
+  )
+  const branchRow = (item: () => VcsListEntry, index: number) => (
+    <box
+      height={1}
+      flexDirection="row"
+      paddingLeft={1}
+      paddingRight={1}
+      backgroundColor={rowBackground("branches", index)}
+      onMouseUp={() => {
+        setFocus("branches")
+        setSelectedFor("branches", index)
+      }}
+    >
+      <text
+        fg={item().current ? theme.text.feedback.success.base : theme.text.muted}
+        width={2}
+        selectable={false}
+      >
+        {item().current ? (kind() === "jj" ? "@" : "*") : " "}
+      </text>
+      <text fg={branchColor("branches", index, item())} wrapMode="none" selectable={false}>
+        {Locale.truncateWidth(item().label, sidebarWidth() - 17)}
+      </text>
+      <box flexGrow={1} />
+      <text fg={branchDetailColor(item())} selectable={false}>
+        {Locale.truncateWidth(branchDetail(item()), 10)}
       </text>
     </box>
   )
@@ -948,42 +1113,18 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                     when={branchEntries().length > 0}
                     fallback={emptyRow(kind() === "jj" ? "No bookmarks" : "No branches")}
                   >
-                    <Index each={branchEntries()}>
-                      {(item, index) => {
-                        return (
-                          <box
-                            height={1}
-                            flexDirection="row"
-                            paddingLeft={1}
-                            paddingRight={1}
-                            backgroundColor={rowBackground("branches", index)}
-                            onMouseUp={() => {
-                              setFocus("branches")
-                              setSelectedFor("branches", index)
-                            }}
-                          >
-                            <text
-                              fg={item().current ? theme.text.feedback.success.base : theme.text.muted}
-                              width={2}
-                              selectable={false}
-                            >
-                              {item().current ? (kind() === "jj" ? "@" : "*") : " "}
-                            </text>
-                            <text
-                              fg={branchColor("branches", index, item())}
-                              wrapMode="none"
-                              selectable={false}
-                            >
-                              {Locale.truncateWidth(item().label, sidebarWidth() - 15)}
-                            </text>
-                            <box flexGrow={1} />
-                            <text fg={theme.text.muted} selectable={false}>
-                              {Locale.truncateWidth(item().detail?.split(" · ")[0] ?? "", 8)}
-                            </text>
-                          </box>
-                        )
-                      }}
-                    </Index>
+                    <Show when={localBranchEntries().length > 0}>
+                      {groupHeader(`Local · ${localBranchEntries().length}`)}
+                      <Index each={localBranchEntries()}>
+                        {(item, index) => branchRow(item, index)}
+                      </Index>
+                    </Show>
+                    <Show when={remoteBranchEntries().length > 0}>
+                      {groupHeader(`Remote · ${remoteBranchEntries().length}`)}
+                      <Index each={remoteBranchEntries()}>
+                        {(item, index) => branchRow(item, localBranchEntries().length + index)}
+                      </Index>
+                    </Show>
                   </Show>
                 </Show>
               </scrollbox>,
@@ -1110,59 +1251,63 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                 </Show>
               }
             >
-              <box flexDirection="column" paddingLeft={1} paddingTop={1}>
-                <box height={1} flexDirection="row">
-                  <text fg={theme.text.feedback.info.base} selectable={false}>
-                    <b>{kind() ?? "vcs"}</b>
-                  </text>
-                  <Show
-                    when={kind() === "jj" && current()!.change}
-                    fallback={
-                      <text fg={theme.text.base} selectable={false}>
-                        {` ${current()!.label}`}
-                      </text>
-                    }
-                  >
-                    <text fg={theme.text.muted} selectable={false}>
-                      {" @ "}
+              <scrollbox flexGrow={1} scrollbarOptions={{ visible: true }}>
+                <box flexDirection="column" paddingLeft={1} paddingTop={1}>
+                  <box height={1} flexDirection="row">
+                    <text fg={theme.text.feedback.info.base} selectable={false}>
+                      <b>{kind() ?? "vcs"}</b>
                     </text>
-                    <text fg={theme.text.base} selectable={false}>
-                      {current()!.change}
+                    <Show
+                      when={kind() === "jj" && current()!.change}
+                      fallback={
+                        <text fg={theme.text.base} selectable={false}>
+                          {` ${current()!.label}`}
+                        </text>
+                      }
+                    >
+                      <text fg={theme.text.muted} selectable={false}>
+                        {" @ "}
+                      </text>
+                      <text fg={theme.text.base} selectable={false}>
+                        {current()!.change}
+                      </text>
+                    </Show>
+                  </box>
+                  <text fg={statusColor(current()!)} selectable={false}>
+                    {status(current()!)}
+                  </text>
+                  <For each={bookmarkNames()}>
+                    {(bookmark) => (
+                      <box height={1} flexDirection="row">
+                        <text fg={theme.text.muted} selectable={false}>
+                          bookmark{" "}
+                        </text>
+                        <text fg={theme.text.feedback.success.base} selectable={false}>
+                          {bookmark}
+                        </text>
+                      </box>
+                    )}
+                  </For>
+                  <Show when={current()!.description}>
+                    <text fg={theme.text.muted} selectable={false}>
+                      {current()!.description!}
                     </text>
                   </Show>
-                </box>
-                <text fg={statusColor(current()!)} selectable={false}>
-                  {status(current()!)}
-                </text>
-                <Show when={current()!.bookmarks}>
-                  <box height={1} flexDirection="row">
-                    <text fg={theme.text.muted} selectable={false}>
-                      bookmarks{" "}
-                    </text>
-                    <text fg={theme.text.feedback.success.base} selectable={false}>
-                      {current()!.bookmarks}
-                    </text>
-                  </box>
-                </Show>
-                <Show when={current()!.description}>
+                  <Show when={current()!.commit}>
+                    <box height={1} flexDirection="row">
+                      <text fg={theme.text.muted} selectable={false}>
+                        commit{" "}
+                      </text>
+                      <text fg={theme.text.feedback.info.base} selectable={false}>
+                        {current()!.commit}
+                      </text>
+                    </box>
+                  </Show>
                   <text fg={theme.text.muted} selectable={false}>
-                    {current()!.description!}
+                    {current()!.detail}
                   </text>
-                </Show>
-                <Show when={current()!.commit}>
-                  <box height={1} flexDirection="row">
-                    <text fg={theme.text.muted} selectable={false}>
-                      commit{" "}
-                    </text>
-                    <text fg={theme.text.feedback.info.base} selectable={false}>
-                      {current()!.commit}
-                    </text>
-                  </box>
-                </Show>
-                <text fg={theme.text.muted} selectable={false}>
-                  {current()!.detail}
-                </text>
-              </box>
+                </box>
+              </scrollbox>
             </Show>
           </box>
         </box>

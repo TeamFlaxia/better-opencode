@@ -36,12 +36,14 @@ const git: VcsSummary = {
 
 function controller(input: {
   summary: VcsSummary
-  execute?: (action: VcsMutation, input?: string, paths?: readonly string[]) => void
+  execute?: (action: VcsMutation, input?: string, paths?: readonly string[], remote?: string) => void
   branches?: () => VcsListEntry[]
+  remotes?: () => string[]
   history?: () => VcsListEntry[]
   show?: (ref: string) => string
   switchTo?: (ref: string) => void
   startChange?: (ref: string) => void
+  moveBookmark?: (name: string, target: string) => void
   branchAction?: (action: VcsBranchAction, input: Record<string, string | undefined>) => void
 }): VcsViewController {
   return {
@@ -50,13 +52,15 @@ function controller(input: {
     refresh: async () => {},
     openTool: async () => {},
     openCommand: async () => {},
-    execute: async (action, value, paths) => input.execute?.(action, value, paths),
+    execute: async (action, value, paths, remote) => input.execute?.(action, value, paths, remote),
     patch: async (file) => `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1 +1 @@\n-old\n+new\n`,
     branches: async () => input.branches?.() ?? [],
+    remotes: async () => input.remotes?.() ?? [],
     history: async () => input.history?.() ?? [],
     show: async (ref) => input.show?.(ref) ?? `commit ${ref}`,
     switchTo: async (ref) => input.switchTo?.(ref),
     startChange: async (ref) => input.startChange?.(ref),
+    moveBookmark: async (name, target) => input.moveBookmark?.(name, target),
     branchAction: async (action, value) => input.branchAction?.(action, value),
     hunks: async () => ({ header: "", hunks: [] }),
     applyHunks: async () => {},
@@ -97,7 +101,7 @@ test("shows the preferred repository and its files", async () => {
       (frame) =>
         frame.includes("Status") &&
         frame.includes("jj") &&
-        frame.includes("main") &&
+        frame.includes("znnsty") &&
         frame.includes("Files · 1") &&
         frame.includes("src/a.ts"),
     )
@@ -228,11 +232,10 @@ test("lists bookmarks and edits the selected bookmark", async () => {
     app.renderer.start()
     await app.waitForFrame((frame) => frame.includes("src/a.ts"))
     app.mockInput.pressKey("3")
-    await app.waitForFrame(
-      (frame) => frame.includes("feature-jj") && frame.includes("Bookmarks · 2") && frame.includes("@ main"),
-    )
+    await app.waitForFrame((frame) => frame.includes("Bookmarks · 2") && frame.includes("@ main"))
 
     app.mockInput.pressArrow("down")
+    await app.waitForFrame((frame) => frame.includes("feature-jj"))
     app.mockInput.pressEnter()
     await app.waitFor(() => switched.length === 1)
     expect(switched[0]).toBe("feature-jj")
@@ -269,10 +272,11 @@ test("keeps the selected row while the summary refreshes", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("feature-jj"))
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
     app.mockInput.pressKey("3")
-    app.mockInput.pressArrow("down")
     await app.waitForFrame((frame) => frame.includes("enter edit"))
+    app.mockInput.pressArrow("down")
+    await app.waitForFrame((frame) => frame.includes("feature-jj"))
     setSummary({ ...jj, commit: "62730de940ae" })
     await app.waitFor(() => loads >= 2)
     app.mockInput.pressEnter()
@@ -303,12 +307,14 @@ test("pushes the selected jj bookmark", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("feature-jj"))
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
     app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("enter edit"))
     app.mockInput.pressArrow("down")
+    await app.waitForFrame((frame) => frame.includes("feature-jj"))
     app.mockInput.pressKey("p")
     await app.waitFor(() => executed.length === 1)
-    expect(executed[0]).toEqual(["push", "feature-jj", undefined])
+    expect(executed[0]).toEqual(["push", "feature-jj", []])
   } finally {
     app.renderer.destroy()
   }
@@ -329,12 +335,260 @@ test("chooses a jj bookmark to push when none is focused", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("feature-jj"))
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("Local · 2"))
     app.mockInput.pressKey("1")
     app.mockInput.pressKey("p")
     await app.waitForFrame(
       (frame) => frame.includes("Push bookmark") && frame.includes("main") && frame.includes("feature-jj"),
     )
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("groups local and remote bookmarks and shows tracking state", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            branches: () => [
+              { id: "main", label: "main", name: "main", current: true, detail: "62730de940ae · current" },
+              {
+                id: "main@origin",
+                label: "main@origin",
+                name: "main",
+                remote: true,
+                remoteName: "origin",
+                tracked: true,
+                detail: "62730de940ae · current",
+              },
+              {
+                id: "topic@origin",
+                label: "topic@origin",
+                name: "topic",
+                remote: true,
+                remoteName: "origin",
+                tracked: false,
+                detail: "2c35b8929271 · topic",
+              },
+            ],
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 32, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame(
+      (frame) =>
+        frame.includes("Local · 1") &&
+        frame.includes("Remote · 2") &&
+        frame.includes("main@origin") &&
+        frame.includes("tracked") &&
+        frame.includes("untracked"),
+    )
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("toggles tracking for a remote bookmark", async () => {
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined, string | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            branches: () => [
+              {
+                id: "main@origin",
+                label: "main@origin",
+                name: "main",
+                remote: true,
+                remoteName: "origin",
+                tracked: false,
+                detail: "62730de940ae · current",
+              },
+            ],
+            execute: (action, value, paths, remote) => executed.push([action, value, paths, remote]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("t track"))
+    app.mockInput.pressKey("t")
+    await app.waitFor(() => executed.length === 1)
+    expect(executed[0]).toEqual(["track", "main@origin", undefined, undefined])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("moves the selected bookmark to a revset", async () => {
+  const moves: Array<[string, string]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            branches: () => jjBranches,
+            moveBookmark: (name, target) => moves.push([name, target]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("b move"))
+    app.mockInput.pressKey("b")
+    await app.waitForFrame((frame) => frame.includes("Move bookmark main"))
+    app.mockInput.pressEnter()
+    await app.waitFor(() => moves.length === 1)
+    expect(moves[0]).toEqual(["main", "@"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("moves a bookmark to the selected change", async () => {
+  const moves: Array<[string, string]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            branches: () => jjBranches,
+            history: () => jjHistory,
+            moveBookmark: (name, target) => moves.push([name, target]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("4")
+    await app.waitForFrame((frame) => frame.includes("b move bookmark here"))
+    app.mockInput.pressKey("b")
+    await app.waitForFrame(
+      (frame) => frame.includes("Move bookmark to qywvssxltvqq") && frame.includes("feature-jj"),
+    )
+    app.mockInput.pressEnter()
+    await app.waitFor(() => moves.length === 1)
+    expect(moves[0]).toEqual(["main", "qywvssxltvqq"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("chooses a remote to fetch from", async () => {
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined, string | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            remotes: () => ["origin", "upstream"],
+            execute: (action, value, paths, remote) => executed.push([action, value, paths, remote]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("f")
+    await app.waitForFrame((frame) => frame.includes("Fetch remote") && frame.includes("upstream"))
+    app.mockInput.pressEnter()
+    await app.waitFor(() => executed.length === 1)
+    expect(executed[0]).toEqual(["fetch", undefined, [], "origin"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("chooses a remote to push a bookmark to", async () => {
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined, string | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            branches: () => [
+              { id: "main", label: "main", name: "main", detail: "62730de940ae · current" },
+            ],
+            remotes: () => ["origin", "upstream"],
+            execute: (action, value, paths, remote) => executed.push([action, value, paths, remote]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("Local · 1"))
+    app.mockInput.pressKey("p")
+    await app.waitForFrame((frame) => frame.includes("Push remote") && frame.includes("upstream"))
+    app.mockInput.pressEnter()
+    await app.waitFor(() => executed.length === 1)
+    expect(executed[0]).toEqual(["push", "main", [], "origin"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("shows multiple bookmarks on separate lines in the repository preview", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView controller={controller({ summary: { ...jj, bookmarks: "main feature" } })} onClose={() => {}} />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("1")
+    await app.waitForFrame((frame) => frame.includes("bookmark main") && frame.includes("bookmark feature"))
   } finally {
     app.renderer.destroy()
   }
