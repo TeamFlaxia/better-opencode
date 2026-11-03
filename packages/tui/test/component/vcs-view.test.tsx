@@ -270,7 +270,7 @@ test("keeps the selected row while the summary refreshes", async () => {
     app.mockInput.pressKey("3")
     app.mockInput.pressArrow("down")
     await app.waitForFrame((frame) => frame.includes("enter edit"))
-    setSummary({ ...jj })
+    setSummary({ ...jj, commit: "62730de940ae" })
     await app.waitFor(() => loads >= 2)
     app.mockInput.pressEnter()
     await app.waitFor(() => switched.length === 1)

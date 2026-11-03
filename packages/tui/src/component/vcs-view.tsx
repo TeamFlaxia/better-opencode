@@ -81,8 +81,10 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
 
   const current = () => vcs.summary()
   const kind = () => current()?.kind
+  // The working-copy commit ID changes whenever a file is saved in jj. Keep the
+  // stable change ID in the key so a content edit does not clear the panels.
   const summaryKey = (summary: VcsSummary) =>
-    `${summary.kind}:${summary.label}:${summary.change ?? ""}:${summary.commit ?? ""}`
+    `${summary.kind}:${summary.label}:${summary.change ?? ""}`
   const currentKey = () => {
     const summary = current()
     return summary ? summaryKey(summary) : undefined
@@ -222,8 +224,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const statusDetail = () => {
     const summary = current()
     if (!summary) return ""
-    if (summary.change) return `change ${summary.change}${summary.commit ? ` · commit ${summary.commit}` : ""}`
-    return summary.description ?? summary.detail
+    return summary.description || (summary.change ? `change ${summary.change}` : summary.detail)
   }
   const rowBackground = (panel: VcsPanel, index: number) => {
     if (selectedFor(panel) !== index) return undefined
