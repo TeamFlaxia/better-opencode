@@ -44,7 +44,13 @@ The layout follows lazygit: **Status**, **Files**, **Bookmarks/Branches**, and
 **Changes/Commits** are stacked on the left, and the focused panel opens its diff or
 details in the main panel on the right. The focused panel uses the accent border and
 takes extra height, while the others keep a minimum row so every list stays visible.
-The footer groups contextual and global shortcuts on separate rows.
+Status colors show clean, changed, and conflict states; file markers use the diff
+colors; remote bookmarks use the informational color. The footer groups contextual
+and global shortcuts on separate rows.
+
+Polling updates the panels in place. A refresh keeps the previous list and preview
+visible while the next fetch runs, so rows, selection, and scroll position do not
+reset every refresh interval.
 
 Right-click the dock for quick links to the diff viewer, change and commit ID
 copying, and the optional external tool.

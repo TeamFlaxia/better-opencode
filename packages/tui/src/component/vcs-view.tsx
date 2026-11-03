@@ -1,5 +1,5 @@
 /** @jsxImportSource @opentui/solid */
-import { TextAttributes, type BoxRenderable, type ScrollBoxRenderable } from "@opentui/core"
+import { TextAttributes, type BoxRenderable, type RGBA, type ScrollBoxRenderable } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import {
   createEffect,
@@ -7,6 +7,7 @@ import {
   createResource,
   createSignal,
   For,
+  Index,
   type JSX,
   onCleanup,
   onMount,
@@ -35,7 +36,6 @@ import { DialogVcsHunks } from "./dialog-vcs-hunks"
 export type VcsViewController = Pick<
   ReturnType<typeof useVcs>,
   | "summary"
-  | "refreshing"
   | "tool"
   | "refresh"
   | "openTool"
@@ -80,23 +80,51 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
 
   const current = () => vcs.summary()
   const kind = () => current()?.kind
+  const summaryKey = (summary: VcsSummary) =>
+    `${summary.kind}:${summary.label}:${summary.change ?? ""}:${summary.commit ?? ""}`
+  const currentKey = () => {
+    const summary = current()
+    return summary ? summaryKey(summary) : undefined
+  }
   const files = createMemo(() => current()?.files ?? [])
-  const [branchList] = createResource(current, async () => {
+  const [branchList] = createResource(current, async (summary) => {
     try {
-      return await vcs.branches()
+      return { key: summaryKey(summary), entries: await vcs.branches() }
     } catch {
-      return []
+      return { key: summaryKey(summary), entries: [] }
     }
   })
-  const [historyList] = createResource(current, async () => {
+  const [historyList] = createResource(current, async (summary) => {
     try {
-      return await vcs.history()
+      return { key: summaryKey(summary), entries: await vcs.history() }
     } catch {
-      return []
+      return { key: summaryKey(summary), entries: [] }
     }
   })
-  const branchEntries = createMemo<VcsListEntry[]>(() => branchList() ?? [])
-  const historyEntries = createMemo<VcsListEntry[]>(() => historyList() ?? [])
+  const branchEntries = createMemo<VcsListEntry[]>(() => {
+    const key = currentKey()
+    if (!key) return []
+    if (branchList()?.key === key) return branchList()!.entries
+    if (branchList.latest?.key === key) return branchList.latest.entries
+    return []
+  })
+  const historyEntries = createMemo<VcsListEntry[]>(() => {
+    const key = currentKey()
+    if (!key) return []
+    if (historyList()?.key === key) return historyList()!.entries
+    if (historyList.latest?.key === key) return historyList.latest.entries
+    return []
+  })
+  const branchesLoading = () => {
+    const key = currentKey()
+    if (!key) return false
+    return branchList.loading && branchList()?.key !== key && branchList.latest?.key !== key
+  }
+  const historyLoading = () => {
+    const key = currentKey()
+    if (!key) return false
+    return historyList.loading && historyList()?.key !== key && historyList.latest?.key !== key
+  }
   const selectedFor = (panel: VcsPanel) => selection()[panel]
   const setSelectedFor = (panel: VcsPanel, index: number) =>
     setSelection((value) => ({ ...value, [panel]: index }))
@@ -152,32 +180,74 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     return kind() === "jj" ? "No changes" : "No commits"
   }
   const source = createMemo(() => {
-    if (!current()) return
+    const prefix = currentKey()
+    if (!prefix) return
     if (focus() === "files") {
       const item = file()
       if (!item) return
-      return { type: "file" as const, id: item.file, staged: item.staged && !item.unstaged }
+      const staged = item.staged && !item.unstaged
+      return { type: "file" as const, key: `${prefix}:file:${item.file}:${staged}`, id: item.file, staged }
     }
     const item = focusedEntry()
     if (!item) return
-    return { type: "ref" as const, id: item.id }
+    return { type: "ref" as const, key: `${prefix}:ref:${item.id}`, id: item.id }
   })
   const [diff] = createResource(source, async (input) => {
     try {
-      return input.type === "file" ? await vcs.patch(input.id, input.staged) : await vcs.show(input.id)
+      const text = input.type === "file" ? await vcs.patch(input.id, input.staged) : await vcs.show(input.id)
+      return { key: input.key, text }
     } catch {
-      return ""
+      return { key: input.key, text: "" }
     }
   })
-  const lines = createMemo(() => (diff() ?? "").split("\n").slice(0, 2_000))
+  const diffText = () => {
+    const key = source()?.key
+    if (!key) return ""
+    if (diff()?.key === key) return diff()!.text
+    if (diff.latest?.key === key) return diff.latest.text
+    return undefined
+  }
+  const diffLoading = () => source() !== undefined && diff.loading && diffText() === undefined
+  const lines = createMemo(() => (diffText() ?? "").split("\n").slice(0, 2_000))
 
   const status = (summary: VcsSummary) =>
     summary.conflict ? "conflict" : summary.dirty === 0 ? "clean" : `${summary.dirty} changed`
+  const statusColor = (summary: VcsSummary) =>
+    summary.conflict
+      ? theme.text.feedback.error.base
+      : summary.dirty === 0
+        ? theme.text.feedback.success.base
+        : theme.text.feedback.warning.base
   const statusDetail = () => {
     const summary = current()
     if (!summary) return ""
     if (summary.change) return `change ${summary.change}${summary.commit ? ` · commit ${summary.commit}` : ""}`
     return summary.description ?? summary.detail
+  }
+  const rowBackground = (panel: VcsPanel, index: number) => {
+    if (selectedFor(panel) !== index) return undefined
+    return focus() === panel ? theme.background.action.primary.focused : theme.background.raised.high
+  }
+  const rowColor = (panel: VcsPanel, index: number, color: RGBA) =>
+    selectedFor(panel) === index ? theme.text.base : color
+  const branchColor = (panel: VcsPanel, index: number, item: VcsListEntry) => {
+    if (selectedFor(panel) === index) return theme.text.base
+    if (item.current) return theme.text.feedback.success.base
+    if (item.remote) return theme.text.feedback.info.base
+    return theme.text.muted
+  }
+  const historyColor = (panel: VcsPanel, index: number, item: VcsListEntry) => {
+    if (selectedFor(panel) === index) return theme.text.base
+    if (kind() === "jj" && current()?.change === item.id) return theme.text.feedback.success.base
+    return theme.text.muted
+  }
+  const previewDetailColor = () => {
+    if (focus() === "files") {
+      const item = file()
+      if (kind() !== "git" || !item) return theme.text.muted
+      return item.staged && !item.unstaged ? theme.text.feedback.success.base : theme.text.feedback.warning.base
+    }
+    return theme.text.muted
   }
 
   createEffect(() => {
@@ -574,7 +644,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (item.conflict) return theme.text.feedback.error.base
     if (item.status === "added") return theme.diff.highlight.added
     if (item.status === "deleted") return theme.diff.highlight.removed
-    return theme.text.muted
+    return theme.text.feedback.warning.base
   }
   const diffColor = (line: string) => {
     if (line.startsWith("@@")) return theme.diff.text.hunkHeader
@@ -746,19 +816,16 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
             >
               <box height={2} flexDirection="column" paddingLeft={1} paddingRight={1}>
                 <box height={1} flexDirection="row">
-                  <text fg={theme.text.base} selectable={false}>
+                  <text fg={theme.text.feedback.info.base} selectable={false}>
                     <b>{kind() ?? "vcs"}</b>
                   </text>
                   <box flexGrow={1} minWidth={0}>
-                    <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
+                    <text fg={theme.text.base} wrapMode="none" truncate selectable={false}>
                       {` ${current()!.label}`}
                     </text>
                   </box>
-                  <text
-                    fg={current()!.conflict ? theme.text.feedback.error.base : theme.text.muted}
-                    selectable={false}
-                  >
-                    {vcs.refreshing() ? "refreshing…" : status(current()!)}
+                  <text fg={statusColor(current()!)} selectable={false}>
+                    {status(current()!)}
                   </text>
                 </box>
                 <box height={1}>
@@ -773,40 +840,39 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
               panelTitle("files"),
               <scrollbox ref={(node) => (scrolls.files = node)} flexGrow={1} scrollbarOptions={{ visible: true }}>
                 <Show when={files().length > 0} fallback={emptyRow("No changed files")}>
-                  <For each={files()}>
+                  <Index each={files()}>
                     {(item, index) => {
-                      const active = () => focus() === "files" && selectedFor("files") === index()
                       return (
                         <box
                           height={1}
                           flexDirection="row"
                           paddingLeft={1}
                           paddingRight={1}
-                          backgroundColor={active() ? theme.background.action.primary.focused : undefined}
+                          backgroundColor={rowBackground("files", index)}
                           onMouseUp={() => {
                             setFocus("files")
-                            setSelectedFor("files", index())
+                            setSelectedFor("files", index)
                           }}
                         >
-                          <text fg={markerColor(item)} selectable={false}>
-                            {marker(item)}
+                          <text fg={markerColor(item())} attributes={TextAttributes.BOLD} selectable={false}>
+                            {marker(item())}
                           </text>
                           <box width={1} />
                           <FilePath
-                            value={item.file}
+                            value={item().file}
                             maxWidth={sidebarWidth() - 9}
-                            fg={active() ? theme.text.base : theme.text.muted}
+                            fg={rowColor("files", index, theme.text.muted)}
                           />
                           <box flexGrow={1} />
-                          <Show when={item.staged}>
-                            <text fg={theme.text.muted} selectable={false}>
+                          <Show when={item().staged}>
+                            <text fg={theme.text.feedback.success.base} selectable={false}>
                               +
                             </text>
                           </Show>
                         </box>
                       )
                     }}
-                  </For>
+                  </Index>
                 </Show>
               </scrollbox>,
             )}
@@ -814,47 +880,47 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
               "branches",
               panelTitle("branches"),
               <scrollbox ref={(node) => (scrolls.branches = node)} flexGrow={1} scrollbarOptions={{ visible: true }}>
-                <Show
-                  when={!branchList.loading}
-                  fallback={emptyRow("Loading…")}
-                >
+                <Show when={!branchesLoading()} fallback={emptyRow("Loading…")}>
                   <Show
                     when={branchEntries().length > 0}
                     fallback={emptyRow(kind() === "jj" ? "No bookmarks" : "No branches")}
                   >
-                    <For each={branchEntries()}>
+                    <Index each={branchEntries()}>
                       {(item, index) => {
-                        const active = () => focus() === "branches" && selectedFor("branches") === index()
                         return (
                           <box
                             height={1}
                             flexDirection="row"
                             paddingLeft={1}
                             paddingRight={1}
-                            backgroundColor={active() ? theme.background.action.primary.focused : undefined}
+                            backgroundColor={rowBackground("branches", index)}
                             onMouseUp={() => {
                               setFocus("branches")
-                              setSelectedFor("branches", index())
+                              setSelectedFor("branches", index)
                             }}
                           >
-                            <text fg={theme.text.muted} width={2} selectable={false}>
-                              {item.current ? "*" : " "}
+                            <text
+                              fg={item().current ? theme.text.feedback.success.base : theme.text.muted}
+                              width={2}
+                              selectable={false}
+                            >
+                              {item().current ? "*" : " "}
                             </text>
                             <text
-                              fg={active() ? theme.text.base : theme.text.muted}
+                              fg={branchColor("branches", index, item())}
                               wrapMode="none"
                               selectable={false}
                             >
-                              {Locale.truncateWidth(item.label, sidebarWidth() - 15)}
+                              {Locale.truncateWidth(item().label, sidebarWidth() - 15)}
                             </text>
                             <box flexGrow={1} />
                             <text fg={theme.text.muted} selectable={false}>
-                              {Locale.truncateWidth(item.detail?.split(" · ")[0] ?? "", 8)}
+                              {Locale.truncateWidth(item().detail?.split(" · ")[0] ?? "", 8)}
                             </text>
                           </box>
                         )
                       }}
-                    </For>
+                    </Index>
                   </Show>
                 </Show>
               </scrollbox>,
@@ -863,47 +929,49 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
               "history",
               panelTitle("history"),
               <scrollbox ref={(node) => (scrolls.history = node)} flexGrow={1} scrollbarOptions={{ visible: true }}>
-                <Show
-                  when={!historyList.loading}
-                  fallback={emptyRow("Loading…")}
-                >
+                <Show when={!historyLoading()} fallback={emptyRow("Loading…")}>
                   <Show
                     when={historyEntries().length > 0}
                     fallback={emptyRow(kind() === "jj" ? "No changes" : "No commits")}
                   >
-                    <For each={historyEntries()}>
+                    <Index each={historyEntries()}>
                       {(item, index) => {
-                        const active = () => focus() === "history" && selectedFor("history") === index()
+                        const isCurrent = () =>
+                          item().current || (kind() === "jj" && current()?.change === item().id)
                         return (
                           <box
                             height={1}
                             flexDirection="row"
                             paddingLeft={1}
                             paddingRight={1}
-                            backgroundColor={active() ? theme.background.action.primary.focused : undefined}
+                            backgroundColor={rowBackground("history", index)}
                             onMouseUp={() => {
                               setFocus("history")
-                              setSelectedFor("history", index())
+                              setSelectedFor("history", index)
                             }}
                           >
-                            <text fg={theme.text.muted} width={2} selectable={false}>
-                              {item.current ? "*" : " "}
+                            <text
+                              fg={isCurrent() ? theme.text.feedback.success.base : theme.text.muted}
+                              width={2}
+                              selectable={false}
+                            >
+                              {isCurrent() ? "*" : " "}
                             </text>
                             <text
-                              fg={active() ? theme.text.base : theme.text.muted}
+                              fg={historyColor("history", index, item())}
                               wrapMode="none"
                               selectable={false}
                             >
-                              {Locale.truncateWidth(item.label, sidebarWidth() - 15)}
+                              {Locale.truncateWidth(item().label, sidebarWidth() - 15)}
                             </text>
                             <box flexGrow={1} />
                             <text fg={theme.text.muted} selectable={false}>
-                              {Locale.truncateWidth(item.detail?.split(" · ")[0] ?? "", 8)}
+                              {Locale.truncateWidth(item().detail?.split(" · ")[0] ?? "", 8)}
                             </text>
                           </box>
                         )
                       }}
-                    </For>
+                    </Index>
                   </Show>
                 </Show>
               </scrollbox>,
@@ -924,7 +992,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                   {Locale.truncateWidth(previewLabel(), previewLabelWidth())}
                 </text>
               </box>
-              <text fg={theme.text.muted} selectable={false}>
+              <text fg={previewDetailColor()} selectable={false}>
                 {previewDetail()}
               </text>
             </box>
@@ -942,7 +1010,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                   }
                 >
                   <Show
-                    when={!diff.loading}
+                    when={!diffLoading()}
                     fallback={
                       <box paddingLeft={1} paddingTop={1}>
                         <text fg={theme.text.muted}>Loading…</text>
@@ -981,17 +1049,14 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
             >
               <box flexDirection="column" paddingLeft={1} paddingTop={1}>
                 <box height={1} flexDirection="row">
-                  <text fg={theme.text.base} selectable={false}>
+                  <text fg={theme.text.feedback.info.base} selectable={false}>
                     <b>{kind() ?? "vcs"}</b>
                   </text>
-                  <text fg={theme.text.muted} selectable={false}>
+                  <text fg={theme.text.base} selectable={false}>
                     {` ${current()!.label}`}
                   </text>
                 </box>
-                <text
-                  fg={current()!.conflict ? theme.text.feedback.error.base : theme.text.muted}
-                  selectable={false}
-                >
+                <text fg={statusColor(current()!)} selectable={false}>
                   {status(current()!)}
                 </text>
                 <Show when={current()!.description}>
@@ -1000,10 +1065,24 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                   </text>
                 </Show>
                 <Show when={current()!.change}>
-                  <text fg={theme.text.muted} selectable={false}>{`change ${current()!.change}`}</text>
+                  <box height={1} flexDirection="row">
+                    <text fg={theme.text.muted} selectable={false}>
+                      change{" "}
+                    </text>
+                    <text fg={theme.text.feedback.info.base} selectable={false}>
+                      {current()!.change}
+                    </text>
+                  </box>
                 </Show>
                 <Show when={current()!.commit}>
-                  <text fg={theme.text.muted} selectable={false}>{`commit ${current()!.commit}`}</text>
+                  <box height={1} flexDirection="row">
+                    <text fg={theme.text.muted} selectable={false}>
+                      commit{" "}
+                    </text>
+                    <text fg={theme.text.feedback.info.base} selectable={false}>
+                      {current()!.commit}
+                    </text>
+                  </box>
                 </Show>
                 <text fg={theme.text.muted} selectable={false}>
                   {current()!.detail}

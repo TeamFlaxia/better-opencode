@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import { testRender } from "@opentui/solid"
 import { expect, test } from "bun:test"
-import { type ParentProps } from "solid-js"
+import { createSignal, type ParentProps } from "solid-js"
 import { ConfigProvider } from "../../src/config"
 import { Keymap } from "../../src/context/keymap"
 import { ThemeProvider } from "../../src/context/theme"
@@ -45,7 +45,6 @@ function controller(input: {
 }): VcsViewController {
   return {
     summary: () => input.summary,
-    refreshing: () => false,
     tool: () => undefined,
     refresh: async () => {},
     openTool: async () => {},
@@ -206,6 +205,48 @@ test("lists bookmarks and edits the selected bookmark", async () => {
     app.mockInput.pressEnter()
     await app.waitFor(() => switched.length === 1)
     expect(switched[0]).toBe("feature-jj")
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("keeps the selected row while the summary refreshes", async () => {
+  const switched: string[] = []
+  const [summary, setSummary] = createSignal<VcsSummary>(jj)
+  const base = controller({
+    summary: jj,
+    branches: () => jjBranches,
+    switchTo: (ref) => switched.push(ref),
+  })
+  let loads = 0
+  const reactive: VcsViewController = {
+    ...base,
+    summary,
+    branches: async () => {
+      loads++
+      return jjBranches
+    },
+  }
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView controller={reactive} onClose={() => {}} />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("feature-jj"))
+    app.mockInput.pressKey("3")
+    app.mockInput.pressArrow("down")
+    await app.waitForFrame((frame) => frame.includes("enter edit"))
+    setSummary({ ...jj })
+    await app.waitFor(() => loads >= 2)
+    app.mockInput.pressEnter()
+    await app.waitFor(() => switched.length === 1)
+    expect(switched).toEqual(["feature-jj"])
   } finally {
     app.renderer.destroy()
   }

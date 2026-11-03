@@ -19,7 +19,6 @@ function controller(summary: VcsSummary): VcsDockController {
   return {
     visible: () => true,
     summary: () => summary,
-    refreshing: () => false,
     tool: () => ({ id: "lazyjj", label: "lazyjj", command: "/usr/bin/lazyjj" }),
     openTool: async () => {},
     refresh: async () => {},

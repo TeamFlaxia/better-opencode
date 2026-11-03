@@ -15,7 +15,7 @@ type VcsDockOrientation = "right" | "below" | "vertical"
 type VcsAction = "actions" | "open" | "diff" | "copy" | "copy_change" | "copy_commit" | "refresh"
 export type VcsDockController = Pick<
   ReturnType<typeof useVcs>,
-  "visible" | "summary" | "refreshing" | "tool" | "openTool" | "refresh"
+  "visible" | "summary" | "tool" | "openTool" | "refresh"
 >
 
 export function VcsDock(props: {
@@ -46,7 +46,6 @@ export function VcsDock(props: {
   const status = () => {
     const current = summary()
     if (!current) return ""
-    if (vcs.refreshing()) return "…"
     if (current.conflict) return "!"
     return current.dirty === 0 ? "✓" : String(current.dirty)
   }
@@ -60,7 +59,7 @@ export function VcsDock(props: {
     const current = summary()
     if (!current) return theme.text.muted
     if (current.conflict) return theme.text.feedback.error.base
-    return current.dirty === 0 ? theme.text.muted : theme.text.base
+    return current.dirty === 0 ? theme.text.feedback.success.base : theme.text.feedback.warning.base
   }
   const actions = createMemo(() => {
     const current = summary()
@@ -149,7 +148,7 @@ export function VcsDock(props: {
                   <text fg={theme.text.base} flexShrink={0} selectable={false}>
                     <b>VCS</b>
                   </text>
-                  <text fg={theme.text.muted} flexShrink={0} selectable={false}>
+                  <text fg={theme.text.feedback.info.base} flexShrink={0} selectable={false}>
                     {repository()}
                   </text>
                   <box flexGrow={1} minWidth={0} />
@@ -160,7 +159,7 @@ export function VcsDock(props: {
                 <box height={1} flexDirection="row" paddingLeft={1} paddingRight={1} gap={1}>
                   <text
                     width={labelWidth()}
-                    fg={theme.text.muted}
+                    fg={theme.text.base}
                     wrapMode="none"
                     truncate
                     selectable={false}
@@ -216,13 +215,13 @@ export function VcsDock(props: {
           <text fg={theme.text.base} selectable={false}>
             <b>VCS</b>
           </text>
-          <text fg={theme.text.muted} selectable={false}>
+          <text fg={theme.text.feedback.info.base} selectable={false}>
             {repository()}
           </text>
           <text fg={theme.text.muted} selectable={false}>
             ·
           </text>
-          <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
+          <text fg={theme.text.base} wrapMode="none" truncate selectable={false}>
             {label()}
           </text>
           <text fg={statusColor()} selectable={false}>

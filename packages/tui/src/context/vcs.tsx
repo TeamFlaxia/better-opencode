@@ -70,7 +70,6 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
     const toast = useToast()
     const enabled = () => config.data.experimental?.["vcs-dock"] === true
     const [summary, setSummary] = createSignal<VcsSummary>()
-    const [refreshing, setRefreshing] = createSignal(false)
     const sessionID = createMemo(() => {
       if (route.data.type === "session") return route.data.sessionID
       return sessionTabs.current()
@@ -107,7 +106,6 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       if (!target || !current) return
       running = true
       const attempt = ++generation
-      setRefreshing(true)
       try {
         // jj owns its colocated Git repository, so render only the preferred kind instead of
         // listing the same files, bookmarks, and history twice.
@@ -125,7 +123,6 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         if (attempt === generation) setSummary((previous) => next ?? previous)
       } finally {
         running = false
-        if (attempt === generation) setRefreshing(false)
         if (queued) {
           queued = false
           void refresh()
@@ -466,7 +463,6 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
     return {
       visible,
       summary,
-      refreshing,
       tool,
       refresh,
       openTool,
