@@ -304,8 +304,13 @@ export function mutationCommands(
     if (action === "split_parallel")
       return value && paths.length ? [{ command: "jj", args: ["split", "-p", "-m", value, "--", ...paths] }] : []
     if (action === "edit") return value ? [{ command: "jj", args: ["edit", value] }] : []
-    if (action === "fetch")
-      return [{ command: "jj", args: ["git", "fetch", ...(remote ? ["--remote", remote] : [])] }]
+    if (action === "fetch") {
+      const args = ["git", "fetch", ...(remote ? ["--remote", remote] : [])]
+      if (value === "tracked") args.push("--tracked")
+      else if (value === "bookmarks") args.push("--branch", "*")
+      else if (value === "tags") args.push("--tag", "*")
+      return [{ command: "jj", args }]
+    }
     if (action === "push")
       return [
         {
@@ -329,9 +334,12 @@ export function mutationCommands(
     if (action === "stage") return paths.length ? [{ command: "git", args: ["add", "--", ...paths] }] : []
     if (action === "unstage")
       return paths.length ? [{ command: "git", args: ["restore", "--staged", "--", ...paths] }] : []
-    if (action === "fetch") return [{ command: "git", args: ["fetch", "--all", "--prune"] }]
+    if (action === "fetch")
+      return [
+        { command: "git", args: remote ? ["fetch", "--prune", remote] : ["fetch", "--all", "--prune"] },
+      ]
     if (action === "pull") return [{ command: "git", args: ["pull", "--ff-only"] }]
-    if (action === "push") return [{ command: "git", args: ["push"] }]
+    if (action === "push") return [{ command: "git", args: ["push", ...(remote ? [remote] : [])] }]
     return []
   }
   return []

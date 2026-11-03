@@ -81,9 +81,11 @@ change log; a Git repository fills them with branches and commits.
 - `m`: rename the selected local bookmark/branch
 - `x`: delete the selected local bookmark/branch
 - `t`: track or untrack the selected remote bookmark
-- `f` / `p` / `l`: fetch, push, and pull (`l` is Git only). For jj, fetch and push
-  ask for a remote when more than one is configured; push also asks for a bookmark
-  when necessary.
+- `s` / `u`: track or untrack all remote bookmarks (jj only)
+- `f` / `p` / `l`: fetch, push, and pull (`l` is Git only). Fetch and push ask for a
+  remote when more than one is configured. jj fetch also asks what to fetch (all,
+  tracked, bookmarks only, or tags only), and jj push asks for a local bookmark when
+  necessary.
 - `o`: open the optional external tool when one is installed
 - `r`: refresh status
 - `q` / `esc`: return to the conversation
@@ -105,7 +107,7 @@ jj:
 - Review changes in the OpenCode diff viewer
 - Browse grouped local and remote bookmarks and history, editing mutable entries or
   starting a new change from an immutable one
-- Show tracked/untracked state for remote bookmarks and toggle it
+- Show tracked/untracked state for remote bookmarks, toggle one, or track/untrack all
 - Create, move, rename, and delete local bookmarks
 - Describe the current change
 - Create a new change
@@ -117,10 +119,11 @@ jj:
 - Set a bookmark
 - Show multiple bookmarks at `@` on separate lines in the repository preview
 - Copy the current change ID or commit ID from the dock menu
-- Fetch from a selected remote with `jj git fetch --remote`
+- Fetch from a selected remote with `jj git fetch --remote`, optionally limited to
+  tracked refs, bookmarks, or tags
 - Push a selected local bookmark to a selected remote with
   `jj git push --bookmark <name> --remote <remote>`; the view asks for the bookmark
-  and remote when more than one is available
+  and remote when more than one is available, and shows the remote bookmark state
 
 Git:
 
@@ -131,7 +134,7 @@ Git:
 - Stage everything and commit in one action
 - Stage or unstage selected files
 - Stage or unstage selected hunks
-- Fetch, pull, and push
+- Fetch, pull, and push a selected Git remote
 
 The file and hunk pickers are multi-select lists: `space` toggles the current
 item, `a` toggles all items, `enter` confirms, and `esc` cancels. Confirming

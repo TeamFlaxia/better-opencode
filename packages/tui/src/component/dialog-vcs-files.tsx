@@ -152,19 +152,35 @@ export function DialogVcsFiles(props: {
                   }}
                 >
                   <box width={2} flexShrink={0}>
-                    <text fg={store.selected[file.file] ? theme.text.base : theme.text.muted}>
+                    <text
+                      fg={
+                        index() === store.index
+                          ? overlay.background.base
+                          : store.selected[file.file]
+                            ? theme.text.base
+                            : theme.text.muted
+                      }
+                    >
                       {store.selected[file.file] ? "x" : " "}
                     </text>
                   </box>
                   <box width={2} flexShrink={0}>
-                    <text fg={file.conflict ? theme.text.feedback.error.base : theme.text.muted}>
+                    <text
+                      fg={
+                        index() === store.index
+                          ? overlay.background.base
+                          : file.conflict
+                            ? theme.text.feedback.error.base
+                            : theme.text.muted
+                      }
+                    >
                       {statusLabel(file.status)}
                     </text>
                   </box>
                   <FilePath
                     value={file.file}
                     maxWidth={nameWidth()}
-                    fg={index() === store.index ? theme.text.base : theme.text.muted}
+                    fg={index() === store.index ? overlay.background.base : theme.text.muted}
                   />
                 </box>
               )}

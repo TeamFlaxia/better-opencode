@@ -533,8 +533,190 @@ test("chooses a remote to fetch from", async () => {
     app.mockInput.pressKey("f")
     await app.waitForFrame((frame) => frame.includes("Fetch remote") && frame.includes("upstream"))
     app.mockInput.pressEnter()
+    await app.waitForFrame((frame) => frame.includes("Fetch from origin") && frame.includes("Tracked only"))
+    app.mockInput.pressEnter()
     await app.waitFor(() => executed.length === 1)
     expect(executed[0]).toEqual(["fetch", undefined, [], "origin"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("fetches only tracked refs from a remote", async () => {
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined, string | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            remotes: () => ["origin", "upstream"],
+            execute: (action, value, paths, remote) => executed.push([action, value, paths, remote]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("f")
+    await app.waitForFrame((frame) => frame.includes("Fetch remote"))
+    app.mockInput.pressEnter()
+    await app.waitForFrame((frame) => frame.includes("Tracked only"))
+    app.mockInput.pressArrow("down")
+    app.mockInput.pressEnter()
+    await app.waitFor(() => executed.length === 1)
+    expect(executed[0]).toEqual(["fetch", "tracked", [], "origin"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("chooses a git remote to fetch from", async () => {
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined, string | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: git,
+            remotes: () => ["origin", "upstream"],
+            execute: (action, value, paths, remote) => executed.push([action, value, paths, remote]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/b.ts"))
+    app.mockInput.pressKey("f")
+    await app.waitForFrame((frame) => frame.includes("Fetch remote"))
+    app.mockInput.pressEnter()
+    await app.waitFor(() => executed.length === 1)
+    expect(executed[0]).toEqual(["fetch", undefined, [], "origin"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("chooses a git remote to push to", async () => {
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined, string | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: git,
+            remotes: () => ["origin", "upstream"],
+            execute: (action, value, paths, remote) => executed.push([action, value, paths, remote]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/b.ts"))
+    app.mockInput.pressKey("p")
+    await app.waitForFrame((frame) => frame.includes("Push remote"))
+    app.mockInput.pressEnter()
+    await app.waitFor(() => executed.length === 1)
+    expect(executed[0]).toEqual(["push", undefined, [], "origin"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("tracks or untracks all remote bookmarks", async () => {
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined, string | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            branches: () => [
+              {
+                id: "main@origin",
+                label: "main@origin",
+                name: "main",
+                remote: true,
+                remoteName: "origin",
+                tracked: false,
+                detail: "62730de940ae · current",
+              },
+            ],
+            execute: (action, value, paths, remote) => executed.push([action, value, paths, remote]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/a.ts"))
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("s track all"))
+    app.mockInput.pressKey("s")
+    await app.waitFor(() => executed.length === 1)
+    expect(executed[0]).toEqual(["track", "*", undefined, undefined])
+    app.mockInput.pressKey("u")
+    await app.waitForFrame((frame) => frame.includes("Untrack all remote bookmarks?"))
+    app.mockInput.pressEnter()
+    await app.waitFor(() => executed.length === 2)
+    expect(executed[1]).toEqual(["untrack", "*", undefined, undefined])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("shows remote tracking information in the push dialog", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: jj,
+            branches: () => [
+              { id: "main", label: "main", name: "main", current: true, detail: "62730de940ae · current" },
+              {
+                id: "main@origin",
+                label: "main@origin",
+                name: "main",
+                remote: true,
+                remoteName: "origin",
+                tracked: true,
+                detail: "62730de940ae · current",
+              },
+            ],
+            remotes: () => ["origin", "upstream"],
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 24, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("Local · 1"))
+    app.mockInput.pressKey("p")
+    await app.waitForFrame((frame) => frame.includes("Push remote") && frame.includes("main@origin tracked"))
   } finally {
     app.renderer.destroy()
   }

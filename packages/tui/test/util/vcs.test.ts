@@ -262,6 +262,15 @@ describe("mutationCommands", () => {
     expect(mutationCommands("jj", "fetch", undefined, [], "origin")).toEqual([
       { command: "jj", args: ["git", "fetch", "--remote", "origin"] },
     ])
+    expect(mutationCommands("jj", "fetch", "tracked", [], "origin")).toEqual([
+      { command: "jj", args: ["git", "fetch", "--remote", "origin", "--tracked"] },
+    ])
+    expect(mutationCommands("jj", "fetch", "bookmarks", [], "origin")).toEqual([
+      { command: "jj", args: ["git", "fetch", "--remote", "origin", "--branch", "*"] },
+    ])
+    expect(mutationCommands("jj", "fetch", "tags", [], "origin")).toEqual([
+      { command: "jj", args: ["git", "fetch", "--remote", "origin", "--tag", "*"] },
+    ])
     expect(mutationCommands("jj", "push", "main")).toEqual([
       { command: "jj", args: ["git", "push", "--bookmark", "main"] },
     ])
@@ -300,6 +309,15 @@ describe("mutationCommands", () => {
     expect(mutationCommands("git", "commit_all", "message")).toEqual([
       { command: "git", args: ["add", "-A"] },
       { command: "git", args: ["commit", "-m", "message"] },
+    ])
+  })
+
+  test("fetches and pushes a selected git remote", () => {
+    expect(mutationCommands("git", "fetch", undefined, [], "origin")).toEqual([
+      { command: "git", args: ["fetch", "--prune", "origin"] },
+    ])
+    expect(mutationCommands("git", "push", undefined, [], "origin")).toEqual([
+      { command: "git", args: ["push", "origin"] },
     ])
   })
 

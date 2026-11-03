@@ -311,13 +311,15 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
     const remotes = async (): Promise<string[]> => {
       const current = summary()
       const target = info()
-      if (!current || !target || current.kind !== "jj") return []
+      if (!current || !target) return []
       try {
-        const result = await run(
-          "jj",
-          ["--no-pager", "--color=never", "git", "remote", "list"],
-          target.project.canonical,
-        )
+        const result =
+          current.kind === "jj"
+            ? await run("jj", ["--no-pager", "--color=never", "git", "remote", "list"], target.project.canonical)
+            : current.kind === "git"
+              ? await run("git", ["remote"], target.project.canonical)
+              : undefined
+        if (!result) return []
         return result.stdout
           .split("\n")
           .map((line) => line.trim().split(/\s+/)[0])

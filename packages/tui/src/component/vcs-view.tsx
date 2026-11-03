@@ -262,19 +262,18 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (selectedFor(panel) !== index) return undefined
     return focus() === panel ? theme.background.action.primary.focused : theme.background.raised.high
   }
-  const rowColor = (panel: VcsPanel, index: number, color: RGBA) =>
-    selectedFor(panel) === index ? theme.text.base : color
-  const branchColor = (panel: VcsPanel, index: number, item: VcsListEntry) => {
-    if (selectedFor(panel) === index) return theme.text.base
-    if (item.current) return theme.text.feedback.success.base
-    if (item.remote) return theme.text.feedback.info.base
-    return theme.text.muted
+  const rowColor = (panel: VcsPanel, index: number, color: RGBA) => {
+    if (selectedFor(panel) !== index) return color
+    return focus() === panel ? theme.background.base : theme.text.base
   }
-  const historyColor = (panel: VcsPanel, index: number, item: VcsListEntry) => {
-    if (selectedFor(panel) === index) return theme.text.base
-    if (kind() === "jj" && current()?.change === item.id) return theme.text.feedback.success.base
-    return theme.text.muted
-  }
+  const branchColor = (panel: VcsPanel, index: number, item: VcsListEntry) =>
+    rowColor(panel, index, item.current ? theme.text.feedback.success.base : item.remote ? theme.text.feedback.info.base : theme.text.muted)
+  const historyColor = (panel: VcsPanel, index: number, item: VcsListEntry) =>
+    rowColor(
+      panel,
+      index,
+      kind() === "jj" && current()?.change === item.id ? theme.text.feedback.success.base : theme.text.muted,
+    )
   const previewDetailColor = () => {
     if (focus() === "files") {
       const item = file()
@@ -503,7 +502,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (!kind()) return
     void vcs.execute(action)
   }
-  const chooseRemote = async (title: string, run: (remote: string | undefined) => void) => {
+  const chooseRemote = async (
+    title: string,
+    run: (remote: string | undefined) => void,
+    describe?: (remote: string) => string | undefined,
+  ) => {
     const names = await vcs.remotes()
     if (names.length <= 1) {
       dialog.clear()
@@ -514,7 +517,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     dialog.replace(() => (
       <DialogSelect
         title={title}
-        options={names.map((name) => ({ title: name, value: name }))}
+        options={names.map((name) => ({ title: name, value: name, description: describe?.(name) }))}
         current={currentRemote}
         onSelect={(option) => {
           dialog.clear()
@@ -524,14 +527,28 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       />
     ))
   }
+  const bookmarkTracking = (item: VcsListEntry) => {
+    const remotes = branchEntries().filter((entry) => entry.remote && entry.name === item.name)
+    if (remotes.length === 0) return "not tracked"
+    return remotes.map((entry) => `${entry.label} ${entry.tracked ? "tracked" : "untracked"}`).join(", ")
+  }
   const pushToRemote = async (bookmark: string) => {
-    await chooseRemote("Push remote", (remote) => void vcs.execute("push", bookmark, [], remote))
+    await chooseRemote(
+      "Push remote",
+      (remote) => void vcs.execute("push", bookmark, [], remote),
+      (remote) => {
+        const target = branchEntries().find(
+          (entry) => entry.remote && entry.name === bookmark && entry.remoteName === remote,
+        )
+        return target ? `${target.label} ${target.tracked ? "tracked" : "untracked"}` : `new ${bookmark}@${remote}`
+      },
+    )
   }
   const pushBookmarks = async () => {
     const repository = kind()
     if (!repository) return
     if (repository !== "jj") {
-      runAction("push")
+      await chooseRemote("Push remote", (remote) => void vcs.execute("push", undefined, [], remote))
       return
     }
     const local = localBranchEntries()
@@ -554,10 +571,29 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         options={local.map((item) => ({
           title: item.label,
           value: item.label,
-          description: item.current ? "at @" : item.detail,
+          description: [item.current ? "at @" : undefined, bookmarkTracking(item)].filter(Boolean).join(" · "),
         }))}
         current={local.find((item) => item.current)?.label}
         onSelect={(option) => void pushToRemote(option.value)}
+        onCancel={() => dialog.clear()}
+      />
+    ))
+  }
+  const fetchScope = (remote?: string) => {
+    dialog.replace(() => (
+      <DialogSelect
+        title={remote ? `Fetch from ${remote}` : "Fetch"}
+        options={[
+          { title: "All refs", value: "all", description: "Bookmarks and tags" },
+          { title: "Tracked only", value: "tracked", description: "Tracked bookmarks and tags" },
+          { title: "Bookmarks only", value: "bookmarks", description: "Skip tags" },
+          { title: "Tags only", value: "tags", description: "Skip bookmarks" },
+        ]}
+        current="all"
+        onSelect={(option) => {
+          dialog.clear()
+          void vcs.execute("fetch", option.value === "all" ? undefined : option.value, [], remote)
+        }}
         onCancel={() => dialog.clear()}
       />
     ))
@@ -566,10 +602,28 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     const repository = kind()
     if (!repository) return
     if (repository !== "jj") {
-      runAction("fetch")
+      await chooseRemote("Fetch remote", (remote) => void vcs.execute("fetch", undefined, [], remote))
       return
     }
-    await chooseRemote("Fetch remote", (remote) => void vcs.execute("fetch", undefined, [], remote))
+    await chooseRemote("Fetch remote", (remote) => fetchScope(remote))
+  }
+  const trackAllBookmarks = () => {
+    if (kind() !== "jj" || focus() !== "branches") return
+    void vcs.execute("track", "*")
+  }
+  const untrackAllBookmarks = () => {
+    if (kind() !== "jj" || focus() !== "branches") return
+    dialog.replace(() => (
+      <DialogConfirm
+        title="Untrack all remote bookmarks?"
+        message="They will no longer be imported as local bookmarks."
+        onConfirm={() => {
+          dialog.clear()
+          void vcs.execute("untrack", "*")
+        }}
+        onCancel={() => dialog.clear()}
+      />
+    ))
   }
   const toggleTracking = () => {
     const item = branch()
@@ -757,6 +811,16 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       toggleTracking()
       return
     }
+    if (key === "s" && focus() === "branches") {
+      handled()
+      trackAllBookmarks()
+      return
+    }
+    if (key === "u" && focus() === "branches") {
+      handled()
+      untrackAllBookmarks()
+      return
+    }
     if (focus() !== "files") return
     if (key === "c" && repository === "git") {
       handled()
@@ -874,6 +938,12 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
               { key: "x", label: "delete" },
             ]
           : [{ key: "t", label: item?.tracked ? "untrack" : "track" }]),
+        ...(repository === "jj" && remoteBranchEntries().length > 0
+          ? [
+              { key: "s", label: "track all" },
+              { key: "u", label: "untrack all" },
+            ]
+          : []),
         { key: "f", label: "fetch" },
         { key: "p", label: "push" },
       ]
@@ -983,7 +1053,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       }}
     >
       <text
-        fg={item().current ? theme.text.feedback.success.base : theme.text.muted}
+        fg={rowColor(
+          "branches",
+          index,
+          item().current ? theme.text.feedback.success.base : theme.text.muted,
+        )}
         width={2}
         selectable={false}
       >
@@ -993,7 +1067,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         {Locale.truncateWidth(item().label, sidebarWidth() - 17)}
       </text>
       <box flexGrow={1} />
-      <text fg={branchDetailColor(item())} selectable={false}>
+      <text fg={rowColor("branches", index, branchDetailColor(item()))} selectable={false}>
         {Locale.truncateWidth(branchDetail(item()), 10)}
       </text>
     </box>
@@ -1082,7 +1156,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                             setSelectedFor("files", index)
                           }}
                         >
-                          <text fg={markerColor(item())} attributes={TextAttributes.BOLD} selectable={false}>
+                          <text
+                            fg={rowColor("files", index, markerColor(item()))}
+                            attributes={TextAttributes.BOLD}
+                            selectable={false}
+                          >
                             {marker(item())}
                           </text>
                           <box width={1} />
@@ -1093,7 +1171,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                           />
                           <box flexGrow={1} />
                           <Show when={item().staged}>
-                            <text fg={theme.text.feedback.success.base} selectable={false}>
+                            <text fg={rowColor("files", index, theme.text.feedback.success.base)} selectable={false}>
                               +
                             </text>
                           </Show>
@@ -1155,7 +1233,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                             }}
                           >
                             <text
-                              fg={isCurrent() ? theme.text.feedback.success.base : theme.text.muted}
+                              fg={rowColor(
+                                "history",
+                                index,
+                                isCurrent() ? theme.text.feedback.success.base : theme.text.muted,
+                              )}
                               width={2}
                               selectable={false}
                             >
@@ -1169,7 +1251,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                               {Locale.truncateWidth(item().label, sidebarWidth() - 15)}
                             </text>
                             <box flexGrow={1} />
-                            <text fg={theme.text.muted} selectable={false}>
+                            <text fg={rowColor("history", index, theme.text.muted)} selectable={false}>
                               {Locale.truncateWidth(item().detail?.split(" · ")[0] ?? "", 8)}
                             </text>
                           </box>
