@@ -707,7 +707,7 @@ function VerticalSessionTabs(props: {
       flexShrink={0}
       flexDirection="column"
       position="relative"
-      paddingTop={compact() ? 0 : 1}
+      paddingTop={1}
       backgroundColor={railBackground()}
       onMouseOut={marquee.leaveHovered}
       onMouseUp={(event) => {
@@ -903,39 +903,48 @@ function VerticalSessionTabs(props: {
                   }}
                 >
                   <Show when={compact()}>
-                    <box height={1} flexDirection="row">
-                      <text
-                        width={1}
-                        fg={selected() ? theme.hue.interactive[200] : theme.background.base}
-                        selectable={false}
-                      >
-                        {selected() ? "▏" : " "}
-                      </text>
-                      <box flexGrow={1} flexDirection="row" justifyContent="center">
-                        <TabIndicator
-                          centered
-                          selected={selected()}
-                          width={Math.max(1, width() - 1)}
-                          status={status()}
-                          label={sessionTabNumberLabel(index())}
-                          idleLabel={Locale.graphemes(title().trimStart())[0] ?? "U"}
-                          color={
-                            selected()
-                              ? theme.hue.interactive[200]
-                              : props.numbers
-                                ? numberColor()
-                                : (tabFeedbackColor(status(), theme) ?? (runs() ? activeNumber() : foreground()))
-                          }
-                          unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
-                          backgroundColor={pulseBackground()}
-                          flashColor={theme.text.base}
-                          animations={animations()}
-                          numbers={props.numbers}
-                          spinner={props.spinner}
-                          unreadMarker={props.unreadMarker}
-                          attributes={selected() ? TextAttributes.BOLD : undefined}
-                        />
-                      </box>
+                    <box
+                      height={1}
+                      width={width()}
+                      position="relative"
+                      flexDirection="row"
+                      justifyContent="center"
+                    >
+                      <Show when={selected()}>
+                        <text
+                          position="absolute"
+                          left={0}
+                          top={0}
+                          width={1}
+                          fg={theme.hue.interactive[200]}
+                          selectable={false}
+                        >
+                          ▏
+                        </text>
+                      </Show>
+                      <TabIndicator
+                        centered
+                        selected={selected()}
+                        width={width()}
+                        status={status()}
+                        label={sessionTabNumberLabel(index())}
+                        idleLabel={Locale.graphemes(title().trimStart())[0] ?? "U"}
+                        color={
+                          selected()
+                            ? theme.hue.interactive[200]
+                            : props.numbers
+                              ? numberColor()
+                              : (tabFeedbackColor(status(), theme) ?? (runs() ? activeNumber() : foreground()))
+                        }
+                        unreadColor={tabFeedbackColor(status(), theme) ?? unreadColor()}
+                        backgroundColor={pulseBackground()}
+                        flashColor={theme.text.base}
+                        animations={animations()}
+                        numbers={props.numbers}
+                        spinner={props.spinner}
+                        unreadMarker={props.unreadMarker}
+                        attributes={selected() ? TextAttributes.BOLD : undefined}
+                      />
                     </box>
                   </Show>
                   <Show when={!compact()}>

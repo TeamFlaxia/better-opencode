@@ -63,7 +63,7 @@ test("compact rail renders and controls session tabs", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("  F  ") && frame.includes("  S  "))
+    await app.waitForFrame((frame) => frame.includes("▏ F") && frame.includes("  S  "))
     expect(
       app
         .captureCharFrame()
@@ -71,13 +71,13 @@ test("compact rail renders and controls session tabs", async () => {
         .slice(0, 11)
         .map((line) => line.slice(0, 5)),
     ).toEqual([
+      "     ",
       "  🔍 ",
       "     ",
-      "▏  F ",
-      "   S ",
-      "   T ",
+      "▏ F  ",
+      "  S  ",
+      "  T  ",
       "  +  ",
-      "     ",
       "     ",
       "     ",
       "     ",
@@ -86,31 +86,31 @@ test("compact rail renders and controls session tabs", async () => {
     expect(app.captureCharFrame().split("\n")[0].indexOf("transcript")).toBe(5)
     expect(app.captureCharFrame()).not.toContain("First session")
     expect(
-      app.captureSpans().lines[2].spans.find((span) => span.text.trim() === "F")!.attributes & TextAttributes.BOLD,
+      app.captureSpans().lines[3].spans.find((span) => span.text.trim() === "F")!.attributes & TextAttributes.BOLD,
     ).toBe(TextAttributes.BOLD)
 
     setStatus({ ...EMPTY_SESSION_TAB_STATUS, busy: true })
-    await app.waitForFrame((frame) => frame.split("\n")[3].slice(0, 5).trim() === SPINNER_FRAMES[0])
+    await app.waitForFrame((frame) => frame.split("\n")[4].slice(0, 5).trim() === SPINNER_FRAMES[0])
     setStatus({ ...EMPTY_SESSION_TAB_STATUS, busy: true, attention: "question" })
-    await app.waitForFrame((frame) => frame.split("\n")[3].slice(0, 5).trim() === "?")
+    await app.waitForFrame((frame) => frame.split("\n")[4].slice(0, 5).trim() === "?")
 
     setIndicators("numbers")
-    await app.waitForFrame((frame) => frame.split("\n")[3].slice(0, 5).trim() === "2")
+    await app.waitForFrame((frame) => frame.split("\n")[4].slice(0, 5).trim() === "2")
     expect(
-      [2, 3, 4].map((row) => app.captureCharFrame().split("\n")[row].slice(0, 5).replace("▏", "").trim()),
+      [3, 4, 5].map((row) => app.captureCharFrame().split("\n")[row].slice(0, 5).replace("▏", "").trim()),
     ).toEqual(["1", "2", "3"])
     setIndicators("status")
     setStatus(EMPTY_SESSION_TAB_STATUS)
 
-    await app.mockMouse.moveTo(2, 3)
+    await app.mockMouse.moveTo(2, 4)
     await app.waitForFrame((frame) => frame.includes("Second session") && frame.includes("project-alpha"))
     expect(active()).toBe("first")
     await app.mockMouse.moveTo(10, 0)
     await app.waitForFrame((frame) => !frame.includes("Second session"))
 
-    await app.mockMouse.click(2, 0)
+    await app.mockMouse.click(2, 1)
     expect(searches()).toBe(1)
-    await app.mockMouse.drag(2, 2, 2, 4)
+    await app.mockMouse.drag(2, 3, 2, 5)
     expect(items().map((tab) => tab.sessionID)).toEqual(["second", "third", "first"])
   } finally {
     app.renderer.destroy()
