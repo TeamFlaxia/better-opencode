@@ -911,9 +911,9 @@ function DialogSelectRow(props: {
   const theme = useTheme().surface("dialog")
   const newDesigns = useNewDesigns()
   const text = createMemo(() => {
-    // Selected rows use the page surface as a high-contrast foreground; the theme's
-    // focused action text is light in both modes and washes out on the blue highlight.
-    if (props.active) return props.activeColor ?? theme.background.base
+    // The selected foreground is opaque even when the theme background is transparent
+    // (for example the system theme), so it stays readable on the accent highlight.
+    if (props.active) return props.activeColor ?? theme.text.action.primary.focused
     if (props.current && !newDesigns()) return theme.text.formfield.selected
     return theme.text.base
   })

@@ -264,7 +264,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   }
   const rowColor = (panel: VcsPanel, index: number, color: RGBA) => {
     if (selectedFor(panel) !== index) return color
-    return focus() === panel ? theme.background.base : theme.text.base
+    return focus() === panel ? theme.text.action.primary.focused : theme.text.base
   }
   const branchColor = (panel: VcsPanel, index: number, item: VcsListEntry) =>
     rowColor(panel, index, item.current ? theme.text.feedback.success.base : item.remote ? theme.text.feedback.info.base : theme.text.muted)

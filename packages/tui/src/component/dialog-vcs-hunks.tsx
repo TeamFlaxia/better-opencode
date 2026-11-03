@@ -139,7 +139,7 @@ export function DialogVcsHunks(props: {
                     <text
                       fg={
                         index() === store.index
-                          ? overlay.background.base
+                          ? overlay.text.action.primary.focused
                           : store.selected[index()]
                             ? theme.text.base
                             : theme.text.muted
@@ -149,7 +149,7 @@ export function DialogVcsHunks(props: {
                     </text>
                   </box>
                   <text
-                    fg={index() === store.index ? overlay.background.base : theme.text.muted}
+                    fg={index() === store.index ? overlay.text.action.primary.focused : theme.text.muted}
                     wrapMode="none"
                     truncate
                     selectable={false}
@@ -158,13 +158,13 @@ export function DialogVcsHunks(props: {
                   </text>
                   <box flexGrow={1} />
                   <text
-                    fg={index() === store.index ? overlay.background.base : overlay.diff.text.added}
+                    fg={index() === store.index ? overlay.text.action.primary.focused : overlay.diff.text.added}
                     selectable={false}
                   >
                     +{hunk.additions}
                   </text>
                   <text
-                    fg={index() === store.index ? overlay.background.base : overlay.diff.text.removed}
+                    fg={index() === store.index ? overlay.text.action.primary.focused : overlay.diff.text.removed}
                     selectable={false}
                   >
                     -{hunk.deletions}

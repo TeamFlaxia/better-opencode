@@ -50,9 +50,10 @@ The layout follows lazygit: **Status**, **Files**, **Bookmarks/Branches**, and
 details in the main panel on the right. The focused panel uses the accent border and
 takes extra height, while the others keep a minimum row so every list stays visible.
 Status colors show clean, changed, and conflict states; file markers use the diff
-colors; remote bookmarks use the informational color. Selected rows use the page
-background as their text color so the accent highlight stays readable. The footer
-groups contextual and global shortcuts on separate rows.
+colors; remote bookmarks use the informational color. Selected rows use the theme's
+opaque selection foreground so the accent highlight stays readable even when the
+normal page background is transparent. The footer groups contextual and global
+shortcuts on separate rows.
 
 Polling updates the panels in place. A refresh keeps the previous list and preview
 visible while the next fetch runs, so rows, selection, and scroll position do not

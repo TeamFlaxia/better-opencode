@@ -155,7 +155,7 @@ export function DialogVcsFiles(props: {
                     <text
                       fg={
                         index() === store.index
-                          ? overlay.background.base
+                          ? overlay.text.action.primary.focused
                           : store.selected[file.file]
                             ? theme.text.base
                             : theme.text.muted
@@ -168,7 +168,7 @@ export function DialogVcsFiles(props: {
                     <text
                       fg={
                         index() === store.index
-                          ? overlay.background.base
+                          ? overlay.text.action.primary.focused
                           : file.conflict
                             ? theme.text.feedback.error.base
                             : theme.text.muted
@@ -180,7 +180,7 @@ export function DialogVcsFiles(props: {
                   <FilePath
                     value={file.file}
                     maxWidth={nameWidth()}
-                    fg={index() === store.index ? overlay.background.base : theme.text.muted}
+                    fg={index() === store.index ? overlay.text.action.primary.focused : theme.text.muted}
                   />
                 </box>
               )}
