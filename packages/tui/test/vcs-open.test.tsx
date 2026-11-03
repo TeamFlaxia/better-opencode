@@ -12,6 +12,7 @@ test("opens the full-pane version control view in place of the conversation", as
   await setup.waitForFrame((frame) => frame.includes("Ask anything"))
 
   setup.mockInput.pressKey("x", { ctrl: true })
+  await setup.flush()
   setup.mockInput.pressKey("v")
 
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
@@ -67,6 +68,7 @@ test("switching session tabs closes the version control view", async () => {
   await setup.waitForFrame((frame) => frame.includes("Conversation A"))
 
   setup.mockInput.pressKey("x", { ctrl: true })
+  await setup.flush()
   setup.mockInput.pressKey("v")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
@@ -138,6 +140,7 @@ test(`switching ${layout} tabs with the mouse leaves the version control view`, 
   await setup.waitForFrame((frame) => frame.includes("Click conversation A"))
 
   setup.mockInput.pressKey("x", { ctrl: true })
+  await setup.flush()
   setup.mockInput.pressKey("v")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
@@ -198,6 +201,7 @@ test("ctrl+tab switches session tabs while the version control view is open", as
   await setup.waitForFrame((frame) => frame.includes("Key conversation A"))
 
   setup.mockInput.pressKey("x", { ctrl: true })
+  await setup.flush()
   setup.mockInput.pressKey("v")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
@@ -235,6 +239,7 @@ test("clicking the active conversation tab closes the version control view", asy
   await setup.waitForFrame((frame) => frame.includes("Active conversation"))
 
   setup.mockInput.pressKey("x", { ctrl: true })
+  await setup.flush()
   setup.mockInput.pressKey("v")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
