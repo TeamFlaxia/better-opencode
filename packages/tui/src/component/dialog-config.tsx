@@ -5,6 +5,7 @@ import { useDialog, type DialogContext } from "../ui/dialog"
 import { DialogSelect, DialogSelectChoice } from "../ui/dialog-select"
 import { useToast } from "../ui/toast"
 import { DialogThemeList } from "./dialog-theme-list"
+import { features } from "./features"
 import { useI18n } from "../i18n"
 
 type Setting = {
@@ -381,6 +382,18 @@ export const settings: Setting[] = [
     labels: ["off", "on"],
     keywords: ["debug bar", "developer tools"],
   },
+  ...features.map(
+    (feature): Setting => ({
+      title: feature.title,
+      category: "Features",
+      path: ["experimental", feature.id],
+      description: feature.description,
+      default: false,
+      values: [false, true],
+      labels: ["off", "on"],
+      keywords: feature.keywords,
+    }),
+  ),
 ]
 
 export function settingID(setting: Setting) {

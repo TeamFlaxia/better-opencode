@@ -4,48 +4,22 @@ import { DIALOG_LIST_INSET } from "../ui/dialog"
 import { DialogSelect } from "../ui/dialog-select"
 import { useTheme } from "../context/theme"
 import { useToast } from "../ui/toast"
-
-type Experiment = {
-  id: string
-  title: string
-  description: string
-}
+import { features, type Feature } from "./features"
 
 // In-flight features anyone can opt into. Each entry is temporary: an
 // experiment either graduates (delete the entry, make the behavior
 // unconditional) or dies (delete the entry and the branch it gated).
-export const experiments: Experiment[] = [
-  {
-    id: "new-designs",
-    title: "New designs",
-    description: "Preview the new TUI designs",
-  },
-  {
-    id: "client-mcp",
-    title: "TUI tools",
-    description: "Let the agent open terminals in this TUI (requires server support)",
-  },
-  {
-    id: "vcs-dock",
-    title: "Version control dock",
-    description: "Show jj or git status beside the tab bar and manage changes in a built-in panel",
-  },
-  {
-    id: "task-graph",
-    title: "Task graph",
-    description: "Show the agent's tasks, dependencies, and live execution as a chart",
-  },
-]
+export const experiments: Feature[] = features
 
 export function DialogExperiments() {
   const config = useConfig()
   const newDesigns = useNewDesigns()
   const theme = useTheme()
   const toast = useToast()
-  const [selected, setSelected] = createSignal<Experiment>()
+  const [selected, setSelected] = createSignal<Feature>()
   const [saving, setSaving] = createSignal(false)
 
-  const enabled = (experiment: Experiment) => config.data.experimental?.[experiment.id] === true
+  const enabled = (experiment: Feature) => config.data.experimental?.[experiment.id] === true
 
   const options = createMemo(() =>
     experiments.map((experiment) => ({

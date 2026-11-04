@@ -20,6 +20,21 @@ test("exposes the language setting", () => {
   expect(settings.find((setting) => setting.path.join(".") === "language")?.values).toEqual(["ja", "en"])
 })
 
+test("exposes better-opencode features as settings toggles", () => {
+  const features = settings.filter((setting) => setting.category === "Features")
+  expect(features.map((setting) => setting.path.join("."))).toEqual([
+    "experimental.vcs-dock",
+    "experimental.task-graph",
+    "experimental.client-mcp",
+    "experimental.new-designs",
+  ])
+  for (const feature of features) {
+    expect(feature.default).toBe(false)
+    expect(feature.values).toEqual([false, true])
+    expect(feature.labels).toEqual(["off", "on"])
+  }
+})
+
 test("validates the explicit diff source defaults", () => {
   for (const source of ["branch", "committed", "working", "turn"] as const) {
     expect(decodeInfo({ diffs: { source } })).toEqual({ diffs: { source } })
