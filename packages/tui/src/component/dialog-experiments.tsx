@@ -4,6 +4,7 @@ import { DIALOG_LIST_INSET } from "../ui/dialog"
 import { DialogSelect } from "../ui/dialog-select"
 import { useTheme } from "../context/theme"
 import { useToast } from "../ui/toast"
+import { useI18n } from "../i18n"
 import { features, type Feature } from "./features"
 
 // In-flight features anyone can opt into. Each entry is temporary: an
@@ -13,6 +14,7 @@ export const experiments: Feature[] = features
 
 export function DialogExperiments() {
   const config = useConfig()
+  const { t } = useI18n()
   const newDesigns = useNewDesigns()
   const theme = useTheme()
   const toast = useToast()
@@ -23,8 +25,8 @@ export function DialogExperiments() {
 
   const options = createMemo(() =>
     experiments.map((experiment) => ({
-      title: experiment.title,
-      searchText: experiment.description,
+      title: t(experiment.title),
+      searchText: [experiment.description, ...experiment.keywords].join(" "),
       footer: enabled(experiment) ? "on" : "off",
       value: experiment,
     })),

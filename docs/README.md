@@ -29,6 +29,8 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 
 AI のタスクと依存関係をライブ表示する Task graph は [task-graph.md](task-graph.md) を参照。
 
+better-opencode の experimental 機能（バージョン管理ドック、Task graph、TUI ツール、新しいデザイン）は、設定の「機能」カテゴリから個別にオン/オフできます。
+
 ## 現在の機能棚卸し（重複提案を避けるため）
 
 すでに存在する主な機能:
