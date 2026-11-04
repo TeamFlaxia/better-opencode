@@ -80,7 +80,8 @@ test("shows the task graph dock from the session transcript", async () => {
   expect(frame).toContain("1/3 done")
   expect(frame).toContain("Build the view")
   expect(frame).toContain("taskwrite")
-  expect(frame).toContain("C1 run")
+  expect(frame).not.toContain("Workspaces planned")
+  expect(frame).not.toContain("C1 run")
 
   const rows = frame.split("\n")
   const dockRow = rows.findIndex((row) => row.includes("TASKS"))

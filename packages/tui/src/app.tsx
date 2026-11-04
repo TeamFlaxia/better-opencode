@@ -1257,7 +1257,7 @@ function App() {
         name: "taskgraph.open",
         title: "Open task graph",
         category: "Tasks",
-        slash: { name: "tasks", aliases: ["taskgraph"] },
+        slash: { name: "tasks" },
         enabled: taskGraphDockEnabled,
         run: openTaskGraph,
       },

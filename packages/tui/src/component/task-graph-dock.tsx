@@ -66,7 +66,7 @@ export function TaskGraphDock(props: {
             fallback={
               <box
                 width={dockWidth()}
-                height={3}
+                height={2}
                 flexShrink={0}
                 flexDirection="column"
                 backgroundColor={background()}
@@ -88,11 +88,6 @@ export function TaskGraphDock(props: {
                   <box flexGrow={1} minWidth={0} />
                   <text fg={color(status())} wrapMode="none" truncate selectable={false}>
                     {Locale.truncateWidth(detail(), 9)}
-                  </text>
-                </box>
-                <box height={1} paddingLeft={1} paddingRight={1}>
-                  <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
-                    {"C1 run · C2 sub · C3 par"}
                   </text>
                 </box>
               </box>
@@ -125,7 +120,7 @@ export function TaskGraphDock(props: {
         }
       >
         <box
-          height={3}
+          height={2}
           flexShrink={0}
           flexDirection="column"
           backgroundColor={background()}
@@ -152,11 +147,6 @@ export function TaskGraphDock(props: {
             <box flexGrow={1} minWidth={0} />
             <text fg={color(status())} wrapMode="none" truncate selectable={false}>
               {detail()}
-            </text>
-          </box>
-          <box height={1} paddingLeft={1} paddingRight={1}>
-            <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
-              {"Workspaces planned · C1 run · C2 subagent · C3 parallel"}
             </text>
           </box>
         </box>

@@ -126,13 +126,11 @@ ask the agent to update the graph after a mutation if the status changed.
 
 ### Planned workspaces
 
-The dock keeps a short placeholder for the workspace phases:
+These phases are planned but not implemented, and the dock does not spend rows on them:
 
 - **C1** — run one task in a `jj workspace` with a linked session.
 - **C2** — run a subagent in a task workspace and report completion to the parent.
 - **C3** — schedule independent tasks in parallel workspaces.
-
-These are not implemented yet; the dock row records the intended sequence.
 
 ## Goal integration
 
