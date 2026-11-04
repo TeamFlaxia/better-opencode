@@ -68,6 +68,26 @@ export type VcsTool = {
   readonly command: string
 }
 
+export const JJ_LINK_TEMPLATE =
+  'change_id.short() ++ "\\t" ++ commit_id.short() ++ "\\t" ++ bookmarks.join(" ") ++ "\\t" ++ description.first_line() ++ "\\t" ++ empty ++ "\\t" ++ conflict ++ "\\t" ++ immutable ++ "\\t" ++ parents.map(|p| p.change_id().short()).join(" ") ++ "\\n"'
+
+export type VcsLinkInfo = {
+  readonly change: string
+  readonly commit: string
+  readonly bookmarks: readonly string[]
+  readonly description: string
+  readonly empty: boolean
+  readonly conflict: boolean
+  readonly immutable: boolean
+  readonly parents: readonly string[]
+}
+
+export type VcsLinkRef = {
+  readonly key: string
+  readonly bookmark?: string
+  readonly change?: string
+}
+
 export type VcsSummary = {
   readonly kind: VcsKind
   readonly label: string
@@ -109,6 +129,51 @@ export function parseJjLog(output: string) {
     empty: parts.at(-2) === "true",
     conflict: parts.at(-1) === "true",
   }
+}
+
+export function parseJjLinks(output: string): VcsLinkInfo[] {
+  return output
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => {
+      const parts = line.split("\t")
+      return {
+        change: parts[0] ?? "",
+        commit: parts[1] ?? "",
+        bookmarks: (parts[2] ?? "").split(" ").filter(Boolean),
+        description: parts.slice(3, -4).join("\t"),
+        empty: parts.at(-4) === "true",
+        conflict: parts.at(-3) === "true",
+        immutable: parts.at(-2) === "true",
+        parents: (parts.at(-1) ?? "").split(" ").filter(Boolean),
+      }
+    })
+}
+
+export function jjLinkRevset(refs: readonly VcsLinkRef[]) {
+  return [
+    ...new Set(
+      refs.flatMap((ref) => [
+        ref.bookmark ? `bookmarks(${JSON.stringify(ref.bookmark)})` : undefined,
+        ref.change,
+      ]),
+    ),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" | ")
+}
+
+export function matchJjLinks(refs: readonly VcsLinkRef[], links: readonly VcsLinkInfo[]) {
+  const result: Record<string, VcsLinkInfo> = {}
+  for (const ref of refs) {
+    const found = links.find(
+      (link) =>
+        (ref.change !== undefined && link.change === ref.change) ||
+        (ref.bookmark !== undefined && link.bookmarks.includes(ref.bookmark)),
+    )
+    if (found) result[ref.key] = found
+  }
+  return result
 }
 
 export function parseJjFiles(output: string): VcsFile[] {

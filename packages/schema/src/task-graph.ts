@@ -10,6 +10,10 @@ export const Status = Schema.Literals(["pending", "active", "done", "blocked", "
 export type Status = typeof Status.Type
 
 const Label = Schema.Trim.pipe(Schema.check(Schema.isNonEmpty()))
+const Bookmark = Schema.Trim.pipe(
+  Schema.check(Schema.isNonEmpty()),
+  Schema.check(Schema.isPattern(/^[^\s\x00-\x1f\x7f]+$/u)),
+)
 
 export interface Task extends Schema.Schema.Type<typeof Task> {}
 export const Task = Schema.Struct({
@@ -18,6 +22,12 @@ export const Task = Schema.Struct({
   status: Status.annotate({ description: "pending, active, done, blocked, or cancelled" }),
   dependsOn: Schema.Array(Label).annotate({
     description: "Task IDs that must finish before this task can start",
+  }),
+  bookmark: Bookmark.pipe(optional).annotate({
+    description: "The jj bookmark linked to this task, for example task/build",
+  }),
+  change: Label.pipe(optional).annotate({
+    description: "The jj change ID linked to this task",
   }),
   reason: Label.pipe(optional).annotate({
     description: "Why the task is blocked, cancelled, or skipped",

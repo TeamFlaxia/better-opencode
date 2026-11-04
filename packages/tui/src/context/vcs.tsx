@@ -4,8 +4,12 @@ import { createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { useConfig } from "../config"
 import {
   detectVcsKind,
+  jjLinkRevset,
+  JJ_LINK_TEMPLATE,
+  matchJjLinks,
   mutationCommands,
   parseGitBranches,
+  parseJjLinks,
   parseGitDiffHunks,
   parseGitHistory,
   parseGitStatus,
@@ -16,6 +20,8 @@ import {
   type VcsBranchAction,
   type VcsHunkPatch,
   type VcsKind,
+  type VcsLinkInfo,
+  type VcsLinkRef,
   type VcsListEntry,
   type VcsMutation,
   type VcsSummary,
@@ -509,6 +515,120 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       })
     })
 
+    const jjRepository = () => {
+      const current = summary()
+      const target = info()
+      if (!current || current.kind !== "jj" || !target) return
+      return { cwd: target.project.canonical }
+    }
+
+    const resolveLinks = async (refs: ReadonlyArray<VcsLinkRef>): Promise<Record<string, VcsLinkInfo>> => {
+      const repository = jjRepository()
+      if (!repository || refs.length === 0) return {}
+      const revset = jjLinkRevset(refs)
+      if (!revset) return {}
+      try {
+        const result = await run(
+          "jj",
+          ["--no-pager", "--color=never", "log", "--no-graph", "-r", revset, "-T", JJ_LINK_TEMPLATE],
+          repository.cwd,
+        )
+        return matchJjLinks(refs, parseJjLinks(result.stdout))
+      } catch {
+        // One malformed change ID must not hide every other link. Retry each reference on its own.
+        const result: Record<string, VcsLinkInfo> = {}
+        for (const ref of refs) {
+          const single = jjLinkRevset([ref])
+          if (!single) continue
+          try {
+            const output = await run(
+              "jj",
+              ["--no-pager", "--color=never", "log", "--no-graph", "-r", single, "-T", JJ_LINK_TEMPLATE],
+              repository.cwd,
+            )
+            Object.assign(result, matchJjLinks([ref], parseJjLinks(output.stdout)))
+          } catch {
+            // A task with a broken reference stays unlinked.
+          }
+        }
+        return result
+      }
+    }
+
+    const jjAction = async (
+      title: string,
+      args: readonly string[],
+      options: { refresh?: boolean; success?: string } = {},
+    ) => {
+      const repository = jjRepository()
+      if (!repository) return undefined
+      try {
+        const result = await run("jj", ["--no-pager", "--color=never", ...args], repository.cwd)
+        if (options.refresh !== false) await refresh()
+        if (options.success) toast.show({ variant: "success", message: options.success })
+        return result.stdout.trim()
+      } catch (error) {
+        toast.show({ title, message: errorMessage(error), variant: "error" })
+        return undefined
+      }
+    }
+
+    const newTaskChange = async (message: string) => {
+      const result = await jjAction("Unable to create a change", ["new", "-m", message], {
+        success: "Version control: started a change",
+      })
+      if (result === undefined) return
+      const change = await jjAction("Unable to read the new change", [
+        "log",
+        "--no-graph",
+        "-r",
+        "@",
+        "-T",
+        "change_id.short()",
+      ])
+      return change || undefined
+    }
+
+    const describeTask = async (ref: string, message: string) =>
+      (await jjAction("Unable to describe the change", ["describe", "-r", ref, "-m", message], {
+        success: "Version control: described the change",
+      })) !== undefined
+
+    const bookmarkTask = async (ref: string, bookmark: string) =>
+      (await jjAction("Unable to set the bookmark", ["bookmark", "set", bookmark, "-r", ref], {
+        success: `Version control: set ${bookmark}`,
+      })) !== undefined
+
+    const editTask = async (ref: string) =>
+      (await jjAction("Unable to edit the change", ["edit", ref], {
+        success: `Version control: switched to ${ref}`,
+      })) !== undefined
+
+    const squashTask = async (ref: string) =>
+      (await jjAction("Unable to squash the change", ["squash", "--from", ref], {
+        success: "Version control: squashed the change",
+      })) !== undefined
+
+    const abandonTask = async (ref: string) =>
+      (await jjAction("Unable to abandon the change", ["abandon", ref], {
+        success: "Version control: abandoned the change",
+      })) !== undefined
+
+    const isAncestor = async (ancestor: string, descendant: string) => {
+      const repository = jjRepository()
+      if (!repository) return false
+      try {
+        const result = await run(
+          "jj",
+          ["--no-pager", "--color=never", "log", "--no-graph", "-r", `${ancestor} & ::${descendant}`, "-T", "change_id.short()"],
+          repository.cwd,
+        )
+        return result.stdout.trim().length > 0
+      } catch {
+        return false
+      }
+    }
+
     return {
       visible,
       summary,
@@ -528,6 +648,14 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       branchAction,
       hunks,
       applyHunks,
+      resolveLinks,
+      newTaskChange,
+      describeTask,
+      bookmarkTask,
+      editTask,
+      squashTask,
+      abandonTask,
+      isAncestor,
     }
   },
 })

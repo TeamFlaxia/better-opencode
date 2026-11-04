@@ -1,7 +1,14 @@
 import { expect, test } from "bun:test"
 import type { SessionMessageAssistant, SessionMessageAssistantTool, SessionMessageInfo } from "@opencode/client"
 import { TaskGraph } from "@opencode/schema/task-graph"
-import { buildTaskGraph, graphColor, statusMarker, summarizeGraph } from "../../src/util/task-graph"
+import {
+  buildTaskGraph,
+  graphColor,
+  statusMarker,
+  summarizeGraph,
+  taskGraphDeclaredAt,
+} from "../../src/util/task-graph"
+import { jjLinkRevset, matchJjLinks, parseJjLinks } from "../../src/util/vcs"
 
 const model = { id: "model", providerID: "provider" }
 
@@ -200,4 +207,102 @@ test("summarizes the graph and picks an unambiguous marker", () => {
   expect(summarizeGraph(graph)).toContain("1 running")
   expect(statusMarker("done")).toBe("[✓]")
   expect(statusMarker("blocked")).toBe("[!]")
+})
+
+
+test("parses jj links and resolves task references", () => {
+  const output = [
+    ["znnsty", "8f3a1c2", "task/build main", "task(build): Build", "true", "false", "false", "qpq"].join("\t"),
+    ["qpq", "1111111", "", "base", "false", "true", "false", ""].join("\t"),
+  ].join("\n")
+
+  const links = parseJjLinks(output)
+  expect(links).toEqual([
+    {
+      change: "znnsty",
+      commit: "8f3a1c2",
+      bookmarks: ["task/build", "main"],
+      description: "task(build): Build",
+      empty: true,
+      conflict: false,
+      immutable: false,
+      parents: ["qpq"],
+    },
+    {
+      change: "qpq",
+      commit: "1111111",
+      bookmarks: [],
+      description: "base",
+      empty: false,
+      conflict: true,
+      immutable: false,
+      parents: [],
+    },
+  ])
+  expect(jjLinkRevset([{ key: "build", bookmark: "task/build" }, { key: "base", change: "qpq" }])).toBe(
+    'bookmarks("task/build") | qpq',
+  )
+  expect(matchJjLinks([{ key: "build", bookmark: "task/build" }, { key: "base", change: "qpq" }], links)).toEqual({
+    build: links[0],
+    base: links[1],
+  })
+})
+
+test("merges a TUI link over the taskwrite link when it is newer", () => {
+  const messages = [
+    assistant(
+      "msg_1",
+      [taskwrite([{ id: "build", title: "Build", status: "active", dependsOn: [], bookmark: "task/old" }])],
+      { created: 10, completed: 11 },
+    ),
+  ]
+  const vcsLinks = {
+    build: {
+      change: "znnsty",
+      commit: "8f3a1c2",
+      bookmarks: ["task/build"],
+      description: "task(build): Build",
+      empty: false,
+      conflict: true,
+      immutable: false,
+      parents: ["qpq"],
+    },
+  }
+
+  expect(taskGraphDeclaredAt(messages)).toBe(10)
+  const graph = buildTaskGraph({
+    messages,
+    running: true,
+    declaredAt: 10,
+    links: { build: { change: "znnsty", bookmark: "task/build", updatedAt: 20 } },
+    vcsLinks,
+    vcsHead: "znnsty",
+  })
+  expect(graph.tasks[0]!.vcs).toMatchObject({
+    change: "znnsty",
+    ref: "task/build",
+    current: true,
+    conflict: true,
+  })
+
+  const older = buildTaskGraph({
+    messages,
+    running: true,
+    declaredAt: 10,
+    links: { build: { bookmark: "task/stale", updatedAt: 5 } },
+    vcsLinks,
+    vcsHead: "znnsty",
+  })
+  expect(older.tasks[0]!.vcs).toMatchObject({ ref: "task/build", current: true })
+})
+
+test("marks an explicitly linked but missing change as broken", () => {
+  const messages = [
+    assistant(
+      "msg_1",
+      [taskwrite([{ id: "build", title: "Build", status: "active", dependsOn: [], change: "missing" }])],
+    ),
+  ]
+  const graph = buildTaskGraph({ messages, running: true })
+  expect(graph.tasks[0]!.vcs).toMatchObject({ ref: "missing", broken: true, current: false })
 })

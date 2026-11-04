@@ -6,4 +6,5 @@ Use it when work has dependencies or when a goal must be split into several unit
 - Give every task a stable `id`, a short `title`, a `status`, and its `dependsOn` IDs.
 - Use `pending` before work starts, `active` while it runs, `done` when it is verified, and `blocked` with a `reason` when something outside the agent stops it.
 - Keep dependencies acyclic. A task may only depend on IDs in the same graph.
+- In a jj repository, include the task's bookmark as `bookmark` and its change ID as `change` when they exist. Use a bookmark named `task/<id>` unless the user chooses another name.
 - Only call it when the graph changes.

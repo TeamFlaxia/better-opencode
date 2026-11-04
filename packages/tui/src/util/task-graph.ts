@@ -1,6 +1,8 @@
 import type { Goal } from "@opencode/schema/goal"
 import type { SessionMessageAssistantTool, SessionMessageInfo } from "@opencode/client"
 import { TaskGraph } from "@opencode/schema/task-graph"
+import { TaskLink } from "@opencode/schema/task-link"
+import type { VcsLinkInfo } from "./vcs"
 import { sessionTodos } from "./todo"
 
 export type TaskNodeKind = "goal" | "task" | "step" | "tool" | "subagent"
@@ -32,6 +34,7 @@ export type TaskNode = {
   completed?: number
   tokens?: number
   cost?: number
+  vcs?: VcsLinkInfo & { ref: string; current: boolean; broken?: boolean }
 }
 
 export type TaskGraphModel = {
@@ -72,6 +75,10 @@ export function buildTaskGraph(input: {
   sessions?: ReadonlyArray<SessionSummary>
   running?: boolean
   waiting?: boolean
+  links?: Readonly<Record<string, TaskLink.Link>>
+  vcsLinks?: Readonly<Record<string, VcsLinkInfo>>
+  vcsHead?: string
+  declaredAt?: number
 }): TaskGraphModel {
   const execution = buildExecution(input.messages, input.sessions ?? [], input.running === true)
   const runningExecution = execution.some((node) => node.status === "running")
@@ -85,6 +92,8 @@ export function buildTaskGraph(input: {
       waiting: input.waiting === true,
       done: new Set(declared.filter((item) => item.status === "done").map((item) => item.id)),
     })
+    const link = resolveLink(task, input.links?.[task.id], input.declaredAt)
+    const vcs = vcsFor(link, input.vcsLinks?.[task.id], input.vcsHead)
     return {
       id: task.id,
       kind: "task",
@@ -94,6 +103,7 @@ export function buildTaskGraph(input: {
       reason: taskReason(task, status, input.goal),
       detail: detailFor(task),
       layer: layers.get(task.id) ?? 0,
+      vcs,
     }
   })
   tasks.sort(byLayerThenStatus)
@@ -163,6 +173,55 @@ export function statusLabel(status: TaskNodeStatus) {
   if (status === "cancelled") return "cancelled"
   if (status === "skipped") return "skipped"
   return "pending"
+}
+
+type ResolvedLink = { bookmark?: string; change?: string; explicit: boolean }
+
+function resolveLink(
+  task: TaskGraph.Task,
+  stored: TaskLink.Link | undefined,
+  declaredAt: number | undefined,
+): ResolvedLink {
+  const message = task.bookmark || task.change ? { bookmark: task.bookmark, change: task.change } : undefined
+  if (stored && (declaredAt === undefined || stored.updatedAt >= declaredAt) && (stored.bookmark || stored.change)) {
+    return { bookmark: stored.bookmark ?? message?.bookmark, change: stored.change ?? message?.change, explicit: true }
+  }
+  if (message) return { ...message, explicit: true }
+  if (stored?.bookmark || stored?.change) return { bookmark: stored.bookmark, change: stored.change, explicit: true }
+  return { explicit: false }
+}
+
+function vcsFor(link: ResolvedLink, found: VcsLinkInfo | undefined, head: string | undefined) {
+  if (found) return { ...found, ref: found.bookmarks[0] ?? link.bookmark ?? found.change, current: found.change === head }
+  const ref = link.bookmark ?? link.change
+  if (!ref) return undefined
+  return {
+    change: "",
+    commit: "",
+    bookmarks: [],
+    description: "",
+    empty: false,
+    conflict: false,
+    immutable: false,
+    parents: [],
+    ref,
+    current: false,
+    broken: true,
+  }
+}
+
+/** The time of the latest completed taskwrite call, used to decide whether a TUI link is newer. */
+export function taskGraphDeclaredAt(messages: ReadonlyArray<SessionMessageInfo>): number | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (message?.type !== "assistant") continue
+    for (let partIndex = message.content.length - 1; partIndex >= 0; partIndex--) {
+      const part = message.content[partIndex]
+      if (part?.type === "tool" && part.name === "taskwrite" && part.state.status === "completed")
+        return message.time.created
+    }
+  }
+  return undefined
 }
 
 function declaredTasks(messages: ReadonlyArray<SessionMessageInfo>): TaskGraph.Task[] {

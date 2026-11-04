@@ -457,7 +457,7 @@ export const Plugin = define({
   }),
 })
 
-const TASK_GRAPH_KICKOFF = `Before the first substantive step, split the objective into a small task graph with the \`taskwrite\` tool: 2 to 8 tasks with stable IDs, statuses, and \`dependsOn\` links. Keep that graph current as the work moves: mark a task \`active\` when it starts, \`done\` only when it is verified, and \`blocked\` with a reason when something outside the agent stops it.`
+const TASK_GRAPH_KICKOFF = `Before the first substantive step, split the objective into a small task graph with the \`taskwrite\` tool: 2 to 8 tasks with stable IDs, statuses, and \`dependsOn\` links. Keep that graph current as the work moves: mark a task \`active\` when it starts, \`done\` only when it is verified, and \`blocked\` with a reason when something outside the agent stops it. If this repository uses jj, create a bookmark \`task/<id>\` when you start each task and include its \`bookmark\` and \`change\` in taskwrite.`
 
 function continuation(
   goal: State,

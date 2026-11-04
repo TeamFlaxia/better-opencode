@@ -1629,7 +1629,13 @@ function App() {
                       </Switch>
                     }
                   >
-                    <TaskGraphView onClose={() => setTaskGraphOpen(false)} />
+                    <TaskGraphView
+                      onClose={() => setTaskGraphOpen(false)}
+                      onOpenVcs={() => {
+                        setTaskGraphOpen(false)
+                        setVcsOpen(true)
+                      }}
+                    />
                   </Show>
                 }
               >
