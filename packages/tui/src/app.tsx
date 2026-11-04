@@ -528,6 +528,16 @@ function App() {
   // Full-pane views are transient: switching session tabs returns to that tab's conversation.
   const [vcsOpen, setVcsOpen] = createSignal(false)
   const [taskGraphOpen, setTaskGraphOpen] = createSignal(false)
+  // The two full-pane views share one content area, so opening one closes the other even
+  // when the click comes from the dock of the view that is already open.
+  const openTaskGraph = () => {
+    setVcsOpen(false)
+    setTaskGraphOpen(true)
+  }
+  const openVcs = () => {
+    setTaskGraphOpen(false)
+    setVcsOpen(true)
+  }
   const vcsKey = () => {
     if (route.data.type === "session") return `session:${route.data.sessionID}`
     if (route.data.type === "home") return "home"
@@ -1234,9 +1244,7 @@ function App() {
         category: "Version control",
         slash: { name: "vcs", aliases: ["jj", "git"] },
         enabled: vcsDockEnabled,
-        run: () => {
-          setVcsOpen(true)
-        },
+        run: openVcs,
       },
       {
         name: "vcs.refresh",
@@ -1251,9 +1259,7 @@ function App() {
         category: "Tasks",
         slash: { name: "tasks", aliases: ["taskgraph"] },
         enabled: taskGraphDockEnabled,
-        run: () => {
-          setTaskGraphOpen(true)
-        },
+        run: openTaskGraph,
       },
       {
         name: "taskgraph.refresh",
@@ -1533,11 +1539,11 @@ function App() {
                     <TaskGraphDock
                       orientation="vertical"
                       width={tabsWidth()}
-                      onOpen={() => setTaskGraphOpen(true)}
+                      onOpen={openTaskGraph}
                     />
                   </Show>
                   <Show when={vcsDockVisible()}>
-                    <VcsDock orientation="vertical" width={tabsWidth()} onOpen={() => setVcsOpen(true)} />
+                    <VcsDock orientation="vertical" width={tabsWidth()} onOpen={openVcs} />
                   </Show>
                 </box>
               ) : undefined
@@ -1562,10 +1568,10 @@ function App() {
                       <Show when={taskGraphDockVisible() || vcsDockBelow()}>
                         <box flexDirection="column">
                           <Show when={taskGraphDockVisible()}>
-                            <TaskGraphDock orientation="below" onOpen={() => setTaskGraphOpen(true)} />
+                            <TaskGraphDock orientation="below" onOpen={openTaskGraph} />
                           </Show>
                           <Show when={vcsDockBelow()}>
-                            <VcsDock orientation="below" onOpen={() => setVcsOpen(true)} />
+                            <VcsDock orientation="below" onOpen={openVcs} />
                           </Show>
                         </box>
                       </Show>
@@ -1587,10 +1593,10 @@ function App() {
                         <TaskGraphDock
                           orientation="right"
                           width={VCS_DOCK_WIDTH}
-                          onOpen={() => setTaskGraphOpen(true)}
+                          onOpen={openTaskGraph}
                         />
                       </Show>
-                      <VcsDock orientation="right" width={VCS_DOCK_WIDTH} onOpen={() => setVcsOpen(true)} />
+                      <VcsDock orientation="right" width={VCS_DOCK_WIDTH} onOpen={openVcs} />
                     </box>
                   </box>
                 </Show>
@@ -1631,10 +1637,7 @@ function App() {
                   >
                     <TaskGraphView
                       onClose={() => setTaskGraphOpen(false)}
-                      onOpenVcs={() => {
-                        setTaskGraphOpen(false)
-                        setVcsOpen(true)
-                      }}
+                      onOpenVcs={openVcs}
                     />
                   </Show>
                 }

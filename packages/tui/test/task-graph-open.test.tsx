@@ -101,6 +101,45 @@ test("shows the task graph dock from the session transcript", async () => {
   await setup.waitForFrame((next) => next.includes("Task graph") && next.includes("Verify on CI"))
 }, 20000)
 
+test("clicking the task dock leaves the VCS view", async () => {
+  await using setup = await createAppFixture({
+    width: 110,
+    height: 32,
+    args: { sessionID: session.id },
+    config: {
+      animations: false,
+      tabs: { mode: "on" },
+      experimental: { "task-graph": true, "vcs-dock": true },
+    },
+    fetch: (url) => {
+      if (url.pathname === "/api/location") return json(location)
+      if (url.pathname === "/api/session") return json({ data: [session], cursor: {} })
+      if (url.pathname === `/api/session/${session.id}`) return json({ data: session })
+      if (url.pathname === `/api/session/${session.id}/message`) return json({ data: [message], cursor: {} })
+      if (/^\/api\/session\/[^/]+\/(inbox|permission|form)$/.test(url.pathname)) return json({ data: [] })
+      if (url.pathname === "/api/agent")
+        return json({ location, data: [{ id: "build", mode: "primary", hidden: false, permissions: [] }] })
+      if (url.pathname === "/api/provider") return json({ location, data: [{ id: "provider", name: "Provider" }] })
+      if (url.pathname === "/api/model")
+        return json({ location, data: [{ id: "model", providerID: "provider", name: "Model", variants: [] }] })
+    },
+  })
+  await setup.ready
+  await setup.waitForFrame((frame) => frame.includes("TASKS") && frame.includes("Build the view"))
+
+  const rows = setup.captureCharFrame().split("\n")
+  const taskDockRow = rows.findIndex((row) => row.includes("TASKS"))
+  expect(taskDockRow).toBeGreaterThanOrEqual(0)
+
+  setup.mockInput.pressKey("x", { ctrl: true })
+  await setup.flush()
+  setup.mockInput.pressKey("v")
+  await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
+
+  await setup.mockMouse.click(3, taskDockRow)
+  await setup.waitForFrame((frame) => frame.includes("Task graph") && frame.includes("Depends on layer 1"))
+}, 20000)
+
 test("keeps the dock visible before the session declares tasks", async () => {
   await using setup = await createAppFixture({
     width: 110,
