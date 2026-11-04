@@ -1,0 +1,13 @@
+diff --git a/dist/NodeWS.js b/dist/NodeWS.js
+index 0895db2f861a83284e99566d366e548fc4ef225b..7070fe1595661b7dd5d508fb9105a7f4bde9748d 100644
+--- a/dist/NodeWS.js
++++ b/dist/NodeWS.js
+@@ -11,7 +11,7 @@ import * as Socket from "effect/socket/Socket";
+ /**
+  * @since 4.1.0
+  */
+-export * from "@effect/platform-node-shared/NodeWS";
++export { WebSocket, WebSocketServer, createWebSocketStream, Receiver, Sender } from "@effect/platform-node-shared/NodeWS";
+ /**
+  * Provides a `Socket.WebSocketConstructor` backed by the `ws` package.
+  *

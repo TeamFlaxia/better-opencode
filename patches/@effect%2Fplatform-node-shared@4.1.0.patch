@@ -1,0 +1,22 @@
+diff --git a/dist/NodeWS.js b/dist/NodeWS.js
+index e29eb7dae33882898922845f57a3ac21cbc41181..486286990832b22de382f6b30d5e271f22e39906 100644
+--- a/dist/NodeWS.js
++++ b/dist/NodeWS.js
+@@ -5,10 +5,9 @@
+  * @stability unstable
+  * @since 4.1.0
+  */
+-/**
+- * @stability unstable
+- * @category re-exports
+- * @since 4.1.0
+- */
+-export * from "ws";
+-//# sourceMappingURL=NodeWS.js.map
+\ No newline at end of file
++import * as WS from "ws";
++export const WebSocket = WS.WebSocket;
++export const WebSocketServer = WS.WebSocketServer;
++export const createWebSocketStream = WS.createWebSocketStream;
++export const Receiver = WS.Receiver;
++export const Sender = WS.Sender;
