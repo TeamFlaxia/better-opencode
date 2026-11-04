@@ -108,11 +108,9 @@ export const { use: useTaskGraph, provider: TaskGraphProvider } = createSimpleCo
         waiting: waiting(),
       })
     })
-    const visible = () =>
-      enabled() &&
-      (graph().goal !== undefined ||
-        graph().tasks.length > 0 ||
-        graph().execution.some((node) => node.status === "running" || node.status === "waiting"))
+    // The dock is resident while the experiment is enabled, including before the session
+    // declares tasks, so it stays a stable entry point to the graph.
+    const visible = () => enabled()
 
     const refresh = async () => {
       if (!enabled()) return

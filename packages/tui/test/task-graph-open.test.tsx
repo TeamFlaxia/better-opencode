@@ -99,3 +99,28 @@ test("shows the task graph dock from the session transcript", async () => {
   setup.mockInput.pressKey("j")
   await setup.waitForFrame((next) => next.includes("Task graph") && next.includes("Verify on CI"))
 }, 20000)
+
+test("keeps the dock visible before the session declares tasks", async () => {
+  await using setup = await createAppFixture({
+    width: 110,
+    height: 32,
+    args: { sessionID: session.id },
+    config: { animations: false, tabs: { mode: "on" }, experimental: { "task-graph": true } },
+    fetch: (url) => {
+      if (url.pathname === "/api/location") return json(location)
+      if (url.pathname === "/api/session") return json({ data: [session], cursor: {} })
+      if (url.pathname === `/api/session/${session.id}`) return json({ data: session })
+      if (url.pathname === `/api/session/${session.id}/message`) return json({ data: [], cursor: {} })
+      if (/^\/api\/session\/[^/]+\/(inbox|permission|form)$/.test(url.pathname)) return json({ data: [] })
+      if (url.pathname === "/api/agent")
+        return json({ location, data: [{ id: "build", mode: "primary", hidden: false, permissions: [] }] })
+      if (url.pathname === "/api/provider") return json({ location, data: [{ id: "provider", name: "Provider" }] })
+      if (url.pathname === "/api/model")
+        return json({ location, data: [{ id: "model", providerID: "provider", name: "Model", variants: [] }] })
+    },
+  })
+  await setup.ready
+  await setup.waitForFrame((frame) => frame.includes("TASKS") && frame.includes("No tasks yet"))
+
+  expect(setup.captureCharFrame()).toContain("no tasks")
+}, 20000)

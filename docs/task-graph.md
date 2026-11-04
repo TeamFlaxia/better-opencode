@@ -38,8 +38,10 @@ the display status:
 ## Where it lives
 
 The Task graph dock sits above the VCS dock beside the tab bar. It is independent of
-the VCS dock, so it still appears when the project has no repository. The dock shows a
-progress summary and the current task; click it to open the full-pane view.
+the VCS dock, so it still appears when the project has no repository. While the
+experiment is enabled the dock is resident: it stays visible in sessions that have not
+declared any tasks yet and shows `No tasks yet` until the graph arrives. The dock shows
+a progress summary and the current task; click it to open the full-pane view.
 
 The full-pane view has:
 
