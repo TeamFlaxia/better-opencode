@@ -42,7 +42,7 @@ function controller(input: {
   remotes?: () => string[]
   history?: () => VcsListEntry[]
   show?: (ref: string) => string
-  switchTo?: (ref: string) => void
+  switchTo?: (ref: string, options?: { localName?: string }) => void
   startChange?: (ref: string) => void
   moveBookmark?: (name: string, target: string) => void
   branchAction?: (action: VcsBranchAction, input: Record<string, string | undefined>) => void
@@ -59,7 +59,7 @@ function controller(input: {
     remotes: async () => input.remotes?.() ?? [],
     history: async () => input.history?.() ?? [],
     show: async (ref) => input.show?.(ref) ?? `commit ${ref}`,
-    switchTo: async (ref) => input.switchTo?.(ref),
+    switchTo: async (ref, options) => input.switchTo?.(ref, options),
     startChange: async (ref) => input.startChange?.(ref),
     moveBookmark: async (name, target) => input.moveBookmark?.(name, target),
     branchAction: async (action, value) => input.branchAction?.(action, value),
@@ -695,6 +695,86 @@ test("chooses a git remote to push to", async () => {
     app.mockInput.pressEnter()
     await app.waitFor(() => executed.length === 1)
     expect(executed[0]).toEqual(["push", undefined, [], "origin"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+const gitBranches: VcsListEntry[] = [
+  { id: "main", label: "main", name: "main", current: true, detail: "48b02f7f5c · latest" },
+  { id: "feature", label: "feature", name: "feature", detail: "2c35b89292 · topic" },
+  {
+    id: "origin/feature",
+    label: "origin/feature",
+    name: "feature",
+    remote: true,
+    remoteName: "origin",
+    detail: "2c35b89292 · topic",
+  },
+]
+
+test("lists remote Git branches and pushes the matching local branch", async () => {
+  const executed: Array<[VcsMutation, string | undefined, readonly string[] | undefined, string | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: git,
+            branches: () => gitBranches,
+            execute: (action, value, paths, remote) => executed.push([action, value, paths, remote]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 36, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/b.ts"))
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("Remote · 1") && frame.includes("origin/feature"))
+    app.mockInput.pressArrow("down")
+    app.mockInput.pressArrow("down")
+    await app.waitForFrame((frame) => frame.includes("origin/feature"))
+    app.mockInput.pressKey("p")
+    await app.waitFor(() => executed.length === 1)
+    expect(executed[0]).toEqual(["push", "feature", [], "origin"])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("switches from a remote Git branch through a tracking local branch", async () => {
+  const switched: Array<{ ref: string; localName?: string }> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: git,
+            branches: () => gitBranches,
+            switchTo: (ref, options) => switched.push({ ref, localName: options?.localName }),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 36, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("src/b.ts"))
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("Remote · 1") && frame.includes("origin/feature"))
+    app.mockInput.pressArrow("down")
+    app.mockInput.pressArrow("down")
+    app.mockInput.pressEnter()
+    await app.waitFor(() => switched.length === 1)
+    expect(switched[0]).toEqual({ ref: "origin/feature", localName: "feature" })
   } finally {
     app.renderer.destroy()
   }

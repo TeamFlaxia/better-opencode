@@ -9,6 +9,7 @@ import {
   matchJjLinks,
   mutationCommands,
   parseGitBranches,
+  parseGitRemoteBranches,
   parseJjLinks,
   parseGitDiffHunks,
   parseGitHistory,
@@ -296,12 +297,25 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       if (!current || !target) return []
       const kind = current.kind
       if (kind === "git") {
-        const result = await run(
-          "git",
-          ["--no-pager", "branch", "--format=%(HEAD)%09%(refname:short)%09%(objectname:short)%09%(contents:subject)"],
-          target.project.canonical,
-        )
-        return parseGitBranches(result.stdout)
+        const [local, remoteBranches, remoteNames] = await Promise.all([
+          run(
+            "git",
+            ["--no-pager", "branch", "--format=%(HEAD)%09%(refname:short)%09%(objectname:short)%09%(contents:subject)"],
+            target.project.canonical,
+          ),
+          run(
+            "git",
+            [
+              "--no-pager",
+              "branch",
+              "--remotes",
+              "--format=%(refname:short)%09%(objectname:short)%09%(contents:subject)",
+            ],
+            target.project.canonical,
+          ),
+          remotes(),
+        ])
+        return [...parseGitBranches(local.stdout), ...parseGitRemoteBranches(remoteBranches.stdout, remoteNames)]
       }
       if (kind === "jj") {
         const result = await run(
@@ -378,14 +392,31 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       return ""
     }
 
-    const switchTo = async (ref: string) => {
+    const switchTo = async (ref: string, options?: { localName?: string }) => {
       const current = summary()
       const target = info()
       if (!current || !target) return
       const kind = current.kind
       try {
-        if (kind === "git") await run("git", ["switch", ref], target.project.canonical)
-        else if (kind === "jj") await run("jj", ["edit", ref], target.project.canonical)
+        if (kind === "git") {
+          if (options?.localName) {
+            const local = await run(
+              "git",
+              ["branch", "--list", options.localName, "--format=%(refname:short)"],
+              target.project.canonical,
+            ).then(
+              (result) => result.stdout.trim() === options.localName,
+              () => false,
+            )
+            await run(
+              "git",
+              local ? ["switch", options.localName] : ["switch", "--track", ref],
+              target.project.canonical,
+            )
+          } else {
+            await run("git", ["switch", ref], target.project.canonical)
+          }
+        } else if (kind === "jj") await run("jj", ["edit", ref], target.project.canonical)
         await refresh()
         toast.show({ variant: "success", message: `Version control: switched to ${ref}` })
       } catch (error) {

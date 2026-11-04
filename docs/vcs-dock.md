@@ -132,13 +132,18 @@ jj:
 Git:
 
 - Review changes
-- Browse branches and history, and switch to a branch or commit
-- Create, rename, and delete branches
+- Browse local and remote branches and history, and switch to a branch or commit
+- Switch to a remote branch by creating or using its local tracking branch
+- Create, rename, and delete local branches
 - Commit staged changes with a message
 - Stage everything and commit in one action
 - Stage or unstage selected files
 - Stage or unstage selected hunks
 - Fetch, pull, and push a selected Git remote
+- Push a local branch with `--set-upstream`, or push the matching local branch for a
+  selected remote branch
+- Select a remote to push to; the view falls back to pushing the current branch when
+  no local branch is selected
 
 The file and hunk pickers are multi-select lists: `space` toggles the current
 item, `a` toggles all items, `enter` confirms, and `esc` cancels. Confirming

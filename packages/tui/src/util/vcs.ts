@@ -240,7 +240,37 @@ export function parseGitBranches(output: string): VcsListEntry[] {
         {
           id: name,
           label: name,
+          name,
           current: head.trim() === "*",
+          detail: [commit, subject.join("\t")].filter(Boolean).join(" · "),
+        },
+      ]
+    })
+}
+
+export function parseGitRemoteBranches(output: string, remotes: readonly string[] = []): VcsListEntry[] {
+  return output
+    .split("\n")
+    .filter(Boolean)
+    .flatMap((line) => {
+      const [ref, commit, ...subject] = line.split("\t")
+      if (!ref || ref.endsWith("/HEAD")) return []
+      // Remote names may contain slashes, so prefer the longest configured remote prefix.
+      const remoteName =
+        remotes
+          .filter((remote) => ref.startsWith(`${remote}/`))
+          .toSorted((a, b) => b.length - a.length)[0] ??
+        (remotes.length === 0 ? ref.slice(0, Math.max(0, ref.indexOf("/"))) : undefined)
+      if (!remoteName) return []
+      const name = ref.slice(remoteName.length + 1)
+      if (!name) return []
+      return [
+        {
+          id: ref,
+          label: ref,
+          name,
+          remote: true,
+          remoteName,
           detail: [commit, subject.join("\t")].filter(Boolean).join(" · "),
         },
       ]
@@ -404,7 +434,17 @@ export function mutationCommands(
         { command: "git", args: remote ? ["fetch", "--prune", remote] : ["fetch", "--all", "--prune"] },
       ]
     if (action === "pull") return [{ command: "git", args: ["pull", "--ff-only"] }]
-    if (action === "push") return [{ command: "git", args: ["push", ...(remote ? [remote] : [])] }]
+    if (action === "push")
+      return [
+        {
+          command: "git",
+          args: [
+            "push",
+            ...(remote ? ["--set-upstream", remote] : []),
+            ...(value ? [value] : []),
+          ],
+        },
+      ]
     return []
   }
   return []

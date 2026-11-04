@@ -255,9 +255,17 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   }
   const bookmarkNames = createMemo(() => current()?.bookmarks?.split(" ").filter(Boolean) ?? [])
   const branchDetail = (item: VcsListEntry) =>
-    item.remote ? (item.tracked ? "tracked" : "untracked") : (item.detail?.split(" · ")[0] ?? "")
+    item.remote && kind() === "jj"
+      ? item.tracked
+        ? "tracked"
+        : "untracked"
+      : (item.detail?.split(" · ")[0] ?? "")
   const branchDetailColor = (item: VcsListEntry) =>
-    item.remote ? (item.tracked ? theme.text.feedback.success.base : theme.text.feedback.warning.base) : theme.text.muted
+    item.remote && kind() === "jj"
+      ? item.tracked
+        ? theme.text.feedback.success.base
+        : theme.text.feedback.warning.base
+      : theme.text.muted
   const rowBackground = (panel: VcsPanel, index: number) => {
     if (selectedFor(panel) !== index) return undefined
     return focus() === panel ? theme.background.action.primary.focused : theme.background.raised.high
@@ -378,6 +386,10 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       />
     ))
   }
+  const switchTarget = (item: VcsListEntry) => {
+    const localName = kind() === "git" && item.remote ? item.name : undefined
+    void vcs.switchTo(item.id, localName ? { localName } : undefined)
+  }
   const switchReference = () => {
     const item = focusedEntry()
     if (!item) return
@@ -396,7 +408,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
           onConfirm={() => {
             dialog.clear()
             if (start) void vcs.startChange(item.id)
-            else void vcs.switchTo(item.id)
+            else switchTarget(item)
           }}
           onCancel={() => dialog.clear()}
         />
@@ -407,14 +419,20 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       void vcs.startChange(item.id)
       return
     }
-    void vcs.switchTo(item.id)
+    switchTarget(item)
   }
   const deleteReference = () => {
     const repository = kind()
     const item = branch()
     if (!repository || !item || focus() !== "branches") return
     if (item.remote) {
-      toast.show({ variant: "info", message: "Remote bookmarks are managed by jj git." })
+      toast.show({
+        variant: "info",
+        message:
+          repository === "jj"
+            ? "Remote bookmarks are managed by jj git."
+            : "Remote branches are deleted from the command line with git push --delete.",
+      })
       return
     }
     const noun = repository === "jj" ? "bookmark" : "branch"
@@ -442,7 +460,13 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     const item = branch()
     if (focus() !== "branches" || !item) return
     if (item.remote) {
-      toast.show({ variant: "info", message: "Remote bookmarks are managed by jj git." })
+      toast.show({
+        variant: "info",
+        message:
+          kind() === "jj"
+            ? "Remote bookmarks are managed by jj git."
+            : "Remote branches are renamed from the command line.",
+      })
       return
     }
     promptBranch("rename", { previous: item.label }, item.label)
@@ -529,8 +553,12 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   }
   const bookmarkTracking = (item: VcsListEntry) => {
     const remotes = branchEntries().filter((entry) => entry.remote && entry.name === item.name)
-    if (remotes.length === 0) return "not tracked"
-    return remotes.map((entry) => `${entry.label} ${entry.tracked ? "tracked" : "untracked"}`).join(", ")
+    if (remotes.length === 0) return kind() === "git" ? "no remote branch" : "not tracked"
+    return remotes
+      .map((entry) =>
+        kind() === "git" ? entry.label : `${entry.label} ${entry.tracked ? "tracked" : "untracked"}`,
+      )
+      .join(", ")
   }
   const pushToRemote = async (bookmark: string) => {
     await chooseRemote(
@@ -544,11 +572,68 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       },
     )
   }
+  const hasLocalBranch = (name: string) =>
+    localBranchEntries().some((item) => (item.name ?? item.label) === name)
+  const pushBranchToRemote = async (branch: string, remote?: string) => {
+    if (remote) {
+      void vcs.execute("push", branch, [], remote)
+      return
+    }
+    await chooseRemote(
+      "Push remote",
+      (name) => void vcs.execute("push", branch, [], name),
+      (name) => {
+        const target = branchEntries().find(
+          (entry) => entry.remote && entry.remoteName === name && entry.name === branch,
+        )
+        return target ? target.label : `new ${name}/${branch}`
+      },
+    )
+  }
   const pushBookmarks = async () => {
     const repository = kind()
     if (!repository) return
-    if (repository !== "jj") {
-      await chooseRemote("Push remote", (remote) => void vcs.execute("push", undefined, [], remote))
+    if (repository === "git") {
+      const selected = focus() === "branches" ? branch() : undefined
+      if (selected?.remote) {
+        const name = selected.name
+        if (!name || !hasLocalBranch(name)) {
+          toast.show({
+            variant: "warning",
+            message: `No local branch named ${name ?? selected.label} to push.`,
+          })
+          return
+        }
+        if (!selected.remoteName) return
+        await pushBranchToRemote(name, selected.remoteName)
+        return
+      }
+      if (selected) {
+        await pushBranchToRemote(selected.label)
+        return
+      }
+      const local = localBranchEntries()
+      if (local.length === 0) {
+        await chooseRemote("Push remote", (remote) => void vcs.execute("push", undefined, [], remote))
+        return
+      }
+      if (local.length === 1) {
+        await pushBranchToRemote(local[0]!.label)
+        return
+      }
+      dialog.replace(() => (
+        <DialogSelect
+          title="Push branch"
+          options={local.map((item) => ({
+            title: item.label,
+            value: item.label,
+            description: [item.current ? "current" : undefined, bookmarkTracking(item)].filter(Boolean).join(" · "),
+          }))}
+          current={local.find((item) => item.current)?.label}
+          onSelect={(option) => void pushBranchToRemote(option.value)}
+          onCancel={() => dialog.clear()}
+        />
+      ))
       return
     }
     const local = localBranchEntries()
@@ -632,7 +717,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   }
   const moveBookmarkToRevset = () => {
     const item = branch()
-    if (focus() !== "branches" || !item || item.remote) return
+    if (kind() !== "jj" || focus() !== "branches" || !item || item.remote) return
     dialog.replace(() => (
       <DialogPrompt
         title={`Move bookmark ${item.label}`}
@@ -939,11 +1024,13 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         { key: "n", label: "create" },
         ...(local
           ? [
-              { key: "b", label: "move" },
+              ...(repository === "jj" ? [{ key: "b", label: "move" }] : []),
               { key: "m", label: "rename" },
               { key: "x", label: "delete" },
             ]
-          : [{ key: "t", label: item?.tracked ? "untrack" : "track" }]),
+          : repository === "jj"
+            ? [{ key: "t", label: item?.tracked ? "untrack" : "track" }]
+            : []),
         ...(repository === "jj" && remoteBranchEntries().length > 0
           ? [
               { key: "s", label: "track all" },

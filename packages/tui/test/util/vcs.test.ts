@@ -9,6 +9,7 @@ import {
   mutationCommands,
   parseGitBranches,
   parseGitDiffHunks,
+  parseGitRemoteBranches,
   parseGitHistory,
   parseGitStatus,
   parseJjBookmarks,
@@ -96,8 +97,38 @@ describe("branch and history parsing", () => {
         "*\tmain\t62730de940ae\tfeat: current\n \tfeature\t2c35b8929271\ttopic\n*\t(HEAD detached from abc)\t111111111111\t\n",
       ),
     ).toEqual([
-      { id: "main", label: "main", current: true, detail: "62730de940ae · feat: current" },
-      { id: "feature", label: "feature", current: false, detail: "2c35b8929271 · topic" },
+      { id: "main", label: "main", name: "main", current: true, detail: "62730de940ae · feat: current" },
+      { id: "feature", label: "feature", name: "feature", current: false, detail: "2c35b8929271 · topic" },
+    ])
+  })
+
+  test("reads remote Git branches and skips the symbolic HEAD", () => {
+    expect(
+      parseGitRemoteBranches(
+        [
+          "origin\t48b02f7f5c\tlatest",
+          "origin/main\t48b02f7f5c\tlatest",
+          "upstream/feat/remote\t2c35b89292\ttopic",
+        ].join("\n"),
+        ["origin", "upstream"],
+      ),
+    ).toEqual([
+      {
+        id: "origin/main",
+        label: "origin/main",
+        name: "main",
+        remote: true,
+        remoteName: "origin",
+        detail: "48b02f7f5c · latest",
+      },
+      {
+        id: "upstream/feat/remote",
+        label: "upstream/feat/remote",
+        name: "feat/remote",
+        remote: true,
+        remoteName: "upstream",
+        detail: "2c35b89292 · topic",
+      },
     ])
   })
 
@@ -317,7 +348,10 @@ describe("mutationCommands", () => {
       { command: "git", args: ["fetch", "--prune", "origin"] },
     ])
     expect(mutationCommands("git", "push", undefined, [], "origin")).toEqual([
-      { command: "git", args: ["push", "origin"] },
+      { command: "git", args: ["push", "--set-upstream", "origin"] },
+    ])
+    expect(mutationCommands("git", "push", "feature", [], "origin")).toEqual([
+      { command: "git", args: ["push", "--set-upstream", "origin", "feature"] },
     ])
   })
 
