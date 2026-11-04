@@ -16,6 +16,7 @@ import { useSessionTerminals } from "../context/session-terminals"
 import { usePromptRef } from "../context/prompt"
 import { usePanel } from "../context/panel"
 import { useStorage } from "../context/storage"
+import { useTheme } from "../context/theme"
 import { useDialog } from "../ui/dialog"
 import { Session } from "../routes/session"
 import { Sidebar } from "../routes/session/sidebar"
@@ -31,7 +32,9 @@ export function SessionFrame(props: { sessionID: string; verticalTabsWidth: numb
   const prompt = usePromptRef()
   const config = useConfig()
   const data = useData()
+  const theme = useTheme()
   const toast = useToast()
+  const closeTerminalShortcut = Keymap.useShortcut("terminal.close")
   const terminalError = () => toast.show({ variant: "error", message: "Unable to load terminal" })
   const renderer = useRenderer()
   const dimensions = useTerminalDimensions()
@@ -341,17 +344,35 @@ export function SessionFrame(props: { sessionID: string; verticalTabsWidth: numb
                 fallback={
                   <Show keyed when={selectedTerminal()?.id}>
                     {(ptyID) => (
-                      <TerminalPane
-                        ptyID={ptyID}
-                        resizing={paneResize.resizing()}
-                        autoFocus={restoreTerminalFocus() || sessions.shouldFocus(ptyID)}
-                        onAutoFocus={() => {
-                          sessions.clearFocus(ptyID)
-                          setRestoreTerminalFocus(false)
-                        }}
-                        onFocusRequest={(value) => (focusTerminal = value)}
-                        onDisconnect={() => setRestoreTerminalFocus(true)}
-                      />
+                      <box flexGrow={1} minHeight={0} flexDirection="column">
+                        <TerminalPane
+                          ptyID={ptyID}
+                          resizing={paneResize.resizing()}
+                          autoFocus={restoreTerminalFocus() || sessions.shouldFocus(ptyID)}
+                          onAutoFocus={() => {
+                            sessions.clearFocus(ptyID)
+                            setRestoreTerminalFocus(false)
+                          }}
+                          onFocusRequest={(value) => (focusTerminal = value)}
+                          onDisconnect={() => setRestoreTerminalFocus(true)}
+                        />
+                        <box
+                          height={1}
+                          flexShrink={0}
+                          flexDirection="row"
+                          gap={2}
+                          paddingLeft={1}
+                          paddingRight={1}
+                          backgroundColor={theme.background.raised.base}
+                        >
+                          <text fg={theme.text.base} selectable={false}>
+                            <b>{closeTerminalShortcut() || "ctrl+x ↑"}</b>
+                          </text>
+                          <text fg={theme.text.muted} selectable={false}>
+                            close terminal
+                          </text>
+                        </box>
+                      </box>
                     )}
                   </Show>
                 }
