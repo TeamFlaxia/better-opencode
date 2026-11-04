@@ -8,6 +8,8 @@ ${objective}
 
 ${feedback}
 
+${taskGraph}
+
 Take the next concrete step. Do not repeat work that is already done. Before you end the turn, verify the result against the objective and show the evidence: command output, test results or the relevant file contents.
 
 If you are blocked and need something only the user can provide, such as a decision, credentials or a manual step, say so clearly and stop.

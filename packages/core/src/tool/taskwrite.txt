@@ -1,0 +1,9 @@
+Create and update the current session's task graph. The user sees it as a live chart of what is running, what finished, and what is blocked.
+
+Use it when work has dependencies or when a goal must be split into several units. Skip it for a single simple task.
+
+- Send the full graph on every call; it replaces the previous one.
+- Give every task a stable `id`, a short `title`, a `status`, and its `dependsOn` IDs.
+- Use `pending` before work starts, `active` while it runs, `done` when it is verified, and `blocked` with a `reason` when something outside the agent stops it.
+- Keep dependencies acyclic. A task may only depend on IDs in the same graph.
+- Only call it when the graph changes.

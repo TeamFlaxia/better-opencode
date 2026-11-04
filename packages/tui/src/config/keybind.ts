@@ -90,6 +90,8 @@ export const Definitions = {
   "diff.help": keybind("?,shift+?,shift+/", "Show more diff viewer shortcuts"),
   "vcs.open": keybind("<leader>v", "Open version control"),
   "vcs.refresh": keybind("none", "Refresh version control status"),
+  "taskgraph.open": keybind("<leader>j", "Open task graph"),
+  "taskgraph.refresh": keybind("none", "Refresh task graph"),
 
   "prompt.editor": keybind("<leader>e", "Open external editor"),
   "theme.switch": keybind("none", "List available themes"),

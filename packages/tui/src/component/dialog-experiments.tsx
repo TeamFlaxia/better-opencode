@@ -30,6 +30,11 @@ export const experiments: Experiment[] = [
     title: "Version control dock",
     description: "Show jj or git status beside the tab bar and manage changes in a built-in panel",
   },
+  {
+    id: "task-graph",
+    title: "Task graph",
+    description: "Show the agent's tasks, dependencies, and live execution as a chart",
+  },
 ]
 
 export function DialogExperiments() {

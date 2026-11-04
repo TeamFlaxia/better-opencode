@@ -12,6 +12,9 @@ export class Info extends Schema.Class<Info>("ConfigExperimental.Info")({
   todo: Schema.Boolean.pipe(optional).annotate({
     description: "Enable the experimental todowrite tool. Defaults to false.",
   }),
+  "task-graph": Schema.Boolean.pipe(optional).annotate({
+    description: "Enable the experimental taskwrite tool and Task graph view. Defaults to false.",
+  }),
   background_compaction: Schema.Boolean.pipe(optional).annotate({
     description:
       "Enable experimental background compaction: summarize the conversation in the background as it nears the compaction threshold, so automatic compaction does not wait for the summary. Background summaries that are never used still cost tokens. Defaults to false.",

@@ -79,8 +79,11 @@ import { DialogSessionList } from "./component/dialog-session-list"
 import { DialogOpen, DialogOpenKey, moveOpenSession } from "./component/dialog-open"
 import { SessionTabs } from "./component/session-tabs"
 import { VcsDock, VCS_DOCK_MIN_TERMINAL_WIDTH, VCS_DOCK_WIDTH } from "./component/vcs-dock"
+import { TaskGraphDock } from "./component/task-graph-dock"
+import { TaskGraphView } from "./component/task-graph-view"
 import { VcsView } from "./component/vcs-view"
 import { VcsProvider, useVcs } from "./context/vcs"
+import { TaskGraphProvider, useTaskGraph } from "./context/task-graph"
 import {
   clampSessionTabsWidth,
   sessionTabsFitVertically,
@@ -186,6 +189,8 @@ const appBindingCommands = [
   "diff.open",
   "vcs.open",
   "vcs.refresh",
+  "taskgraph.open",
+  "taskgraph.refresh",
   "app.debug",
   "app.console",
   "terminal.suspend",
@@ -445,12 +450,14 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                                                                 updater={input.updater}
                                                                               >
                                                                                 <PanelProvider>
-                                                                                  <PluginProvider
-                                                                                    packages={input.packages}
-                                                                                    directories={pluginDirectories}
-                                                                                  >
-                                                                                    <App />
-                                                                                  </PluginProvider>
+                                                                                  <TaskGraphProvider>
+                                                                                    <PluginProvider
+                                                                                      packages={input.packages}
+                                                                                      directories={pluginDirectories}
+                                                                                    >
+                                                                                      <App />
+                                                                                    </PluginProvider>
+                                                                                  </TaskGraphProvider>
                                                                                 </PanelProvider>
                                                                               </UpdateNotificationProvider>
                                                                             </AttentionProvider>
@@ -517,8 +524,10 @@ function App() {
   const local = useLocal()
   const sessionTabs = useSessionTabs()
   const vcs = useVcs()
-  // VCS is a transient view: switching session tabs returns to that tab's conversation.
+  const taskGraph = useTaskGraph()
+  // Full-pane views are transient: switching session tabs returns to that tab's conversation.
   const [vcsOpen, setVcsOpen] = createSignal(false)
+  const [taskGraphOpen, setTaskGraphOpen] = createSignal(false)
   const vcsKey = () => {
     if (route.data.type === "session") return `session:${route.data.sessionID}`
     if (route.data.type === "home") return "home"
@@ -529,6 +538,7 @@ function App() {
     if (key === lastVcsKey) return
     lastVcsKey = key
     setVcsOpen(false)
+    setTaskGraphOpen(false)
   })
   const panels = usePanel()
   const keymap = Keymap.use()
@@ -654,6 +664,9 @@ function App() {
   const verticalTabsVisible = () => tabsVisible() && tabsVertical()
   const vcsDockEnabled = () => config.data.experimental?.["vcs-dock"] === true
   const vcsDockVisible = () => vcsDockEnabled() && tabsAvailable() && vcs.visible() && !fullscreenPanel()
+  const taskGraphDockEnabled = () => config.data.experimental?.["task-graph"] === true
+  const taskGraphDockVisible = () =>
+    taskGraphDockEnabled() && tabsAvailable() && taskGraph.visible() && !fullscreenPanel()
   const vcsDockRight = () =>
     vcsDockVisible() &&
     !tabsVertical() &&
@@ -1233,6 +1246,23 @@ function App() {
         run: () => void vcs.refresh(),
       },
       {
+        name: "taskgraph.open",
+        title: "Open task graph",
+        category: "Tasks",
+        slash: { name: "tasks", aliases: ["taskgraph"] },
+        enabled: taskGraphDockEnabled,
+        run: () => {
+          setTaskGraphOpen(true)
+        },
+      },
+      {
+        name: "taskgraph.refresh",
+        title: "Refresh task graph",
+        category: "Tasks",
+        enabled: taskGraphDockEnabled,
+        run: () => void taskGraph.refresh(),
+      },
+      {
         name: "app.exit",
         title: "Exit the app",
         slash: { name: "exit", aliases: ["quit", "q"] },
@@ -1492,10 +1522,24 @@ function App() {
           <SessionTabs
             orientation="vertical"
             width={tabsWidth()}
-            onActivate={() => setVcsOpen(false)}
+            onActivate={() => {
+              setVcsOpen(false)
+              setTaskGraphOpen(false)
+            }}
             footer={
-              vcsDockVisible() ? (
-                <VcsDock orientation="vertical" width={tabsWidth()} onOpen={() => setVcsOpen(true)} />
+              taskGraphDockVisible() || vcsDockVisible() ? (
+                <box flexDirection="column">
+                  <Show when={taskGraphDockVisible()}>
+                    <TaskGraphDock
+                      orientation="vertical"
+                      width={tabsWidth()}
+                      onOpen={() => setTaskGraphOpen(true)}
+                    />
+                  </Show>
+                  <Show when={vcsDockVisible()}>
+                    <VcsDock orientation="vertical" width={tabsWidth()} onOpen={() => setVcsOpen(true)} />
+                  </Show>
+                </box>
               ) : undefined
             }
           />
@@ -1508,46 +1552,85 @@ function App() {
                   when={vcsDockRight()}
                   fallback={
                     <box flexDirection="column" flexShrink={0}>
-                      <SessionTabs width={tabsWidthForDock()} onActivate={() => setVcsOpen(false)} />
-                      <Show when={vcsDockBelow()}>
-                        <VcsDock orientation="below" onOpen={() => setVcsOpen(true)} />
+                      <SessionTabs
+                        width={tabsWidthForDock()}
+                        onActivate={() => {
+                          setVcsOpen(false)
+                          setTaskGraphOpen(false)
+                        }}
+                      />
+                      <Show when={taskGraphDockVisible() || vcsDockBelow()}>
+                        <box flexDirection="column">
+                          <Show when={taskGraphDockVisible()}>
+                            <TaskGraphDock orientation="below" onOpen={() => setTaskGraphOpen(true)} />
+                          </Show>
+                          <Show when={vcsDockBelow()}>
+                            <VcsDock orientation="below" onOpen={() => setVcsOpen(true)} />
+                          </Show>
+                        </box>
                       </Show>
                     </box>
                   }
                 >
                   <box flexDirection="row" flexShrink={0}>
                     <box flexGrow={1} minWidth={0}>
-                      <SessionTabs width={tabsWidthForDock()} onActivate={() => setVcsOpen(false)} />
+                      <SessionTabs
+                        width={tabsWidthForDock()}
+                        onActivate={() => {
+                          setVcsOpen(false)
+                          setTaskGraphOpen(false)
+                        }}
+                      />
                     </box>
-                    <VcsDock orientation="right" width={VCS_DOCK_WIDTH} onOpen={() => setVcsOpen(true)} />
+                    <box flexDirection="column">
+                      <Show when={taskGraphDockVisible()}>
+                        <TaskGraphDock
+                          orientation="right"
+                          width={VCS_DOCK_WIDTH}
+                          onOpen={() => setTaskGraphOpen(true)}
+                        />
+                      </Show>
+                      <VcsDock orientation="right" width={VCS_DOCK_WIDTH} onOpen={() => setVcsOpen(true)} />
+                    </box>
                   </box>
                 </Show>
               </Show>
               <Show
                 when={vcsOpen() && vcsDockEnabled()}
                 fallback={
-                  <Switch>
-                    <Match when={route.data.type === "home"}>
-                      <Home />
-                    </Match>
-                    <Match when={route.data.type === "session"}>
-                      <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
-                        {(sessionID) => (
-                          <SessionFrame
-                            sessionID={sessionID}
-                            verticalTabsWidth={verticalTabsVisible() ? tabsWidth() : 0}
+                  <Show
+                    when={taskGraphOpen() && taskGraphDockEnabled()}
+                    fallback={
+                      <Switch>
+                        <Match when={route.data.type === "home"}>
+                          <Home />
+                        </Match>
+                        <Match when={route.data.type === "session"}>
+                          <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
+                            {(sessionID) => (
+                              <SessionFrame
+                                sessionID={sessionID}
+                                verticalTabsWidth={verticalTabsVisible() ? tabsWidth() : 0}
+                              />
+                            )}
+                          </Show>
+                        </Match>
+                        <Match when={route.data.type === "plugin"}>
+                          <PluginRoute
+                            fallback={(id, name) => (
+                              <PluginRouteMissing
+                                id={id}
+                                name={name}
+                                onHome={() => route.navigate({ type: "home" })}
+                              />
+                            )}
                           />
-                        )}
-                      </Show>
-                    </Match>
-                    <Match when={route.data.type === "plugin"}>
-                      <PluginRoute
-                        fallback={(id, name) => (
-                          <PluginRouteMissing id={id} name={name} onHome={() => route.navigate({ type: "home" })} />
-                        )}
-                      />
-                    </Match>
-                  </Switch>
+                        </Match>
+                      </Switch>
+                    }
+                  >
+                    <TaskGraphView onClose={() => setTaskGraphOpen(false)} />
+                  </Show>
                 }
               >
                 <VcsView onClose={() => setVcsOpen(false)} />
