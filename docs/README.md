@@ -33,6 +33,8 @@ AI のタスクと依存関係をライブ表示する Task graph は [task-grap
 
 better-opencode の experimental 機能（バージョン管理ドック、Task graph、ファイルマネージャー、TUI ツール、新しいデザイン）は、設定の「機能」カテゴリから個別にオン/オフできます。
 
+TUI の組み込み既定値は、メンテナの現在の `~/.config/opencode/cli.json` に合わせています（ダークテーマ、縦タブ、experimental 機能を既定で有効など）。テスト用 fixture は従来の既定値を明示して分離しています。
+
 ## 現在の機能棚卸し（重複提案を避けるため）
 
 すでに存在する主な機能:

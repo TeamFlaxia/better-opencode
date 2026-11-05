@@ -34,7 +34,24 @@ export async function createAppFixture(
   const events = createEventStream()
   const calls = createFetch(input.fetch, events)
   // Updates apply to a copy, as a config file would, so preference writes persist for the rest of the test.
-  let config: Config.Info = structuredClone({ language: "en", ...(input.config ?? { animations: false }) })
+  const provided = input.config
+  let config: Config.Info = structuredClone({
+    language: "en",
+    ...(provided ?? { animations: false }),
+    // Keep app fixtures on the pre-fork defaults even though the product defaults now
+    // mirror the maintainer's current configuration.
+    theme: { mode: "system", name: "opencode", ...provided?.theme },
+    session: { sidebar: "auto", scrollbar: false, ...provided?.session },
+    tabs: { mode: "auto", layout: "horizontal", ...provided?.tabs },
+    experimental: {
+      "vcs-dock": false,
+      "task-graph": false,
+      "file-manager": false,
+      "client-mcp": false,
+      "new-designs": false,
+      ...provided?.experimental,
+    },
+  })
   const server = Bun.serve({ port: 0, fetch: (request) => calls.fetch(request) })
   const task = Effect.runPromise(
     run({

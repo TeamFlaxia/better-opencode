@@ -30,7 +30,7 @@ test("exposes better-opencode features as settings toggles", () => {
     "experimental.new-designs",
   ])
   for (const feature of features) {
-    expect(feature.default).toBe(false)
+    expect(feature.default).toBe(true)
     expect(feature.values).toEqual([false, true])
     expect(feature.labels).toEqual(["off", "on"])
   }
@@ -106,10 +106,10 @@ test("resolves nested config and keybind defaults", () => {
   expect(config.diffs).toEqual({ view: "split" })
   expect(config.debug).toEqual({ devtools: true })
   expect(config.tabs).toEqual({
-    mode: "auto",
+    mode: "on",
     enabled: true,
     scope: "cwd",
-    layout: "horizontal",
+    layout: "vertical",
     indicators: "status",
   })
   expect(config.session.new_location).toBe("launch")
@@ -127,10 +127,16 @@ test("resolves nested config and keybind defaults", () => {
 
 test("resolves automatic tabs from the terminal environment", () => {
   expect(resolve({}, { terminalSuspend: true, environment: {} }).tabs.enabled).toBe(true)
-  expect(resolve({}, { terminalSuspend: true, environment: { HERDR_ENV: "1" } }).tabs.enabled).toBe(false)
+  expect(resolve({}, { terminalSuspend: true, environment: { HERDR_ENV: "1" } }).tabs.enabled).toBe(true)
   expect(
-    resolve({ tabs: { mode: "on" } }, { terminalSuspend: true, environment: { HERDR_ENV: "1" } }).tabs.enabled,
+    resolve({ tabs: { mode: "auto" } }, { terminalSuspend: true, environment: { HERDR_ENV: "1" } }).tabs.enabled,
+  ).toBe(false)
+  expect(
+    resolve({ tabs: { mode: "auto" } }, { terminalSuspend: true, environment: {} }).tabs.enabled,
   ).toBe(true)
+  expect(resolve({ tabs: { mode: "on" } }, { terminalSuspend: true, environment: { HERDR_ENV: "1" } }).tabs.enabled).toBe(
+    true,
+  )
   expect(resolve({ tabs: { mode: "off" } }, { terminalSuspend: true, environment: {} }).tabs.enabled).toBe(false)
   expect(resolve({ tabs: { enabled: false } }, { terminalSuspend: true, environment: {} }).tabs).toMatchObject({
     mode: "off",
@@ -141,13 +147,28 @@ test("resolves automatic tabs from the terminal environment", () => {
   ).toMatchObject({ mode: "on", enabled: true })
 })
 
+test("uses the current maintainer configuration as defaults", () => {
+  const config = resolve({}, { terminalSuspend: true, environment: {} })
+  expect(config.theme).toEqual({ mode: "dark", name: "system" })
+  expect(config.animations).toBe(true)
+  expect(config.session.sidebar).toBe("hide")
+  expect(config.session.scrollbar).toBe(true)
+  expect(config.experimental).toMatchObject({
+    "vcs-dock": true,
+    "task-graph": true,
+    "file-manager": true,
+    "client-mcp": true,
+    "new-designs": true,
+  })
+})
+
 test("shows resolved tab defaults in settings", () => {
   expect(settings.find((setting) => setting.path.join(".") === "tabs.mode")).toMatchObject({
-    default: "auto",
+    default: "on",
     values: ["off", "on", "auto"],
   })
   expect(settings.find((setting) => setting.path.join(".") === "tabs.scope")?.default).toBe("cwd")
-  expect(settings.find((setting) => setting.path.join(".") === "tabs.layout")?.default).toBe("horizontal")
+  expect(settings.find((setting) => setting.path.join(".") === "tabs.layout")?.default).toBe("vertical")
   expect(settings.find((setting) => setting.path.join(".") === "tabs.indicators")).toMatchObject({
     default: "status",
     values: ["status", "numbers"],

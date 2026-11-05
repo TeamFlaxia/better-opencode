@@ -311,7 +311,7 @@ export function resolve(
   input: Info,
   options: { terminalSuspend: boolean; environment?: Readonly<Record<string, string | undefined>> },
 ): Resolved {
-  const tabsMode = input.tabs?.mode ?? (input.tabs?.enabled === undefined ? "auto" : input.tabs.enabled ? "on" : "off")
+  const tabsMode = input.tabs?.mode ?? (input.tabs?.enabled === undefined ? "on" : input.tabs.enabled ? "on" : "off")
   const keybinds: TuiKeybind.KeybindOverrides = { ...input.keybinds }
   if (!options.terminalSuspend) {
     keybinds["terminal.suspend"] = "none"
@@ -325,6 +325,19 @@ export function resolve(
 
   return {
     ...input,
+    theme: {
+      name: input.theme?.name ?? "system",
+      mode: input.theme?.mode ?? "dark",
+    },
+    animations: input.animations ?? true,
+    experimental: {
+      "vcs-dock": true,
+      "task-graph": true,
+      "file-manager": true,
+      "client-mcp": true,
+      "new-designs": true,
+      ...input.experimental,
+    },
     language: input.language ?? "ja",
     attention: {
       notifications: input.attention?.notifications ?? false,
@@ -344,6 +357,8 @@ export function resolve(
     },
     session: {
       ...input.session,
+      sidebar: input.session?.sidebar ?? "hide",
+      scrollbar: input.session?.scrollbar ?? true,
       new_location: input.session?.new_location ?? "launch",
       permissions: input.session?.permissions ?? "prompt",
       tps: input.session?.tps ?? true,
@@ -353,7 +368,7 @@ export function resolve(
       mode: tabsMode,
       enabled: tabsMode === "on" || (tabsMode === "auto" && (options.environment ?? process.env).HERDR_ENV !== "1"),
       scope: input.tabs?.scope ?? "cwd",
-      layout: input.tabs?.layout ?? "horizontal",
+      layout: input.tabs?.layout ?? "vertical",
       indicators: input.tabs?.indicators ?? "status",
     },
     vcs: {
