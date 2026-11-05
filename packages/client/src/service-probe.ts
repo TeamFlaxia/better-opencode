@@ -76,12 +76,14 @@ export async function probeResult(info: Info, timeout = defaultEnsureTiming.requ
   const serverInfo = decodeInfo(result.body)
   if (serverInfo === undefined) return { service: undefined, timedOut: false }
   if (serverInfo.pid !== info.pid) return { service: undefined, timedOut: false }
-  if (info.version !== undefined && serverInfo.version !== info.version) return { service: undefined, timedOut: false }
+  // The registration records the build identity, while /api/info reports the release version
+  // used in the User-Agent. Preview builds intentionally keep these different, so the matching
+  // PID is what ties the answer to the registered process.
   return {
     service: {
       info,
       endpoint,
-      version: serverInfo.version,
+      version: info.version ?? serverInfo.version,
       state: response.ok ? "ready" : response.status === 500 ? "failed" : "waiting",
       compatible: true,
     } satisfies LocalService,
