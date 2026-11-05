@@ -102,8 +102,10 @@ const run = Effect.fnUntraced(function* (seed?: Goal.State) {
     changed,
     get: () => handlers.get?.({ sessionID }) ?? Effect.die("the goal RPC was not registered"),
     command: (text: string) =>
-      Effect.forEach(commands, (definition) =>
-        definition.execute({ sessionID, prompt: { text }, delivery: "steer" }).pipe(Effect.orDie),
+      // The plugin also registers /divide; these tests drive /goal only.
+      Effect.forEach(
+        commands.filter((definition) => definition.name === "goal"),
+        (definition) => definition.execute({ sessionID, prompt: { text }, delivery: "steer" }).pipe(Effect.orDie),
       ),
     emit: (type: Execution["type"]) =>
       Queue.offer(events, execution(type)).pipe(Effect.andThen(Effect.yieldNow), Effect.andThen(Effect.yieldNow)),
