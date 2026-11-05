@@ -3,13 +3,14 @@ import { execFile } from "node:child_process"
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { useConfig } from "../config"
 import {
-  detectVcsKind,
+  detectVcs,
   jjLinkRevset,
   JJ_LINK_TEMPLATE,
   matchJjLinks,
   mutationCommands,
   parseGitBranches,
   parseGitRemoteBranches,
+  parseGitTags,
   parseJjLinks,
   parseGitDiffHunks,
   parseGitHistory,
@@ -116,16 +117,17 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       try {
         // jj owns its colocated Git repository, so render only the preferred kind instead of
         // listing the same files, bookmarks, and history twice.
-        const kind = detectVcsKind(current.project.canonical)
+        const detected = detectVcs(current.project.canonical)
+        const kind = detected.kind
         if (kind === "none") {
           if (attempt === generation) setSummary(undefined)
           return
         }
         const next = await (kind === "jj"
-          ? collectJj(current.project.canonical)
+          ? collectJj(current.project.canonical, detected.git)
           : kind === "git"
             ? collectGit(target, current.project.canonical)
-            : collectApi(kind, target)
+            : collectApi(kind, target, detected.git)
         ).catch(() => undefined)
         if (attempt === generation) setSummary((previous) => next ?? previous)
       } finally {
@@ -137,7 +139,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       }
     }
 
-    const collectApi = async (kind: VcsKind, target: LocationRef): Promise<VcsSummary> => {
+    const collectApi = async (kind: VcsKind, target: LocationRef, git: boolean): Promise<VcsSummary> => {
       const [info, status] = await Promise.all([
         client.api.vcs.get({ location: target }).then(
           (result) => result.data,
@@ -162,6 +164,7 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         dirty,
         conflict: false,
         files,
+        ...(git ? { git: true } : {}),
       }
     }
 
@@ -182,15 +185,16 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         dirty,
         conflict: files.some((file) => file.conflict),
         files,
+        git: true,
       }
     }
 
-    const collectJj = async (directory: string): Promise<VcsSummary> => {
+    const collectJj = async (directory: string, git: boolean): Promise<VcsSummary> => {
       const [log, diff] = await Promise.all([
         run("jj", ["--no-pager", "--color=never", "log", "--no-graph", "-r", "@", "-T", JJ_LOG_TEMPLATE], directory),
         run("jj", ["--no-pager", "--color=never", "diff", "--summary"], directory),
       ])
-      return summarizeJj(log.stdout, diff.stdout)
+      return { ...summarizeJj(log.stdout, diff.stdout), ...(git ? { git: true } : {}) }
     }
 
     const launch = async (title: string, command: string, args: string[] = []) => {
@@ -291,32 +295,31 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       return ""
     }
 
+    const gitBranches = async (): Promise<VcsListEntry[]> => {
+      const target = info()
+      if (!target) return []
+      const [local, remoteBranches, remoteNames] = await Promise.all([
+        run(
+          "git",
+          ["--no-pager", "branch", "--format=%(HEAD)%09%(refname:short)%09%(objectname:short)%09%(contents:subject)"],
+          target.project.canonical,
+        ),
+        run(
+          "git",
+          ["--no-pager", "branch", "--remotes", "--format=%(refname:short)%09%(objectname:short)%09%(contents:subject)"],
+          target.project.canonical,
+        ),
+        remotes(),
+      ])
+      return [...parseGitBranches(local.stdout), ...parseGitRemoteBranches(remoteBranches.stdout, remoteNames)]
+    }
+
     const branches = async (): Promise<VcsListEntry[]> => {
       const current = summary()
       const target = info()
       if (!current || !target) return []
       const kind = current.kind
-      if (kind === "git") {
-        const [local, remoteBranches, remoteNames] = await Promise.all([
-          run(
-            "git",
-            ["--no-pager", "branch", "--format=%(HEAD)%09%(refname:short)%09%(objectname:short)%09%(contents:subject)"],
-            target.project.canonical,
-          ),
-          run(
-            "git",
-            [
-              "--no-pager",
-              "branch",
-              "--remotes",
-              "--format=%(refname:short)%09%(objectname:short)%09%(contents:subject)",
-            ],
-            target.project.canonical,
-          ),
-          remotes(),
-        ])
-        return [...parseGitBranches(local.stdout), ...parseGitRemoteBranches(remoteBranches.stdout, remoteNames)]
-      }
+      if (kind === "git") return gitBranches()
       if (kind === "jj") {
         const result = await run(
           "jj",
@@ -349,19 +352,32 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       }
     }
 
-    const history = async (): Promise<VcsListEntry[]> => {
+    const gitHistory = async (ref?: string): Promise<VcsListEntry[]> => {
+      const target = info()
+      if (!target) return []
+      const result = await run(
+        "git",
+        [
+          "--no-pager",
+          "log",
+          "--date=short",
+          "--topo-order",
+          "--pretty=format:%h%x09%ad%x09%an%x09%p%x09%s",
+          "-n",
+          "100",
+          ...(ref ? [ref] : []),
+        ],
+        target.project.canonical,
+      )
+      return parseGitHistory(result.stdout)
+    }
+
+    const history = async (ref?: string): Promise<VcsListEntry[]> => {
       const current = summary()
       const target = info()
       if (!current || !target) return []
       const kind = current.kind
-      if (kind === "git") {
-        const result = await run(
-          "git",
-          ["--no-pager", "log", "--date=short", "--pretty=format:%h%x09%ad%x09%an%x09%s", "-n", "50"],
-          target.project.canonical,
-        )
-        return parseGitHistory(result.stdout)
-      }
+      if (kind === "git") return gitHistory(ref)
       if (kind === "jj") {
         const result = await run(
           "jj",
@@ -373,19 +389,54 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       return []
     }
 
+    const tags = async (): Promise<VcsListEntry[]> => {
+      const current = summary()
+      const target = info()
+      if (!current || !target) return []
+      if (current.git || current.kind === "git") {
+        const result = await run(
+          "git",
+          ["--no-pager", "tag", "--sort=-creatordate", "--format=%(refname:short)%09%(objectname:short)%09%(contents:subject)"],
+          target.project.canonical,
+        )
+        return parseGitTags(result.stdout)
+      }
+      if (current.kind === "jj") {
+        const result = await run(
+          "jj",
+          [
+            "--no-pager",
+            "--color=never",
+            "tag",
+            "list",
+            "-T",
+            'name ++ "\\t" ++ normal_target.commit_id().short() ++ "\\t" ++ normal_target.description().first_line() ++ "\\n"',
+          ],
+          target.project.canonical,
+        )
+        return parseGitTags(result.stdout)
+      }
+      return []
+    }
+
+    const gitShow = async (ref: string) => {
+      const target = info()
+      if (!target) return ""
+      return (
+        await run(
+          "git",
+          ["--no-pager", "show", "--color=never", "--format=medium", "--stat", "--patch", ref],
+          target.project.canonical,
+        )
+      ).stdout
+    }
+
     const show = async (ref: string) => {
       const current = summary()
       const target = info()
       if (!current || !target) return ""
       const kind = current.kind
-      if (kind === "git")
-        return (
-          await run(
-            "git",
-            ["--no-pager", "show", "--color=never", "--format=medium", "--stat", "--patch", ref],
-            target.project.canonical,
-          )
-        ).stdout
+      if (kind === "git") return gitShow(ref)
       if (kind === "jj")
         return (await run("jj", ["--no-pager", "--color=never", "show", "--git", "-r", ref], target.project.canonical))
           .stdout
@@ -419,6 +470,92 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
         } else if (kind === "jj") await run("jj", ["edit", ref], target.project.canonical)
         await refresh()
         toast.show({ variant: "success", message: `Version control: switched to ${ref}` })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: "Version control action failed",
+          message: errorMessage(error),
+        })
+      }
+    }
+
+    const gitSwitchTo = async (ref: string, options?: { localName?: string }) => {
+      const target = info()
+      if (!target) return
+      try {
+        const cwd = target.project.canonical
+        const localName = options?.localName
+        const local = localName
+          ? await run("git", ["branch", "--list", localName, "--format=%(refname:short)"], cwd).then(
+              (result) => result.stdout.trim() === localName,
+              () => false,
+            )
+          : await run("git", ["branch", "--list", ref, "--format=%(refname:short)"], cwd).then(
+              (result) => result.stdout.trim() === ref,
+              () => false,
+            )
+        if (localName) {
+          await run("git", local ? ["switch", localName] : ["switch", "--track", ref], cwd)
+        } else if (local) {
+          await run("git", ["switch", ref], cwd)
+        } else {
+          const remote = await run(
+            "git",
+            ["branch", "--remotes", "--list", ref, "--format=%(refname:short)"],
+            cwd,
+          ).then(
+            (result) => result.stdout.trim() === ref,
+            () => false,
+          )
+          await run("git", remote ? ["switch", "--track", ref] : ["switch", "--detach", ref], cwd)
+        }
+        await refresh()
+        toast.show({ variant: "success", message: `Version control: checked out ${ref}` })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: "Version control action failed",
+          message: errorMessage(error),
+        })
+      }
+    }
+
+    const gitPush = async (branch?: string, remote?: string) => {
+      const target = info()
+      if (!target) return
+      try {
+        await run(
+          "git",
+          ["push", ...(remote ? ["--set-upstream", remote] : []), ...(branch ? [branch] : [])],
+          target.project.canonical,
+        )
+        await refresh()
+        toast.show({
+          variant: "success",
+          message: `Version control: pushed ${branch ?? "HEAD"}${remote ? ` to ${remote}` : ""}`,
+        })
+      } catch (error) {
+        toast.show({
+          variant: "error",
+          title: "Version control action failed",
+          message: errorMessage(error),
+        })
+      }
+    }
+
+    const pushTag = async (tag: string, remote?: string) => {
+      const current = summary()
+      const target = info()
+      if (!current || !target) return
+      const commands = mutationCommands(current.kind, "push_tag", tag, [], remote)
+      if (commands.length === 0) return
+      try {
+        for (const command of commands) await run(command.command, command.args, target.project.canonical)
+        await refresh()
+        toast.show({
+          variant: "success",
+          message: `Version control: pushed ${tag === "*" ? "all tags" : `tag ${tag}`}${remote ? ` to ${remote}` : ""}`,
+        })
       } catch (error) {
         toast.show({
           variant: "error",
@@ -670,10 +807,17 @@ export const { use: useVcs, provider: VcsProvider } = createSimpleContext({
       execute,
       patch,
       branches,
+      gitBranches,
       remotes,
       history,
+      gitHistory,
+      tags,
       show,
+      gitShow,
       switchTo,
+      gitSwitchTo,
+      gitPush,
+      pushTag,
       startChange,
       moveBookmark,
       branchAction,

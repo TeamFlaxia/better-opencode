@@ -12,6 +12,7 @@ export type VcsMutation =
   | "bookmark"
   | "fetch"
   | "push"
+  | "push_tag"
   | "track"
   | "untrack"
   | "commit"
@@ -46,6 +47,8 @@ export type VcsListEntry = {
   readonly remoteName?: string
   readonly tracked?: boolean
   readonly immutable?: boolean
+  readonly merge?: boolean
+  readonly tag?: boolean
 }
 
 export type VcsBranchAction = "create" | "delete" | "rename"
@@ -99,6 +102,8 @@ export type VcsSummary = {
   readonly dirty: number
   readonly conflict: boolean
   readonly files: readonly VcsFile[]
+  /** True when a Git repository is available, including a Git repository colocated with jj. */
+  readonly git?: boolean
 }
 
 const PREFERRED_TOOLS: Record<VcsKind, readonly VcsToolID[]> = {
@@ -114,6 +119,17 @@ export function detectVcsKind(canonical: string): VcsKind {
   if (existsSync(path.join(canonical, ".git"))) return "git"
   if (existsSync(path.join(canonical, ".hg"))) return "hg"
   return "none"
+}
+
+/**
+ * jj and Git can share one working copy. The primary kind stays jj so changes and
+ * bookmarks are not rendered twice, while the git flag exposes the Git refs and
+ * history that jj does not own.
+ */
+export function detectVcs(canonical: string): { kind: VcsKind; git: boolean } {
+  const git = existsSync(path.join(canonical, ".git"))
+  const kind = detectVcsKind(canonical)
+  return { kind, git: git || kind === "git" }
 }
 
 export function parseJjLog(output: string) {
@@ -282,13 +298,42 @@ export function parseGitHistory(output: string): VcsListEntry[] {
     .split("\n")
     .filter(Boolean)
     .flatMap((line) => {
-      const [id, date, author, ...subject] = line.split("\t")
+      const [id, date, author, ...rest] = line.split("\t")
       if (!id) return []
+      // The history format appends the parent list before the subject. Accept the older
+      // three-field format as well so a stale command or fixture still parses.
+      const parentField = rest.length >= 2 ? rest[0] : undefined
+      const newFormat =
+        parentField !== undefined &&
+        (parentField === "" || /^[0-9a-f]{7,40}( [0-9a-f]{7,40})*$/.test(parentField))
+      const parents = newFormat ? parentField : undefined
+      const subject = (newFormat ? rest.slice(1) : rest).join("\t") || "(no subject)"
+      const merge = parents ? parents.split(" ").length > 1 : false
       return [
         {
           id,
-          label: subject.join("\t") || "(no subject)",
-          detail: [id, date, author].filter(Boolean).join(" · "),
+          label: subject,
+          detail: [id, date, author, merge ? "merge" : undefined].filter(Boolean).join(" · "),
+          ...(merge ? { merge: true } : {}),
+        },
+      ]
+    })
+}
+
+export function parseGitTags(output: string): VcsListEntry[] {
+  return output
+    .split("\n")
+    .filter(Boolean)
+    .flatMap((line) => {
+      const [name, commit, ...subject] = line.split("\t")
+      if (!name) return []
+      return [
+        {
+          id: name,
+          label: name,
+          name,
+          detail: [commit, subject.join("\t")].filter(Boolean).join(" · "),
+          tag: true,
         },
       ]
     })
@@ -413,6 +458,13 @@ export function mutationCommands(
           args: ["git", "push", ...(value ? ["--bookmark", value] : []), ...(remote ? ["--remote", remote] : [])],
         },
       ]
+    if (action === "push_tag")
+      return [
+        {
+          command: "jj",
+          args: ["git", "push", ...(value ? ["--tag", value] : ["--tag", "*"]), ...(remote ? ["--remote", remote] : [])],
+        },
+      ]
     if (action === "track") return value ? [{ command: "jj", args: ["bookmark", "track", value] }] : []
     if (action === "untrack") return value ? [{ command: "jj", args: ["bookmark", "untrack", value] }] : []
     return []
@@ -443,6 +495,13 @@ export function mutationCommands(
             ...(remote ? ["--set-upstream", remote] : []),
             ...(value ? [value] : []),
           ],
+        },
+      ]
+    if (action === "push_tag")
+      return [
+        {
+          command: "git",
+          args: ["push", ...(remote ? [remote] : []), ...(value && value !== "*" ? [value] : ["--tags"])],
         },
       ]
     return []

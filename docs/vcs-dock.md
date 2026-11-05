@@ -41,9 +41,14 @@ The view replaces the session transcript instead of opening a modal dialog, so t
 file list and diff stay visible while the tab bar and dock remain in place.
 Switching to another session tab closes the view and shows that tab's conversation.
 
-When a jj repository is colocated with Git, the view renders jj only. jj manages
-the colocated Git repository, so listing both would repeat the same files, bookmarks,
-and history. Git-backed operations such as fetch and push still run through jj.
+When a jj repository is colocated with Git, the working-copy changes stay in jj so
+the files and diff are not rendered twice. The view also exposes the colocated Git
+repository's branches and commit history: the last two panels default to Git
+branches/commits, and `g` switches them to jj bookmarks/changes. Git branches include
+remote branches, and `enter` checks one out. Git history is shown for the selected
+branch and includes merge commits. Checking out a Git branch in a colocated
+repository moves the Git working copy; jj records the resulting files on its next
+snapshot. Use the jj bookmark panel when you want jj to own the checkout.
 
 The layout follows lazygit: **Status**, **Files**, **Bookmarks/Branches**, and
 **Changes/Commits** are stacked on the left, and the focused panel opens its diff or
@@ -70,7 +75,8 @@ copying, and the optional external tool.
 
 The view has four panels: **Status**, **Files**, **Bookmarks** / **Branches**, and
 **Changes** / **Commits**. A jj repository fills the last two with bookmarks and the
-change log; a Git repository fills them with branches and commits.
+change log; a Git repository fills them with branches and commits. In a colocated
+jj/Git repository, `g` switches those two panels to Git branches and commits.
 
 - `1` / `2` / `3` / `4`: focus status, files, bookmarks/branches, or changes/commits
 - `tab` or `left` / `right`: cycle the focused panel
@@ -78,13 +84,17 @@ change log; a Git repository fills them with branches and commits.
 - `pageup` / `pagedown`: move by one visible page
 - `space`: stage or unstage the selected Git file
 - `enter`: open the diff viewer for a file; edit a mutable bookmark/change; start a
-  new change on top of an immutable one; or switch to a Git branch/commit
+  new change on top of an immutable one; or switch to a Git branch/commit. In the
+  colocated Git mode, `enter` checks out the selected branch, remote branch, tag, or
+  commit.
+- `g`: toggle between jj bookmarks/changes and Git branches/commits when both exist
 - `n`: create a bookmark/branch (at the selected change/commit in changes/commits)
 - `b`: move the selected local bookmark to a revset; in changes/commits, choose a
   local bookmark to move to the selected revision
 - `m`: rename the selected local bookmark/branch
 - `x`: delete the selected local bookmark/branch
-- `t`: track or untrack the selected remote bookmark
+- `t`: track or untrack the selected remote bookmark. In Git branches, status, or
+  history, push a tag (or all tags) to a selected remote.
 - `s` / `u`: track or untrack all remote bookmarks (jj only)
 - `f` / `p` / `l`: fetch, push, and pull (`l` is Git only). Fetch and push ask for a
   remote when more than one is configured. jj fetch also asks what to fetch (all,
@@ -128,11 +138,13 @@ jj:
 - Push a selected local bookmark to a selected remote with
   `jj git push --bookmark <name> --remote <remote>`; the view asks for the bookmark
   and remote when more than one is available, and shows the remote bookmark state
+- Push a tag or all tags with `jj git push --tag <name>` or `--tag '*'`
 
 Git:
 
 - Review changes
 - Browse local and remote branches and history, and switch to a branch or commit
+- Show history for the selected branch, including merge commits
 - Switch to a remote branch by creating or using its local tracking branch
 - Create, rename, and delete local branches
 - Commit staged changes with a message
@@ -142,8 +154,17 @@ Git:
 - Fetch, pull, and push a selected Git remote
 - Push a local branch with `--set-upstream`, or push the matching local branch for a
   selected remote branch
+- Push a tag with `git push <remote> <tag>` or all tags with `--tags`
 - Select a remote to push to; the view falls back to pushing the current branch when
   no local branch is selected
+
+Colocated jj + Git:
+
+- Keep changes in jj, so the files and diff panels are not duplicated
+- Toggle the last two panels between jj bookmarks/changes and Git branches/commits
+- Check out a local branch, remote branch, tag, or commit from the Git panels
+- Show Git history for the selected branch, including merges
+- Push branches and tags through Git while the changes remain jj-owned
 
 The file and hunk pickers are multi-select lists: `space` toggles the current
 item, `a` toggles all items, `enter` confirms, and `esc` cancels. Confirming

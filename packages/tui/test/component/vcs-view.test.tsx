@@ -34,18 +34,48 @@ const git: VcsSummary = {
   conflict: false,
   files: [{ file: "src/b.ts", status: "added", staged: true, unstaged: false }],
 }
+const colocated: VcsSummary = { ...jj, git: true }
+const gitBranchList: VcsListEntry[] = [
+  { id: "main", label: "main", name: "main", current: true, detail: "62730de940ae · current" },
+  {
+    id: "origin/feature",
+    label: "origin/feature",
+    name: "feature",
+    remote: true,
+    remoteName: "origin",
+    detail: "2c35b8929271 · topic",
+  },
+]
+const gitHistoryList: VcsListEntry[] = [
+  {
+    id: "abc1234567",
+    label: "Merge branch 'feature'",
+    detail: "abc1234567 · 2026-11-02 · Mikan256 · merge",
+    merge: true,
+  },
+  {
+    id: "def1234567",
+    label: "feat: previous",
+    detail: "def1234567 · 2026-11-01 · Mikan256",
+  },
+]
 
 function controller(input: {
   summary: VcsSummary
   execute?: (action: VcsMutation, input?: string, paths?: readonly string[], remote?: string) => void
   branches?: () => VcsListEntry[]
+  gitBranches?: () => VcsListEntry[]
   remotes?: () => string[]
   history?: () => VcsListEntry[]
+  gitHistory?: (ref?: string) => VcsListEntry[]
   show?: (ref: string) => string
   switchTo?: (ref: string, options?: { localName?: string }) => void
+  gitSwitchTo?: (ref: string, options?: { localName?: string }) => void
   startChange?: (ref: string) => void
   moveBookmark?: (name: string, target: string) => void
   branchAction?: (action: VcsBranchAction, input: Record<string, string | undefined>) => void
+  tags?: () => VcsListEntry[]
+  pushTag?: (tag: string, remote?: string) => void
 }): VcsViewController {
   return {
     summary: () => input.summary,
@@ -56,13 +86,18 @@ function controller(input: {
     execute: async (action, value, paths, remote) => input.execute?.(action, value, paths, remote),
     patch: async (file) => `diff --git a/${file} b/${file}\n--- a/${file}\n+++ b/${file}\n@@ -1 +1 @@\n-old\n+new\n`,
     branches: async () => input.branches?.() ?? [],
+    ...(input.gitBranches ? { gitBranches: async () => input.gitBranches!() } : {}),
     remotes: async () => input.remotes?.() ?? [],
     history: async () => input.history?.() ?? [],
+    ...(input.gitHistory ? { gitHistory: async (ref?: string) => input.gitHistory!(ref) } : {}),
     show: async (ref) => input.show?.(ref) ?? `commit ${ref}`,
     switchTo: async (ref, options) => input.switchTo?.(ref, options),
+    ...(input.gitSwitchTo ? { gitSwitchTo: async (ref: string, options?: { localName?: string }) => input.gitSwitchTo!(ref, options) } : {}),
     startChange: async (ref) => input.startChange?.(ref),
     moveBookmark: async (name, target) => input.moveBookmark?.(name, target),
     branchAction: async (action, value) => input.branchAction?.(action, value),
+    ...(input.tags ? { tags: async () => input.tags!() } : {}),
+    ...(input.pushTag ? { pushTag: async (tag: string, remote?: string) => input.pushTag!(tag, remote) } : {}),
     hunks: async () => ({ header: "", hunks: [] }),
     applyHunks: async () => {},
   }
@@ -117,6 +152,97 @@ test("shows the preferred repository and its files", async () => {
     expect(frame).not.toContain("src/b.ts")
     expect(frame).toContain("Bookmarks")
     expect(frame).toContain("Changes")
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("shows Git branches and history beside jj changes in a colocated repository", async () => {
+  const switched: Array<[string, { localName?: string } | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: colocated,
+            branches: () => jjBranches,
+            gitBranches: () => gitBranchList,
+            gitHistory: () => gitHistoryList,
+            gitSwitchTo: (ref, options) => switched.push([ref, options]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 28, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame(
+      (frame) =>
+        frame.includes("src/a.ts") &&
+        frame.includes("Branches · 2") &&
+        frame.includes("origin/feature") &&
+        !frame.includes("Bookmarks"),
+    )
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("enter switch") && frame.includes("t push tag"))
+    app.mockInput.pressArrow("down")
+    await app.waitForFrame((frame) => frame.includes("origin/feature"))
+    app.mockInput.pressEnter()
+    await app.waitFor(() => switched.length === 1)
+    expect(switched[0]).toEqual(["origin/feature", { localName: "feature" }])
+
+    app.mockInput.pressKey("4")
+    await app.waitForFrame(
+      (frame) =>
+        frame.includes("Commits · 2") &&
+        frame.includes("Merge branch 'feature'") &&
+        frame.includes("feat: previous") &&
+        frame.includes("M"),
+    )
+
+    app.mockInput.pressKey("g")
+    await app.waitForFrame((frame) => frame.includes("Bookmarks · 2") && frame.includes("feature-jj"))
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("pushes a tag from the Git refs view", async () => {
+  const pushed: Array<[string, string | undefined]> = []
+  const app = await testRender(
+    () => (
+      <Providers>
+        <VcsView
+          controller={controller({
+            summary: colocated,
+            gitBranches: () => gitBranchList,
+            remotes: () => ["origin"],
+            tags: () => [{ id: "v2.2.5", label: "v2.2.5", name: "v2.2.5", detail: "abc · release", tag: true }],
+            pushTag: (tag, remote) => pushed.push([tag, remote]),
+          })}
+          onClose={() => {}}
+        />
+      </Providers>
+    ),
+    { width: 100, height: 28, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("Branches · 2"))
+    app.mockInput.pressKey("3")
+    await app.waitForFrame((frame) => frame.includes("t push tag"))
+    app.mockInput.pressKey("t")
+    await app.waitForFrame(
+      (frame) => frame.includes("Push tag") && frame.includes("All tags") && frame.includes("v2.2.5"),
+    )
+    app.mockInput.pressArrow("down")
+    app.mockInput.pressEnter()
+    await app.waitFor(() => pushed.length === 1)
+    expect(pushed[0]).toEqual(["v2.2.5", "origin"])
   } finally {
     app.renderer.destroy()
   }

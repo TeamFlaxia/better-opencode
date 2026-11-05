@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import {
   buildHunkPatch,
+  detectVcs,
   detectVcsKind,
   findExecutable,
   mutationCommands,
@@ -12,6 +13,7 @@ import {
   parseGitRemoteBranches,
   parseGitHistory,
   parseGitStatus,
+  parseGitTags,
   parseJjBookmarks,
   parseJjDiffSummary,
   parseJjFiles,
@@ -142,6 +144,46 @@ describe("branch and history parsing", () => {
         detail: "62730de940 · 2026-11-02 · Mikan256",
       },
       { id: "2c35b89292", label: "(no subject)", detail: "2c35b89292 · 2026-11-01 · Mikan256" },
+    ])
+  })
+
+  test("marks merge commits in Git history", () => {
+    expect(
+      parseGitHistory(
+        "abc1234567\t2026-11-02\tMikan256\tabc1234567 def1234567\tMerge branch 'feature'\n" +
+          "def1234567\t2026-11-01\tMikan256\t\tfeat: previous\n",
+      ),
+    ).toEqual([
+      {
+        id: "abc1234567",
+        label: "Merge branch 'feature'",
+        detail: "abc1234567 · 2026-11-02 · Mikan256 · merge",
+        merge: true,
+      },
+      {
+        id: "def1234567",
+        label: "feat: previous",
+        detail: "def1234567 · 2026-11-01 · Mikan256",
+      },
+    ])
+  })
+
+  test("reads Git tags", () => {
+    expect(parseGitTags("v2.2.5\t62730de940\trelease\nv2.2.4\t2c35b89292\tprevious\n")).toEqual([
+      {
+        id: "v2.2.5",
+        label: "v2.2.5",
+        name: "v2.2.5",
+        detail: "62730de940 · release",
+        tag: true,
+      },
+      {
+        id: "v2.2.4",
+        label: "v2.2.4",
+        name: "v2.2.4",
+        detail: "2c35b89292 · previous",
+        tag: true,
+      },
     ])
   })
 
@@ -355,6 +397,21 @@ describe("mutationCommands", () => {
     ])
   })
 
+  test("pushes a tag through the repository kind", () => {
+    expect(mutationCommands("jj", "push_tag", "v2.2.5", [], "origin")).toEqual([
+      { command: "jj", args: ["git", "push", "--tag", "v2.2.5", "--remote", "origin"] },
+    ])
+    expect(mutationCommands("jj", "push_tag", "*", [], "origin")).toEqual([
+      { command: "jj", args: ["git", "push", "--tag", "*", "--remote", "origin"] },
+    ])
+    expect(mutationCommands("git", "push_tag", "v2.2.5", [], "origin")).toEqual([
+      { command: "git", args: ["push", "origin", "v2.2.5"] },
+    ])
+    expect(mutationCommands("git", "push_tag", "*", [], "origin")).toEqual([
+      { command: "git", args: ["push", "origin", "--tags"] },
+    ])
+  })
+
   test("requires input for describe, bookmark, and commit", () => {
     expect(mutationCommands("jj", "describe", "  ")).toEqual([])
     expect(mutationCommands("jj", "bookmark")).toEqual([])
@@ -378,18 +435,22 @@ describe("detectVcsKind", () => {
     mkdirSync(path.join(root, ".jj"))
     mkdirSync(path.join(root, ".git"))
     expect(detectVcsKind(root)).toBe("jj")
+    expect(detectVcs(root)).toEqual({ kind: "jj", git: true })
   })
 
   test("detects git, hg, and a plain directory", () => {
     const git = directory()
     mkdirSync(path.join(git, ".git"))
     expect(detectVcsKind(git)).toBe("git")
+    expect(detectVcs(git)).toEqual({ kind: "git", git: true })
 
     const hg = directory()
     mkdirSync(path.join(hg, ".hg"))
     expect(detectVcsKind(hg)).toBe("hg")
+    expect(detectVcs(hg)).toEqual({ kind: "hg", git: false })
 
     expect(detectVcsKind(directory())).toBe("none")
+    expect(detectVcs(directory())).toEqual({ kind: "none", git: false })
   })
 })
 
