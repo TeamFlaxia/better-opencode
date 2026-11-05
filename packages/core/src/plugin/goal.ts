@@ -10,6 +10,7 @@ import { TaskGraph } from "@opencode/schema/task-graph"
 import { isExactRootFallback } from "@opencode/util/session-title-fallback"
 import { Cause, Clock, DateTime, Duration, Effect, FiberMap, Option, Schema, Stream } from "effect"
 import CONTINUATION from "./goal/continuation.txt"
+import DIVIDE from "./goal/divide.txt"
 import JUDGE from "./goal/judge.txt"
 import KICKOFF from "./goal/kickoff.txt"
 import REMINDER from "./goal/reminder.txt"
@@ -448,6 +449,67 @@ export const Plugin = define({
               sessionID: input.sessionID,
               text: kickoff,
               description: `Goal: ${truncate(text, 120)}`,
+              metadata,
+              delivery: input.delivery,
+            })
+          }).pipe(Effect.asVoid),
+      })
+      editor.add({
+        name: "divide",
+        description: "split an instruction into a task graph and work through it (requires task-graph)",
+        execute: (input) =>
+          Effect.gen(function* () {
+            const text = unquote(input.prompt.text.trim())
+            const control = text.toLowerCase()
+            if (text === "") return yield* Effect.fail(new Error("Usage: /divide <instruction>"))
+            if (control === "pause" || control === "resume" || control === "clear")
+              return yield* Effect.fail(new Error("Use /goal pause|resume|clear to control the active goal."))
+            if (!(yield* taskGraphEnabled()))
+              return yield* Effect.fail(
+                new Error("The task graph experiment is disabled. Enable experimental.task-graph to use /divide."),
+              )
+            if (text.length > MAX_OBJECTIVE)
+              return yield* Effect.fail(
+                new Error(`A divide instruction is limited to ${MAX_OBJECTIVE} characters (got ${text.length}).`),
+              )
+            const created: State = {
+              id: crypto.randomUUID(),
+              objective: text,
+              status: "active",
+              rounds: 0,
+              maxRounds: MAX_ROUNDS,
+              boot: boot(),
+              updatedAt: yield* Clock.currentTimeMillis,
+            }
+            yield* write(input.sessionID, created)
+            const session = yield* ctx.session.get({ sessionID: input.sessionID })
+            if (
+              isExactRootFallback({
+                title: session.title,
+                time: { created: DateTime.toEpochMillis(session.time.created) },
+              })
+            )
+              yield* ctx.session.update({ sessionID: input.sessionID, title: truncate(text, 60) })
+            const kickoff = render(DIVIDE, {
+              objective: escape(text),
+              taskGraph: TASK_GRAPH_KICKOFF,
+            })
+            const metadata = { source: "divide", goalID: created.id }
+            const attached = [input.prompt.files, input.prompt.agents, input.prompt.skills].some(
+              (items) => items !== undefined && items.length > 0,
+            )
+            if (attached)
+              return yield* ctx.session.prompt({
+                ...input.prompt,
+                sessionID: input.sessionID,
+                text: kickoff,
+                metadata,
+                delivery: input.delivery,
+              })
+            yield* ctx.session.synthetic({
+              sessionID: input.sessionID,
+              text: kickoff,
+              description: `Divide: ${truncate(text, 120)}`,
               metadata,
               delivery: input.delivery,
             })

@@ -13,6 +13,24 @@ Enable it in `cli.json` or through the Experiments dialog:
 }
 ```
 
+## Starting with /divide
+
+`/divide <instruction>` starts a goal that first splits the instruction into a task
+graph, then works through the tasks in dependency order. It is the task-graph-first
+entry point: the kickoff asks the model to call `taskwrite` with 2–8 tasks, and the
+goal reviewer keeps the session working until the instruction is met. The dock and
+full-pane view show the graph while it runs.
+
+`/divide` requires the `task-graph` experiment. It accepts an instruction on the
+same line, like `/goal`:
+
+```text
+/divide Add a parser, cover it with tests, and update the changelog
+```
+
+Use `/goal pause`, `/goal resume`, and `/goal clear` to control the goal that
+`/divide` starts.
+
 ## What it shows
 
 The graph has three layers:

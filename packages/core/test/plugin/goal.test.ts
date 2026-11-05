@@ -4,6 +4,7 @@ import { AIError, InvalidRequestError, LanguageModel, type LLMRequest } from "@o
 import { OpenAIChat } from "@opencode/ai/protocols/openai-chat"
 import { TestLLM } from "@opencode/ai/testing"
 import { Agent } from "@opencode/core/agent"
+import { Config } from "@opencode/core/config"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { LayerNodePlatform } from "@opencode/core/effect/app-node-platform"
 import { Watcher } from "@opencode/core/filesystem/watcher"
@@ -17,6 +18,8 @@ import { Provider } from "@opencode/core/provider"
 import { AbsolutePath } from "@opencode/core/schema"
 import { Session } from "@opencode/core/session"
 import { SessionRunnerModel } from "@opencode/core/session/runner/model"
+import { Document, Info, type Entry } from "@opencode/schema/config"
+import { ConfigExperimental } from "@opencode/schema/config/experimental"
 import { Goal } from "@opencode/schema/goal"
 import { LayerNode } from "@opencode/util/effect/layer-node"
 import { Global } from "@opencode/util/global"
@@ -33,6 +36,7 @@ const it = testEffect(
       Global.node.replace(tempGlobalLayer),
       offlineModels,
       Watcher.node.replace(Watcher.configured({ enabled: false })),
+      Config.node.replace(Config.testLayer([configEntry()])),
       LayerNodePlatform.llmClient.replace(llmLayer),
       SessionRunnerModel.node.replace(
         Layer.succeed(SessionRunnerModel.Service, {
@@ -97,6 +101,35 @@ describe("goal plugin", () => {
       )
       // Continuations run inside the same execution, so the Session went idle once.
       expect(messages.filter((message) => message.type === "idle")).toMatchObject([{ outcome: "succeeded" }])
+    }),
+  )
+
+  it.live("starts a task graph workflow with /divide", () =>
+    Effect.gen(function* () {
+      const session = yield* project()
+      const sessions = yield* Session.Service
+      const verdicts = reviewer('{"verdict":"done","reason":"The instruction is implemented."}')
+      yield* serve(verdicts.respond)
+
+      yield* sessions.command({ sessionID: session.id, command: "divide", text: "Add a parser and tests" })
+      yield* sessions.wait(session.id)
+
+      expect(yield* goal(session.id)).toMatchObject({
+        objective: "Add a parser and tests",
+        status: "complete",
+        reason: "The instruction is implemented.",
+      })
+      const notices = (yield* sessions.messages({ sessionID: session.id, order: "asc" })).filter(
+        (message) => message.type === "synthetic",
+      )
+      expect(notices[0]).toMatchObject({
+        metadata: { source: "divide", goalID: expect.any(String) },
+        description: "Divide: Add a parser and tests",
+      })
+      const kickoff = notices[0]?.type === "synthetic" ? notices[0].text : ""
+      expect(kickoff).toContain("A divide task is now active")
+      expect(kickoff).toContain("split the objective into a small task graph with the `taskwrite` tool")
+      expect(kickoff).toContain("Then execute the tasks in dependency order")
     }),
   )
 
@@ -556,5 +589,12 @@ function project() {
       agent: Agent.ID.make("build"),
       model,
     })
+  })
+}
+
+function configEntry(): Entry {
+  return new Document({
+    type: "document",
+    info: new Info({ experimental: new ConfigExperimental.Info({ "task-graph": true }) }),
   })
 }
