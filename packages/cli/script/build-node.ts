@@ -86,6 +86,7 @@ for (const target of targets) {
   const assetHash = await hashNodeAssets(assets)
   const input = {
     version: Script.version,
+    clientVersion: pkg.version,
     channel: Script.channel,
     highlights,
     modelsSnapshot,

@@ -36,8 +36,14 @@ const IS_PREVIEW = CHANNEL !== "latest"
 const VERSION = (() => {
   if (env.OPENCODE_VERSION) return env.OPENCODE_VERSION
   if (!IS_PREVIEW) throw new Error("OPENCODE_VERSION is required for latest-channel builds")
-  return `0.0.0-${CHANNEL}-${previewBuildNumber()}`
+  // Keep the release version as the semver core so hosted services that gate on
+  // version (the free tier requires 1.18.0 or newer) accept development builds.
+  return `${rootPkg.version}-${prereleaseChannel()}.${previewBuildNumber()}`
 })()
+
+function prereleaseChannel() {
+  return CHANNEL.replace(/[^0-9A-Za-z-]+/g, "-").replace(/^-+|-+$/g, "") || "preview"
+}
 
 function previewBuildNumber() {
   const runNumber = process.env["GITHUB_RUN_NUMBER"]

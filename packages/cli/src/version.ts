@@ -1,11 +1,15 @@
 import { Option, Schema } from "effect"
 
 declare const OPENCODE_VERSION: string
+declare const OPENCODE_CLIENT_VERSION: string
 declare const OPENCODE_CHANNEL: string
 declare const OPENCODE_ARTIFACT: string
 declare const OPENCODE_RELEASE_HIGHLIGHTS: string
 
 const version = typeof OPENCODE_VERSION === "string" ? OPENCODE_VERSION : "local"
+// Hosted services read this from the User-Agent. Preview builds keep a timestamped
+// internal version but report the release semver so version gates accept them.
+const clientVersion = typeof OPENCODE_CLIENT_VERSION === "string" ? OPENCODE_CLIENT_VERSION : version
 const channel = typeof OPENCODE_CHANNEL === "string" ? OPENCODE_CHANNEL : "local"
 const artifact = typeof OPENCODE_ARTIFACT === "string" ? OPENCODE_ARTIFACT : "cli"
 // Stable release builds embed the release notes' Highlights; every other build has none.
@@ -21,6 +25,7 @@ const highlights =
 
 export {
   version as OPENCODE_VERSION,
+  clientVersion as OPENCODE_CLIENT_VERSION,
   channel as OPENCODE_CHANNEL,
   artifact as OPENCODE_ARTIFACT,
   highlights as OPENCODE_HIGHLIGHTS,
