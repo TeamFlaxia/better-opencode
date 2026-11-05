@@ -43,9 +43,9 @@ Switching to another session tab closes the view and shows that tab's conversati
 
 When a jj repository is colocated with Git, the working-copy changes stay in jj so
 the files and diff are not rendered twice. The view also exposes the colocated Git
-repository's branches and commit history: the last two panels default to Git
-branches/commits, and the `jj` / `git` tabs (or `g`, `[`, `]`) switch them to jj
-bookmarks/changes. Git branches include remote branches, and `enter` checks one out.
+repository's branches and commit history: the last two panels default to jj
+bookmarks/changes, and the `jj` / `git` tabs (or `g`, `[`, `]`) switch them to Git
+branches/commits. Git branches include remote branches, and `enter` checks one out.
 Git history is shown for the selected branch and includes merge commits. Checking out a Git branch in a colocated
 repository moves the Git working copy; jj records the resulting files on its next
 snapshot. Use the jj bookmark panel when you want jj to own the checkout.

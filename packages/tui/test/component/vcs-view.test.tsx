@@ -182,10 +182,13 @@ test("shows Git branches and history beside jj changes in a colocated repository
     await app.waitForFrame(
       (frame) =>
         frame.includes("src/a.ts") &&
-        frame.includes("Branches · 2") &&
-        frame.includes("origin/feature") &&
-        frame.includes("g switch") &&
-        !frame.includes("Bookmarks"),
+        frame.includes("Bookmarks · 2") &&
+        frame.includes("feature-jj") &&
+        frame.includes("g switch"),
+    )
+    app.mockMouse.click(7, 0)
+    await app.waitForFrame(
+      (frame) => frame.includes("Branches · 2") && frame.includes("origin/feature") && !frame.includes("Bookmarks"),
     )
     app.mockInput.pressKey("3")
     await app.waitForFrame((frame) => frame.includes("enter switch") && frame.includes("t push tag"))
@@ -219,6 +222,7 @@ test("pushes a tag from the Git refs view", async () => {
         <VcsView
           controller={controller({
             summary: colocated,
+            branches: () => jjBranches,
             gitBranches: () => gitBranchList,
             remotes: () => ["origin"],
             tags: () => [{ id: "v2.2.5", label: "v2.2.5", name: "v2.2.5", detail: "abc · release", tag: true }],
@@ -233,6 +237,8 @@ test("pushes a tag from the Git refs view", async () => {
 
   try {
     app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("Bookmarks · 2"))
+    app.mockMouse.click(7, 0)
     await app.waitForFrame((frame) => frame.includes("Branches · 2"))
     app.mockInput.pressKey("3")
     await app.waitForFrame((frame) => frame.includes("t push tag"))

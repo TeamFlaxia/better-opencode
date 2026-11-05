@@ -78,9 +78,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const keymap = Keymap.use()
   const [focus, setFocus] = createSignal<VcsPanel>("files")
   const initialSummary = vcs.summary()
-  const [refMode, setRefMode] = createSignal<VcsRefMode>(
-    initialSummary?.kind === "git" || initialSummary?.git ? "git" : "jj",
-  )
+  const [refMode, setRefMode] = createSignal<VcsRefMode>(initialSummary?.kind === "git" ? "git" : "jj")
   const [selection, setSelection] = createSignal<Record<VcsPanel, number>>({
     status: 0,
     files: 0,
@@ -106,7 +104,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     const key = `${kind() ?? "none"}:${gitAvailable() ? "git" : "jj"}`
     if (key === lastRepositoryMode) return
     lastRepositoryMode = key
-    setRefMode(kind() === "git" || (kind() === "jj" && gitAvailable()) ? "git" : "jj")
+    setRefMode(kind() === "git" ? "git" : "jj")
   })
   const branchSource = () => (refsAreGit() ? (vcs.gitBranches?.() ?? vcs.branches()) : vcs.branches())
   const historySource = (ref?: string) =>
