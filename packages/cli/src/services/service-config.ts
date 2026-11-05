@@ -71,9 +71,13 @@ export function versionBelongsToChannel(
 ) {
   if (version === undefined) return false
   if (version === installedVersion) return true
-  const prefix = `0.0.0-${channel}-`
-  if (!version.startsWith(prefix)) return false
-  return /^\d+(?:\.\d+)?$/.test(version.slice(prefix.length))
+  const escaped = channel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const legacy = new RegExp(`^0\\.0\\.0-${escaped}-\\d+(?:\\.\\d+)?$`)
+  if (legacy.test(version)) return true
+  // Preview builds now use the package release version as their semver core so hosted
+  // version gates accept them, e.g. 2.2.5-main-202611050841 or 2.2.5-main.202611050841.
+  const current = new RegExp(`^\\d+\\.\\d+\\.\\d+-${escaped}[-.]\\d+(?:\\.\\d+)?$`)
+  return current.test(version)
 }
 
 export const migrateRegistration = Effect.fnUntraced(function* (

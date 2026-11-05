@@ -33,7 +33,7 @@ import type {
   SetSessionModeRequest,
   SetSessionModeResponse,
 } from "@agentclientprotocol/sdk"
-import { OPENCODE_VERSION } from "../version"
+import { OPENCODE_CLIENT_VERSION } from "../version"
 import { ACPCapabilities, type Capabilities } from "./capabilities"
 import type { ACPCatalog } from "./catalog"
 import { ACPClient } from "./client"
@@ -126,7 +126,7 @@ export function make(input: {
           _meta: { [ACPCapabilities.ChildSessionUpdates]: true },
         },
         authMethods: [authMethod],
-        agentInfo: { name: "OpenCode", version: OPENCODE_VERSION },
+        agentInfo: { name: "OpenCode", version: OPENCODE_CLIENT_VERSION },
       }
     }),
     authenticate: Effect.fnUntraced(function* (params) {

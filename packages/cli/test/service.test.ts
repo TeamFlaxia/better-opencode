@@ -273,6 +273,9 @@ test("service filenames share release channels and identify preview channels", (
   expect(ServiceConfig.versionBelongsToChannel("0.0.0-preview-a-1234.2", "preview-a")).toBe(true)
   expect(ServiceConfig.versionBelongsToChannel("0.0.0-preview-a-other-1234", "preview-a")).toBe(false)
   expect(ServiceConfig.versionBelongsToChannel("1.2.3", "preview-a")).toBe(false)
+  expect(ServiceConfig.versionBelongsToChannel("2.2.5-preview-a.202611050841", "preview-a")).toBe(true)
+  expect(ServiceConfig.versionBelongsToChannel("2.2.5-preview-a.202611050841.2", "preview-a")).toBe(true)
+  expect(ServiceConfig.versionBelongsToChannel("2.2.5-other.202611050841", "preview-a")).toBe(false)
 })
 
 test("service config migrates from the hashed channel filename", async () => {
