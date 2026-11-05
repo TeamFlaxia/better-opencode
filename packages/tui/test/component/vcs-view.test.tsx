@@ -184,6 +184,7 @@ test("shows Git branches and history beside jj changes in a colocated repository
         frame.includes("src/a.ts") &&
         frame.includes("Branches · 2") &&
         frame.includes("origin/feature") &&
+        frame.includes("g switch") &&
         !frame.includes("Bookmarks"),
     )
     app.mockInput.pressKey("3")
@@ -203,7 +204,7 @@ test("shows Git branches and history beside jj changes in a colocated repository
         frame.includes("M"),
     )
 
-    app.mockInput.pressKey("g")
+    app.mockMouse.click(2, 0)
     await app.waitForFrame((frame) => frame.includes("Bookmarks · 2") && frame.includes("feature-jj"))
   } finally {
     app.renderer.destroy()

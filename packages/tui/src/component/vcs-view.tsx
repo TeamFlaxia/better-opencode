@@ -933,6 +933,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       setRefMode((value) => (value === "git" ? "jj" : "git"))
       return
     }
+    if ((key === "[" || key === "]") && canToggleRefs()) {
+      handled()
+      setRefMode(key === "]" ? "git" : "jj")
+      return
+    }
     if (key === "end") {
       handled()
       setSelectedFor(focus(), Math.max(0, countFor(focus()) - 1))
@@ -1336,6 +1341,40 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
           </box>
         }
       >
+        <Show when={canToggleRefs()}>
+          <box height={1} flexShrink={0} flexDirection="row" gap={1} paddingLeft={1} paddingRight={1}>
+            <box
+              paddingLeft={1}
+              paddingRight={1}
+              backgroundColor={refsAreGit() ? theme.background.raised.base : theme.background.action.primary.focused}
+              onMouseUp={(event) => {
+                event.stopPropagation()
+                setRefMode("jj")
+              }}
+            >
+              <text fg={refsAreGit() ? theme.text.muted : theme.text.action.primary.focused} selectable={false}>
+                <b>jj</b>
+              </text>
+            </box>
+            <box
+              paddingLeft={1}
+              paddingRight={1}
+              backgroundColor={refsAreGit() ? theme.background.action.primary.focused : theme.background.raised.base}
+              onMouseUp={(event) => {
+                event.stopPropagation()
+                setRefMode("git")
+              }}
+            >
+              <text fg={refsAreGit() ? theme.text.action.primary.focused : theme.text.muted} selectable={false}>
+                <b>git</b>
+              </text>
+            </box>
+            <box flexGrow={1} />
+            <text fg={theme.text.muted} selectable={false}>
+              g switch
+            </text>
+          </box>
+        </Show>
         <box flexGrow={1} minHeight={0} flexDirection="row" gap={1} paddingLeft={1} paddingRight={1} paddingBottom={1}>
           <box width={sidebarWidth()} flexShrink={0} flexDirection="column">
             <box

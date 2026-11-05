@@ -44,9 +44,9 @@ Switching to another session tab closes the view and shows that tab's conversati
 When a jj repository is colocated with Git, the working-copy changes stay in jj so
 the files and diff are not rendered twice. The view also exposes the colocated Git
 repository's branches and commit history: the last two panels default to Git
-branches/commits, and `g` switches them to jj bookmarks/changes. Git branches include
-remote branches, and `enter` checks one out. Git history is shown for the selected
-branch and includes merge commits. Checking out a Git branch in a colocated
+branches/commits, and the `jj` / `git` tabs (or `g`, `[`, `]`) switch them to jj
+bookmarks/changes. Git branches include remote branches, and `enter` checks one out.
+Git history is shown for the selected branch and includes merge commits. Checking out a Git branch in a colocated
 repository moves the Git working copy; jj records the resulting files on its next
 snapshot. Use the jj bookmark panel when you want jj to own the checkout.
 
@@ -87,7 +87,8 @@ jj/Git repository, `g` switches those two panels to Git branches and commits.
   new change on top of an immutable one; or switch to a Git branch/commit. In the
   colocated Git mode, `enter` checks out the selected branch, remote branch, tag, or
   commit.
-- `g`: toggle between jj bookmarks/changes and Git branches/commits when both exist
+- `g` / `[` / `]`: switch between jj bookmarks/changes and Git branches/commits when
+  both exist. The `jj` and `git` tabs do the same with the mouse.
 - `n`: create a bookmark/branch (at the selected change/commit in changes/commits)
 - `b`: move the selected local bookmark to a revset; in changes/commits, choose a
   local bookmark to move to the selected revision
