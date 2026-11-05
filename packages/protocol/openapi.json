@@ -16541,6 +16541,9 @@
               "todo": {
                 "type": "boolean"
               },
+              "task-graph": {
+                "type": "boolean"
+              },
               "background_compaction": {
                 "type": "boolean"
               },

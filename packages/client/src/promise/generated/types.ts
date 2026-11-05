@@ -2500,6 +2500,7 @@ export type ConfigEntry =
         experimental?: {
           portable_shell_scanner?: boolean
           todo?: boolean
+          "task-graph"?: boolean
           background_compaction?: boolean
           media_blob?: boolean
           image_generate?: boolean | { model?: string | { providerID: string; model: string; variant?: string } }
