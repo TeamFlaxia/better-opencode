@@ -65,6 +65,30 @@ test("reuses a compatible registered service", async () => {
   expect(existing.exitCode).toBe(null)
 })
 
+test("reuses a preview service whose health reports the release version", async () => {
+  await using fixture = await serviceFixture()
+  const registration = fixture.registration
+  const existing = fixture.spawn("split-version")
+  await fixture.waitForFile()
+
+  const starts: EnsureReason[] = []
+  const endpoint = await run(
+    ensure({
+      file: registration,
+      version: "2.2.5-main.202611050949",
+      command: [],
+      onStart: (reason) => starts.push(reason),
+    }),
+  )
+
+  expect(endpoint.url).toBe((await Bun.file(registration).json()).url)
+  expect(starts).toEqual([])
+  expect(existing.exitCode).toBe(null)
+  expect((await run(Service.discover({ file: registration, version: "2.2.5-main.202611050949" })))?.url).toBe(
+    endpoint.url,
+  )
+})
+
 test("adds configured environment variables when starting a service", async () => {
   await using fixture = await serviceFixture()
   const registration = fixture.registration

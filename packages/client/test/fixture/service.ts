@@ -47,6 +47,10 @@ let version = "test"
 if (mode === "old" || mode === "handoff") version = "old"
 if (mode === "incompatible") version = "1.9.0"
 if (mode === "compatible" || mode === "delayed-compatible") version = "2.1.0-next.1"
+// A preview build registers its timestamped internal version while /api/info reports the
+// release version used in the User-Agent.
+if (mode === "split-version") version = "2.2.5"
+const registeredVersion = mode === "split-version" ? "2.2.5-main.202611050949" : version
 const id = crypto.randomUUID()
 const handoff = {
   directory: registration + ".daemon",
@@ -113,7 +117,7 @@ await writeFile(
   registration + ".tmp",
   JSON.stringify({
     id,
-    version,
+    version: registeredVersion,
     url: server.url.toString(),
     pid: process.pid,
     password: "private",
