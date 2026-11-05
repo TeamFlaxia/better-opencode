@@ -20,6 +20,12 @@ export const features: Feature[] = [
     keywords: ["tasks", "graph", "dependencies", "goal", "plan", "chart"],
   },
   {
+    id: "file-manager",
+    title: "File manager",
+    description: "Browse project files and preview them in a built-in panel",
+    keywords: ["files", "browser", "explorer", "preview", "directory", "tree"],
+  },
+  {
     id: "client-mcp",
     title: "TUI tools",
     description: "Let the agent open terminals in this TUI (requires server support)",

@@ -92,6 +92,8 @@ export const Definitions = {
   "vcs.refresh": keybind("none", "Refresh version control status"),
   "taskgraph.open": keybind("<leader>j", "Open task graph"),
   "taskgraph.refresh": keybind("none", "Refresh task graph"),
+  "filemanager.open": keybind("<leader>f", "Open file manager"),
+  "filemanager.refresh": keybind("none", "Refresh file manager"),
 
   "prompt.editor": keybind("<leader>e", "Open external editor"),
   "theme.switch": keybind("none", "List available themes"),

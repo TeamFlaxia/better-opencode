@@ -82,8 +82,11 @@ import { VcsDock, VCS_DOCK_MIN_TERMINAL_WIDTH, VCS_DOCK_WIDTH } from "./componen
 import { TaskGraphDock } from "./component/task-graph-dock"
 import { TaskGraphView } from "./component/task-graph-view"
 import { VcsView } from "./component/vcs-view"
+import { FileManagerDock } from "./component/file-manager-dock"
+import { FileManagerView } from "./component/file-manager-view"
 import { VcsProvider, useVcs } from "./context/vcs"
 import { TaskGraphProvider, useTaskGraph } from "./context/task-graph"
+import { FileManagerProvider, useFileManager } from "./context/file-manager"
 import {
   clampSessionTabsWidth,
   sessionTabsFitVertically,
@@ -191,6 +194,8 @@ const appBindingCommands = [
   "vcs.refresh",
   "taskgraph.open",
   "taskgraph.refresh",
+  "filemanager.open",
+  "filemanager.refresh",
   "app.debug",
   "app.console",
   "terminal.suspend",
@@ -440,32 +445,34 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                                             <LocalProvider>
                                                               <PromptStashProvider>
                                                                 <VcsProvider>
-                                                                  <DialogProvider>
-                                                                    <FrecencyProvider>
-                                                                      <PromptHistoryProvider>
-                                                                        <PromptRefProvider>
-                                                                          <EditorContextProvider>
-                                                                            <AttentionProvider>
-                                                                              <UpdateNotificationProvider
-                                                                                updater={input.updater}
-                                                                              >
-                                                                                <PanelProvider>
-                                                                                  <TaskGraphProvider>
-                                                                                    <PluginProvider
-                                                                                      packages={input.packages}
-                                                                                      directories={pluginDirectories}
-                                                                                    >
-                                                                                      <App />
-                                                                                    </PluginProvider>
-                                                                                  </TaskGraphProvider>
-                                                                                </PanelProvider>
-                                                                              </UpdateNotificationProvider>
-                                                                            </AttentionProvider>
-                                                                          </EditorContextProvider>
-                                                                        </PromptRefProvider>
-                                                                      </PromptHistoryProvider>
-                                                                    </FrecencyProvider>
-                                                                  </DialogProvider>
+                                                                  <FileManagerProvider>
+                                                                    <DialogProvider>
+                                                                      <FrecencyProvider>
+                                                                        <PromptHistoryProvider>
+                                                                          <PromptRefProvider>
+                                                                            <EditorContextProvider>
+                                                                              <AttentionProvider>
+                                                                                <UpdateNotificationProvider
+                                                                                  updater={input.updater}
+                                                                                >
+                                                                                  <PanelProvider>
+                                                                                    <TaskGraphProvider>
+                                                                                      <PluginProvider
+                                                                                        packages={input.packages}
+                                                                                        directories={pluginDirectories}
+                                                                                      >
+                                                                                        <App />
+                                                                                      </PluginProvider>
+                                                                                    </TaskGraphProvider>
+                                                                                  </PanelProvider>
+                                                                                </UpdateNotificationProvider>
+                                                                              </AttentionProvider>
+                                                                            </EditorContextProvider>
+                                                                          </PromptRefProvider>
+                                                                        </PromptHistoryProvider>
+                                                                      </FrecencyProvider>
+                                                                    </DialogProvider>
+                                                                  </FileManagerProvider>
                                                                 </VcsProvider>
                                                               </PromptStashProvider>
                                                             </LocalProvider>
@@ -525,18 +532,27 @@ function App() {
   const sessionTabs = useSessionTabs()
   const vcs = useVcs()
   const taskGraph = useTaskGraph()
+  const fileManager = useFileManager()
   // Full-pane views are transient: switching session tabs returns to that tab's conversation.
   const [vcsOpen, setVcsOpen] = createSignal(false)
   const [taskGraphOpen, setTaskGraphOpen] = createSignal(false)
-  // The two full-pane views share one content area, so opening one closes the other even
+  const [filesOpen, setFilesOpen] = createSignal(false)
+  // The full-pane views share one content area, so opening one closes the others even
   // when the click comes from the dock of the view that is already open.
   const openTaskGraph = () => {
     setVcsOpen(false)
+    setFilesOpen(false)
     setTaskGraphOpen(true)
   }
   const openVcs = () => {
     setTaskGraphOpen(false)
+    setFilesOpen(false)
     setVcsOpen(true)
+  }
+  const openFiles = () => {
+    setVcsOpen(false)
+    setTaskGraphOpen(false)
+    setFilesOpen(true)
   }
   const vcsKey = () => {
     if (route.data.type === "session") return `session:${route.data.sessionID}`
@@ -549,6 +565,7 @@ function App() {
     lastVcsKey = key
     setVcsOpen(false)
     setTaskGraphOpen(false)
+    setFilesOpen(false)
   })
   const panels = usePanel()
   const keymap = Keymap.use()
@@ -677,13 +694,19 @@ function App() {
   const taskGraphDockEnabled = () => config.data.experimental?.["task-graph"] === true
   const taskGraphDockVisible = () =>
     taskGraphDockEnabled() && tabsAvailable() && taskGraph.visible() && !fullscreenPanel()
-  const vcsDockRight = () =>
+  const fileManagerDockEnabled = () => config.data.experimental?.["file-manager"] === true
+  const fileManagerDockVisible = () =>
+    fileManagerDockEnabled() && tabsAvailable() && fileManager.visible() && !fullscreenPanel()
+  const dockVisible = () => taskGraphDockVisible() || fileManagerDockVisible() || vcsDockVisible()
+  // The VCS dock anchors the right column. Other docks join it only when it is visible,
+  // so enabling them alone keeps the existing single-row below layout.
+  const dockRight = () =>
     vcsDockVisible() &&
     !tabsVertical() &&
     config.data.vcs.placement === "right" &&
     dimensions().width >= VCS_DOCK_MIN_TERMINAL_WIDTH
-  const vcsDockBelow = () => vcsDockVisible() && !tabsVertical() && !vcsDockRight()
-  const tabsWidthForDock = () => dimensions().width - (vcsDockRight() ? VCS_DOCK_WIDTH : 0)
+  const dockBelow = () => dockVisible() && !tabsVertical() && !dockRight()
+  const tabsWidthForDock = () => dimensions().width - (dockRight() ? VCS_DOCK_WIDTH : 0)
 
   // Measure the prospective split layout, even while full-screen hides the tabs.
   createEffect(() => panels.setWidth(dimensions().width - (tabsAvailable() && tabsVertical() ? tabsWidth() : 0)))
@@ -1269,6 +1292,21 @@ function App() {
         run: () => void taskGraph.refresh(),
       },
       {
+        name: "filemanager.open",
+        title: "Open file manager",
+        category: "Files",
+        slash: { name: "files" },
+        enabled: fileManagerDockEnabled,
+        run: openFiles,
+      },
+      {
+        name: "filemanager.refresh",
+        title: "Refresh file manager",
+        category: "Files",
+        enabled: fileManagerDockEnabled,
+        run: () => void fileManager.refresh(),
+      },
+      {
         name: "app.exit",
         title: "Exit the app",
         slash: { name: "exit", aliases: ["quit", "q"] },
@@ -1531,9 +1569,10 @@ function App() {
             onActivate={() => {
               setVcsOpen(false)
               setTaskGraphOpen(false)
+              setFilesOpen(false)
             }}
             footer={
-              taskGraphDockVisible() || vcsDockVisible() ? (
+              taskGraphDockVisible() || fileManagerDockVisible() || vcsDockVisible() ? (
                 <box flexDirection="column">
                   <Show when={taskGraphDockVisible()}>
                     <TaskGraphDock
@@ -1541,6 +1580,9 @@ function App() {
                       width={tabsWidth()}
                       onOpen={openTaskGraph}
                     />
+                  </Show>
+                  <Show when={fileManagerDockVisible()}>
+                    <FileManagerDock orientation="vertical" width={tabsWidth()} onOpen={openFiles} />
                   </Show>
                   <Show when={vcsDockVisible()}>
                     <VcsDock orientation="vertical" width={tabsWidth()} onOpen={openVcs} />
@@ -1555,7 +1597,7 @@ function App() {
             <box flexGrow={1} minHeight={0} flexDirection="column">
               <Show when={tabsVisible() && !tabsVertical()}>
                 <Show
-                  when={vcsDockRight()}
+                  when={dockRight()}
                   fallback={
                     <box flexDirection="column" flexShrink={0}>
                       <SessionTabs
@@ -1563,14 +1605,18 @@ function App() {
                         onActivate={() => {
                           setVcsOpen(false)
                           setTaskGraphOpen(false)
+                          setFilesOpen(false)
                         }}
                       />
-                      <Show when={taskGraphDockVisible() || vcsDockBelow()}>
+                      <Show when={dockBelow()}>
                         <box flexDirection="column">
                           <Show when={taskGraphDockVisible()}>
                             <TaskGraphDock orientation="below" onOpen={openTaskGraph} />
                           </Show>
-                          <Show when={vcsDockBelow()}>
+                          <Show when={fileManagerDockVisible()}>
+                            <FileManagerDock orientation="below" onOpen={openFiles} />
+                          </Show>
+                          <Show when={vcsDockVisible()}>
                             <VcsDock orientation="below" onOpen={openVcs} />
                           </Show>
                         </box>
@@ -1585,6 +1631,7 @@ function App() {
                         onActivate={() => {
                           setVcsOpen(false)
                           setTaskGraphOpen(false)
+                          setFilesOpen(false)
                         }}
                       />
                     </box>
@@ -1596,53 +1643,60 @@ function App() {
                           onOpen={openTaskGraph}
                         />
                       </Show>
+                      <Show when={fileManagerDockVisible()}>
+                        <FileManagerDock orientation="right" width={VCS_DOCK_WIDTH} onOpen={openFiles} />
+                      </Show>
                       <VcsDock orientation="right" width={VCS_DOCK_WIDTH} onOpen={openVcs} />
                     </box>
                   </box>
                 </Show>
               </Show>
               <Show
-                when={vcsOpen() && vcsDockEnabled()}
+                when={filesOpen() && fileManagerDockEnabled()}
                 fallback={
                   <Show
-                    when={taskGraphOpen() && taskGraphDockEnabled()}
+                    when={vcsOpen() && vcsDockEnabled()}
                     fallback={
-                      <Switch>
-                        <Match when={route.data.type === "home"}>
-                          <Home />
-                        </Match>
-                        <Match when={route.data.type === "session"}>
-                          <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
-                            {(sessionID) => (
-                              <SessionFrame
-                                sessionID={sessionID}
-                                verticalTabsWidth={verticalTabsVisible() ? tabsWidth() : 0}
+                      <Show
+                        when={taskGraphOpen() && taskGraphDockEnabled()}
+                        fallback={
+                          <Switch>
+                            <Match when={route.data.type === "home"}>
+                              <Home />
+                            </Match>
+                            <Match when={route.data.type === "session"}>
+                              <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
+                                {(sessionID) => (
+                                  <SessionFrame
+                                    sessionID={sessionID}
+                                    verticalTabsWidth={verticalTabsVisible() ? tabsWidth() : 0}
+                                  />
+                                )}
+                              </Show>
+                            </Match>
+                            <Match when={route.data.type === "plugin"}>
+                              <PluginRoute
+                                fallback={(id, name) => (
+                                  <PluginRouteMissing
+                                    id={id}
+                                    name={name}
+                                    onHome={() => route.navigate({ type: "home" })}
+                                  />
+                                )}
                               />
-                            )}
-                          </Show>
-                        </Match>
-                        <Match when={route.data.type === "plugin"}>
-                          <PluginRoute
-                            fallback={(id, name) => (
-                              <PluginRouteMissing
-                                id={id}
-                                name={name}
-                                onHome={() => route.navigate({ type: "home" })}
-                              />
-                            )}
-                          />
-                        </Match>
-                      </Switch>
+                            </Match>
+                          </Switch>
+                        }
+                      >
+                        <TaskGraphView onClose={() => setTaskGraphOpen(false)} onOpenVcs={openVcs} />
+                      </Show>
                     }
                   >
-                    <TaskGraphView
-                      onClose={() => setTaskGraphOpen(false)}
-                      onOpenVcs={openVcs}
-                    />
+                    <VcsView onClose={() => setVcsOpen(false)} />
                   </Show>
                 }
               >
-                <VcsView onClose={() => setVcsOpen(false)} />
+                <FileManagerView onClose={() => setFilesOpen(false)} />
               </Show>
             </box>
             <Slot path="app" />

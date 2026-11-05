@@ -25,6 +25,7 @@ test("exposes better-opencode features as settings toggles", () => {
   expect(features.map((setting) => setting.path.join("."))).toEqual([
     "experimental.vcs-dock",
     "experimental.task-graph",
+    "experimental.file-manager",
     "experimental.client-mcp",
     "experimental.new-designs",
   ])

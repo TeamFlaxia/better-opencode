@@ -43,6 +43,7 @@ const ja: Record<string, string> = {
   Features: "機能",
   "Version control dock": "バージョン管理ドック",
   "Task graph": "タスクグラフ",
+  "File manager": "ファイルマネージャー",
   "TUI tools": "TUI ツール",
   "New designs": "新しいデザイン",
   "Color theme used across the interface": "インターフェース全体で使用するカラーテーマ",
