@@ -477,6 +477,15 @@ function normalizeExperimental(
         )
         if (value !== undefined) result.todo = value
       }
+      if (own(experimental, "task-graph")) {
+        const value = decodeEncoded(
+          ConfigExperimental.Info.fields["task-graph"],
+          experimental["task-graph"],
+          ["experimental", "task-graph"],
+          diagnostics,
+        )
+        if (value !== undefined) result["task-graph"] = value
+      }
       if (own(experimental, "background_compaction")) {
         const value = decodeEncoded(
           ConfigExperimental.Info.fields.background_compaction,
