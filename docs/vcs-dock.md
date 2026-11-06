@@ -1,7 +1,8 @@
 # Version control dock
 
 The TUI can keep a small version control status dock beside the tab bar. It is an
-experimental feature, gated by the `vcs-dock` experiment and configured under `vcs`.
+experimental feature, configured under `vcs`, and enabled by default in the TUI.
+Turn it off in Settings → Features or by setting `experimental.vcs-dock` to `false`.
 
 Operations run inside OpenCode: the dock does not require `lazygit`, `lazyjj`, or
 `jjui` to be installed. Those tools remain available as an optional external view.
@@ -211,5 +212,5 @@ The built-in view avoids that dependency entirely.
 }
 ```
 
-The experiment stays opt-in until the built-in actions cover the common jj and
-Git workflows without surprising rewrites.
+The feature remains experimental, so its behavior may change. Disable it when you
+prefer the external tools or do not want the extra dock.

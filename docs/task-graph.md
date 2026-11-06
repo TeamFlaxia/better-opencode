@@ -1,9 +1,11 @@
 # Task graph
 
 The task graph shows what the agent is doing as a dependency graph rather than a todo
-checklist. It is experimental and disabled by default.
+checklist. It is experimental and enabled by default in the TUI; turn it off in
+Settings → Features or by setting `experimental.task-graph` to `false`.
 
-Enable it in `cli.json` or through the Experiments dialog:
+The core configuration schema leaves the experiment off by default, so non-TUI
+clients must enable it explicitly. In `cli.json` or the Experiments dialog:
 
 ```json
 {
@@ -42,16 +44,16 @@ The graph has three layers:
 A task can be `pending`, `active`, `done`, `blocked`, or `cancelled`. The view derives
 the display status:
 
-| Display | Meaning |
-| --- | --- |
-| `pending` | Waiting on an unfinished dependency. |
-| `ready` | Dependencies are done and the task can start. |
-| `running` | The session or one of its children is executing. |
-| `waiting` | A permission request or form is waiting for the user. |
-| `blocked` | Declared blocked, with a reason. |
-| `stalled` | Active, but nothing is running. A paused goal lands here. |
-| `skipped` | The goal completed before the task did. |
-| `done`, `cancelled`, `failed` | Directly from the task or the observed step/tool. |
+| Display                       | Meaning                                                   |
+| ----------------------------- | --------------------------------------------------------- |
+| `pending`                     | Waiting on an unfinished dependency.                      |
+| `ready`                       | Dependencies are done and the task can start.             |
+| `running`                     | The session or one of its children is executing.          |
+| `waiting`                     | A permission request or form is waiting for the user.     |
+| `blocked`                     | Declared blocked, with a reason.                          |
+| `stalled`                     | Active, but nothing is running. A paused goal lands here. |
+| `skipped`                     | The goal completed before the task did.                   |
+| `done`, `cancelled`, `failed` | Directly from the task or the observed step/tool.         |
 
 ## Where it lives
 
@@ -107,14 +109,14 @@ dependencies.
 In a jj repository, a task may carry a `bookmark` and a `change`. The viewer resolves
 them from `jj` and shows the change state next to the task:
 
-| Badge | Meaning |
-| --- | --- |
-| `@` | The task's change is the current working copy. |
-| `✓` | Clean change. |
-| `!` | Conflict. |
-| `∅` | Empty change. |
-| `◇` | Immutable change. |
-| `?` | The bookmark or change could not be found. |
+| Badge | Meaning                                        |
+| ----- | ---------------------------------------------- |
+| `@`   | The task's change is the current working copy. |
+| `✓`   | Clean change.                                  |
+| `!`   | Conflict.                                      |
+| `∅`   | Empty change.                                  |
+| `◇`   | Immutable change.                              |
+| `?`   | The bookmark or change could not be found.     |
 
 The task details pane shows the change ID, commit ID, bookmarks, parent changes, and the
 result of an on-demand ancestry check. The bookmark convention is `task/<task-id>`;
@@ -126,18 +128,18 @@ editing the transcript. Declared task status remains model-owned.
 
 ### Actions
 
-| Key | Action |
-| --- | --- |
-| `space` | Open the task action menu |
-| `n` | Create a change and set `task/<id>` for the task |
-| `d` | Describe the linked change with the task title |
-| `b` | Set or move the linked bookmark |
-| `e` | Edit the linked change (switch `@`) |
-| `s` | Squash the linked change into its parent |
-| `a` | Abandon the linked change |
-| `v` | Validate dependency changes against jj ancestry |
-| `y` | Copy the change ID or bookmark |
-| `o` | Open the VCS view |
+| Key     | Action                                           |
+| ------- | ------------------------------------------------ |
+| `space` | Open the task action menu                        |
+| `n`     | Create a change and set `task/<id>` for the task |
+| `d`     | Describe the linked change with the task title   |
+| `b`     | Set or move the linked bookmark                  |
+| `e`     | Edit the linked change (switch `@`)              |
+| `s`     | Squash the linked change into its parent         |
+| `a`     | Abandon the linked change                        |
+| `v`     | Validate dependency changes against jj ancestry  |
+| `y`     | Copy the change ID or bookmark                   |
+| `o`     | Open the VCS view                                |
 
 Squash and abandon require confirmation. The TUI never changes a task's declared status;
 ask the agent to update the graph after a mutation if the status changed.
@@ -162,19 +164,19 @@ task displays as stalled with the goal's reason.
 
 ## Keys
 
-| Key | Action |
-| --- | --- |
-| `<leader>j` | Open the task graph |
-| `/tasks` | Open from the prompt |
-| `↑` / `↓`, `j` / `k` | Select a node |
-| `pageup` / `pagedown` | Move by one page |
-| `tab`, `←` / `→` | Switch between tasks and execution |
-| `enter` | Open the selected subagent session |
-| `space` | Open the task action menu |
-| `o` | Open the VCS view |
-| `y` | Copy the change ID or bookmark |
-| `r` | Refresh the goal, links, and session state |
-| `q`, `esc` | Close |
+| Key                   | Action                                     |
+| --------------------- | ------------------------------------------ |
+| `<leader>j`           | Open the task graph                        |
+| `/tasks`              | Open from the prompt                       |
+| `↑` / `↓`, `j` / `k`  | Select a node                              |
+| `pageup` / `pagedown` | Move by one page                           |
+| `tab`, `←` / `→`      | Switch between tasks and execution         |
+| `enter`               | Open the selected subagent session         |
+| `space`               | Open the task action menu                  |
+| `o`                   | Open the VCS view                          |
+| `y`                   | Copy the change ID or bookmark             |
+| `r`                   | Refresh the goal, links, and session state |
+| `q`, `esc`            | Close                                      |
 
 ## Implementation notes
 

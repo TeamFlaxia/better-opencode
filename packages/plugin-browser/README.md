@@ -1,9 +1,13 @@
 # Browser plugin
 
-`@opencode/plugin-browser` exposes the desktop browser through Code Mode.
+`@opencode/plugin-browser` exposes a desktop browser through Code Mode.
 The server owns tools, invocation scope, and permissions; the desktop owns tabs,
 CDP, captured traffic, evaluations, and capture files. Core only registers the
 plugin. Neither endpoint imports the other's implementation.
+
+> This fork has no desktop or web UI client. The browser pane was removed with
+> those clients, so the package currently keeps the shared URL policy and RPC
+> contract for a future client.
 
 ```js
 const tab = await tools.browser.tabs.open({ url: "https://example.com" })

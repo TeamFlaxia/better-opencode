@@ -31,25 +31,25 @@ bun run dev:live /path   # 対象ディレクトリを指定
 
 ## リポジトリ構成
 
-| パス | 役割 |
-| --- | --- |
-| `packages/schema` | 共有スキーマ・永続イベント・設定型 |
-| `packages/core` | ドメインロジックと永続化 |
-| `packages/protocol` | 公開 HTTP API 定義 |
-| `packages/server` | HTTP サーバーとランタイム合成 |
-| `packages/client` | 生成クライアント |
-| `packages/cli` | CLI とサービスライフサイクル |
-| `packages/tui` | ターミナル UI（唯一のクライアント） |
-| `packages/plugin` | プラグイン API |
-| `docs/` | このフォークの設計・ロードマップ |
+| パス                | 役割                                |
+| ------------------- | ----------------------------------- |
+| `packages/schema`   | 共有スキーマ・永続イベント・設定型  |
+| `packages/core`     | ドメインロジックと永続化            |
+| `packages/protocol` | 公開 HTTP API 定義                  |
+| `packages/server`   | HTTP サーバーとランタイム合成       |
+| `packages/client`   | 生成クライアント                    |
+| `packages/cli`      | CLI とサービスライフサイクル        |
+| `packages/tui`      | ターミナル UI（唯一のクライアント） |
+| `packages/plugin`   | プラグイン API                      |
+| `docs/`             | このフォークの設計・運用ガイド      |
 
 ## ブランチ
 
-| ブランチ | 用途 |
-| --- | --- |
-| `main` | better-opencode の開発基準。機能追加はここから分岐する |
-| `upstream` | 上流 `anomalyco/opencode` の `dev` を保持するミラー。フォークのコミットを置かない |
-| `origin/upstream` | 上流の `dev`。同期に使う |
+| ブランチ          | 用途                                                                              |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `main`            | better-opencode の開発基準。機能追加はここから分岐する                            |
+| `upstream`        | 上流 `anomalyco/opencode` の `dev` を保持するミラー。フォークのコミットを置かない |
+| `origin/upstream` | 上流の `dev`。同期に使う                                                          |
 
 作業ブランチは `main` から切り、3語以内のハイフン区切りにする（例: `code-index`, `test-loop`, `session-search`）。`feat/` や `fix/` の接頭辞は使わない。
 
@@ -100,11 +100,11 @@ bun run script/test.ts test/session-runner.test.ts   # 1ファイルだけ
 
 `.github/workflows/pr-check.yml` は `main` 向け PR と手動実行（`workflow_dispatch`）で動く。`main` への通常の push では動かない。GitHub ホストの `ubuntu-latest` を使い、次の3ジョブを並列で実行する。
 
-| ジョブ | 内容 |
-| --- | --- |
-| `check` | `bun run lint`、`bun turbo typecheck:tsc --affected`、変更ファイルの lint、生成クライアント / OpenAPI の差分確認 |
-| `test` | 変更の影響を受けるパッケージのユニットテスト（`bun turbo test --affected --concurrency=2 -- --parallel=2 --no-isolate`） |
-| `build` | CLI / app が依存するワークスペースライブラリのビルド（`--affected`） |
+| ジョブ  | 内容                                                                                                                     |
+| ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `check` | `bun run lint`、`bun turbo typecheck:tsc --affected`、変更ファイルの lint、生成クライアント / OpenAPI の差分確認         |
+| `test`  | 変更の影響を受けるパッケージのユニットテスト（`bun turbo test --affected --concurrency=2 -- --parallel=2 --no-isolate`） |
+| `build` | CLI が依存するワークスペースライブラリのビルド（`--affected`）                                                           |
 
 - ドラフト PR ではジョブをスキップする。`ready_for_review` で再実行される。
 - 同じ PR への追加コミットは古い実行をキャンセルする。
@@ -142,16 +142,24 @@ git push origin v2.2.5-better.1
 
 ## 機能を追加する場所
 
-| 追加するもの | 場所 |
-| --- | --- |
-| エージェントツール | `packages/core/src/tool/plugin/` + `packages/core/src/tool/runtime.ts` への登録 |
-| 設定 | `packages/schema/src/config/` + `packages/core/src/config/normalize.ts` |
-| 永続化 | `packages/core/src/database/`（Drizzle、snake_case） |
-| HTTP API | `packages/protocol/src/groups/` + `packages/server/src/handlers/` |
-| TUI | `packages/tui/src/feature-plugins/`、`packages/tui/src/component/` |
-| TUI プラグイン | `packages/plugin/src/tui/` |
+| 追加するもの               | 場所                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| エージェントツール         | `packages/core/src/tool/plugin/` + `packages/core/src/tool/runtime.ts` への登録 |
+| 設定                       | `packages/schema/src/config/` + `packages/core/src/config/normalize.ts`         |
+| 永続化                     | `packages/core/src/database/`（Drizzle、snake_case）                            |
+| HTTP API                   | `packages/protocol/src/groups/` + `packages/server/src/handlers/`               |
+| TUI                        | `packages/tui/src/feature-plugins/`、`packages/tui/src/component/`              |
+| TUI プラグイン             | `packages/plugin/src/tui/`                                                      |
+| TUI の機能トグル           | `packages/tui/src/component/features.ts` + `packages/tui/src/config/index.tsx`  |
+| フォークの機能ドキュメント | `docs/`                                                                         |
 
 新しい振る舞いは experimental から始める。設定は `experimental.*`、HTTP は `/api/experimental/...`、SDK は `client.experimental.*`。
+
+## 機能トグル
+
+TUI は `vcs-dock`、`task-graph`、`file-manager`、`client-mcp`、`new-designs` を既定で有効にする。**Settings → Features**（日本語表示では **設定 → 機能**）または Experiments ダイアログから個別に切り替えられる。core の設定スキーマにある `experimental.task-graph` などは既定で無効なので、TUI 以外のクライアントやテスト fixture では明示的に有効化する。
+
+各機能の詳細は [vcs-dock.md](vcs-dock.md)、[task-graph.md](task-graph.md)、[file-manager.md](file-manager.md) を参照。
 
 ## 日本語化
 
@@ -161,7 +169,7 @@ TUI の日本語訳は `packages/tui/src/i18n/index.tsx` の `ja` 辞書にあ�
 - 未訳の文字列は英語のまま表示されるため、翻訳を少しずつ追加できる。
 - `{{name}}` などのプレースホルダーは `t("...", { name })` で渡す。
 - 既定の表示言語は日本語。`~/.config/opencode/cli.json` の `language` を `"en"` にすると英語へ切り替わる。
-- 設定画面では **Settings → Language** からも切り替えられる。
+- 設定画面では **設定 → 言語**（英語表示では Settings → Language）からも切り替えられる。
 - `DialogHeader` / `DialogSelect` はタイトル・説明・カテゴリを自動で翻訳するので、個別のダイアログに毎回 `t` を足す必要はない。
 
 変更後の確認:

@@ -1,9 +1,11 @@
 # File manager
 
 The file manager is a read-only browser for the current session location. It is an
-experimental feature, gated by the `file-manager` experiment.
+experimental feature and enabled by default in the TUI; turn it off in Settings →
+Features or by setting `experimental.file-manager` to `false`.
 
-Enable it in `cli.json` or through the Experiments dialog:
+The core configuration schema leaves the experiment off by default, so non-TUI
+clients must enable it explicitly. In `cli.json` or the Experiments dialog:
 
 ```json
 {
@@ -49,21 +51,21 @@ agent or your editor for mutations.
 
 ## Keys
 
-| Key | Action |
-| --- | --- |
-| `<leader>f` | Open the file manager |
-| `/files` | Open from the prompt |
-| `↑` / `↓`, `j` / `k` | Select an entry, or scroll the preview |
-| `pageup` / `pagedown` | Move by one page |
-| `home` / `g` | Go to the first entry or the top of the preview |
-| `end` | Go to the last entry or the bottom of the preview |
-| `enter` | Open the selected directory, or focus the preview |
-| `backspace` / `h` | Go to the parent directory |
-| `tab` | Switch between the list and the preview |
-| `left` / `right` | Focus the list or the preview |
-| `y` | Copy the selected absolute path |
-| `r` | Refresh the directory and preview |
-| `q` / `esc` | Return to the conversation |
+| Key                   | Action                                            |
+| --------------------- | ------------------------------------------------- |
+| `<leader>f`           | Open the file manager                             |
+| `/files`              | Open from the prompt                              |
+| `↑` / `↓`, `j` / `k`  | Select an entry, or scroll the preview            |
+| `pageup` / `pagedown` | Move by one page                                  |
+| `home` / `g`          | Go to the first entry or the top of the preview   |
+| `end`                 | Go to the last entry or the bottom of the preview |
+| `enter`               | Open the selected directory, or focus the preview |
+| `backspace` / `h`     | Go to the parent directory                        |
+| `tab`                 | Switch between the list and the preview           |
+| `left` / `right`      | Focus the list or the preview                     |
+| `y`                   | Copy the selected absolute path                   |
+| `r`                   | Refresh the directory and preview                 |
+| `q` / `esc`           | Return to the conversation                        |
 
 ## Configuration
 

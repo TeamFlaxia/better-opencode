@@ -7,7 +7,7 @@ better-opencode is a fork of opencode. Upstream changes arrive on `upstream`; fo
 
 ## Choose work
 
-Prefer items already described in `docs/README.md`. New product ideas should be written up as a short proposal in `docs/` before implementation, so the scope and the affected packages are clear.
+Prefer the current scope and open candidates in `docs/README.md`. New product ideas should be written up as a short proposal in `docs/` before implementation, so the scope and the affected packages are clear.
 
 Upstream-compatible fixes (bugs, performance, environment issues) are always welcome. Keep the diff small so it can be synced or upstreamed later.
 
@@ -77,4 +77,4 @@ User-facing behavior changes need a matching note in `docs/`:
 - design or scope change → `docs/README.md` or a new note in `docs/`
 - workflow or tooling change → `docs/development.md`
 
-Write in the style of the surrounding document. Design notes currently use Japanese; code, identifiers, and commands stay in English.
+Write in the style of the surrounding document. Fork policy and operations notes use Japanese; feature reference docs use English. Code, identifiers, and commands stay in English.

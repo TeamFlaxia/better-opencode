@@ -19,9 +19,10 @@ Please provide a description of the issue, the changes you made to fix it, and w
 
 ### Visual
 
-_Optional, for user-facing changes: a small looping animated SVG (240×72) of the change, shown in the desktop app's "What's new in beta". Replace the block below or delete this section._
+_Optional, for user-facing changes: a small looping animated SVG (240×72) of the change, shown in the TUI's release highlights. Replace the block below or delete this section._
 
 ```svg
+
 ```
 
 ### Screenshots / recordings

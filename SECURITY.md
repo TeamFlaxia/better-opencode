@@ -10,7 +10,7 @@ submit one that will be an automatic ban from the project.
 
 ### Overview
 
-OpenCode is an AI-powered coding assistant that runs locally on your machine. It provides an agent system with access to powerful tools including shell execution, file operations, and web access.
+OpenCode is an AI-powered coding assistant that runs locally on your machine. It provides an agent system with access to powerful tools including shell execution, file operations, and web access. better-opencode is a fork of OpenCode and keeps the same runtime and threat model.
 
 ### No Sandbox
 
@@ -38,10 +38,12 @@ Server mode is opt-in only. When enabled, set `OPENCODE_SERVER_PASSWORD` to requ
 
 We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
 
-To report a security issue, please use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/anomalyco/opencode/security/advisories/new) tab.
+To report a security issue in better-opencode, please use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/TeamFlaxia/better-opencode/security/advisories/new) tab of this repository.
 
 The team will send a response indicating the next steps in handling your report. After the initial reply to your report, the security team will keep you informed of the progress towards a fix and full announcement, and may ask for additional information or guidance.
 
+If the issue also reproduces on upstream opencode, report it to [anomalyco/opencode](https://github.com/anomalyco/opencode/security/advisories/new) instead.
+
 ## Escalation
 
-If you do not receive an acknowledgement of your report within 6 business days, you may send an email to security@anoma.ly
+If you do not receive an acknowledgement of your report within 6 business days, you may follow up in the advisory thread.

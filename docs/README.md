@@ -1,6 +1,6 @@
 # better-opencode ドキュメント
 
-opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を強化したフォーク **better-opencode** の設計方針と機能棚卸しをまとめる場所です。
+opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を強化したフォーク **better-opencode** の設計方針、現在の機能、今後の候補をまとめる場所です。
 
 ## 開発方針
 
@@ -23,45 +23,56 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 
 > リポジトリ直下の `AGENTS.md` は上流向けの記述を含むため、フォーク向けの基準（`main`）を冒頭に追記している。上流へ還元できる変更は `origin/upstream` との差分が最小になるよう心がける。
 
-開発手順の詳細は [development.md](development.md) を参照。
+## ドキュメント
 
-バージョン管理ドック（jj / git の内蔵操作と任意の lazyjj / lazygit 連携）は [vcs-dock.md](vcs-dock.md) を参照。
+- [development.md](development.md) — セットアップ、ブランチ運用、上流の取り込み、検証、CI、リリース
+- [vcs-dock.md](vcs-dock.md) — バージョン管理ドックと内蔵 VCS ビュー
+- [task-graph.md](task-graph.md) — Task graph と `/divide`
+- [file-manager.md](file-manager.md) — ファイルマネージャーとプレビュー
 
-AI のタスクと依存関係をライブ表示する Task graph は [task-graph.md](task-graph.md) を参照。`/divide <指示>` で指示をタスクグラフに分割し、そのまま開発を進められます。
+## 現在の機能
 
-セッションのファイルを閲覧・プレビューする File manager は [file-manager.md](file-manager.md) を参照。
+| 領域           | 機能                                                                                                                                                                                                                          | 主な実装場所                                                                                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UI             | TUI が唯一のクライアント。タブ、ワークスペース、テーマ、音声、統計を備える。表示言語は日本語が既定で、英語へ切り替えられる。デスクトップ / Web UI は削除済み                                                                  | `packages/tui/`, `packages/tui/src/i18n/index.tsx`                                                                                                                |
+| バージョン管理 | タブバー横の VCS ドックと内蔵ビュー。jj / Git / Mercurial の状態、diff、ブックマーク / ブランチ、jj の describe / split、Git の stage / commit / fetch / pull / push を扱う。`lazyjj` / `jjui` / `lazygit` は任意の外部ツール | `packages/tui/src/component/vcs-*.tsx`, `packages/tui/src/context/vcs.tsx`, `packages/core/src/vcs/`                                                              |
+| タスク         | Task graph と `/divide`。タスク、依存関係、実行状況をライブ表示し、jj のブックマーク / チェンジを紐付けられる                                                                                                                 | `packages/tui/src/component/task-graph-*.tsx`, `packages/tui/src/context/task-graph.tsx`, `packages/core/src/plugin/goal.ts`, `packages/schema/src/task-graph.ts` |
+| ファイル       | 読み取り専用のファイルマネージャーとプレビュー。`<leader>f` または `/files` で開く                                                                                                                                            | `packages/tui/src/component/file-manager-*.tsx`, `packages/tui/src/context/file-manager.tsx`, `packages/protocol/src/groups/fs.ts`                                |
+| セッション     | セッション、サブエージェント、バックグラウンド実行、compaction、revert、transfer                                                                                                                                              | `packages/core/src/session/`                                                                                                                                      |
+| 実行制御       | 実行キュー、再開、最大ステップ、リトライ、モデルフォールバック                                                                                                                                                                | `packages/core/src/session/runner/`, `run-coordinator.ts`                                                                                                         |
+| 作業環境       | worktree、スナップショット、diff、VCS 連携                                                                                                                                                                                    | `packages/core/src/worktree.ts`, `snapshot.ts`, `vcs/`                                                                                                            |
+| ツール         | read / write / edit / patch / glob / grep / shell / webfetch / websearch / subagent / skill / todo / taskwrite                                                                                                                | `packages/core/src/tool/plugin/`                                                                                                                                  |
+| 自動化         | スケジュール実行、ゴール（`/goal`）、サイド質問（`/btw`）                                                                                                                                                                     | `packages/core/src/schedule.ts`, `packages/tui/src/feature-plugins/prompt/goal.tsx`, `btw.tsx`                                                                    |
+| 安全性         | パーミッション、管理ポリシー、使用量上限（Console ワークスペース）                                                                                                                                                            | `packages/core/src/permission/`, `managed-policy.ts`, `usage-limits.ts`                                                                                           |
+| 更新           | `opencode upgrade` は curl インストール版でフォークの GitHub Releases を参照する。パッケージマネージャー経由は上流の更新サービスを使う                                                                                        | `packages/cli/src/services/updater.ts`, `updater-release.ts`                                                                                                      |
+| 拡張           | サーバープラグイン / TUI プラグイン、MCP                                                                                                                                                                                      | `packages/plugin/`, `packages/core/src/mcp/`                                                                                                                      |
 
-better-opencode の experimental 機能（バージョン管理ドック、Task graph、ファイルマネージャー、TUI ツール、新しいデザイン）は、設定の「機能」カテゴリから個別にオン/オフできます。
+### 機能トグル
 
-TUI の組み込み既定値は、メンテナの現在の `~/.config/opencode/cli.json` に合わせています（ダークテーマ、縦タブ、experimental 機能を既定で有効など）。テスト用 fixture は従来の既定値を明示して分離しています。
+TUI では次の experimental 機能を既定で有効にしている。
 
-## 現在の機能棚卸し（重複提案を避けるため）
+- `vcs-dock` … バージョン管理ドック
+- `task-graph` … Task graph と `/divide`
+- `file-manager` … ファイルマネージャー
+- `client-mcp` … エージェントが TUI 内にターミナルを開く TUI ツール
+- `new-designs` … 刷新された TUI デザインのプレビュー
 
-すでに存在する主な機能:
+**Settings → Features**（日本語表示では **設定 → 機能**）または Experiments ダイアログから個別にオン / オフできる。core の設定スキーマにある `experimental.task-graph` などは既定で無効なので、TUI 以外のクライアントやテスト fixture では明示的に有効化する。
 
-| 領域 | 既存機能 | 主な実装場所 |
-| --- | --- | --- |
-| セッション | セッション、サブエージェント、バックグラウンド実行、compaction、revert、transfer | `packages/core/src/session/` |
-| 実行制御 | 実行キュー、再開、最大ステップ、リトライ、モデルフォールバック | `packages/core/src/session/runner/`, `run-coordinator.ts` |
-| 作業環境 | worktree、スナップショット、diff、VCS 連携 | `packages/core/src/worktree.ts`, `snapshot.ts`, `vcs/` |
-| ツール | read / write / edit / patch / glob / grep / shell / webfetch / websearch / subagent / skill / todo / taskwrite | `packages/core/src/tool/plugin/` |
-| 自動化 | スケジュール実行、ゴール（`/goal`）、サイド質問（`/btw`） | `packages/core/src/schedule.ts`, `packages/tui/src/feature-plugins/prompt/goal.tsx`, `btw.tsx` |
-| 安全性 | パーミッション、管理ポリシー、使用量上限（Console ワークスペース） | `packages/core/src/permission/`, `managed-policy.ts`, `usage-limits.ts` |
-| UI | TUI（タブ、ワークスペース、テーマ、音声、統計）。デスクトップ / Web UI は削除済み | `packages/tui/` |
-| 拡張 | サーバープラグイン / TUI プラグイン、MCP | `packages/plugin/`, `packages/core/src/mcp/` |
+TUI の組み込み既定値は、日本語、ダークテーマ、縦タブ、上記 experimental 機能の有効化です。テスト用 fixture は従来の既定値を明示して分離しています。
 
-このため本ドキュメントの提案は「既存機能の焼き直し」ではなく、**コード理解・コスト制御・検証・並列化・履歴の資産化**という5本の柱に絞っている。
+## 今後の候補
 
-## 提案一覧
+以下は今後の候補です。既存機能の拡張を含み、実装したものは「現在の機能」へ移してここから外します。
 
-| # | 提案 | 柱 | 規模 |
-| --- | --- | --- | --- |
-| 1 | コードインテリジェンス層（シンボル索引・依存グラフ・影響範囲） | コード理解 | L |
-| 2 | 予算・安全ガードレール（トークン/コスト上限、承認ポリシー） | 安全とコスト | M |
-| 3 | テスト連動ループ（関連テストの自動選択と失敗の差し戻し） | 検証 | M |
-| 4 | チェックポイント / 一括 undo | 検証 | S–M |
-| 5 | マルチエージェント編成（worktree 分離・並列・統合レビュー） | 並列化 | L |
-| 6 | 小さく効く改善（履歴検索/エクスポート、注入防御、ルーティング） | 履歴・安全 | S each |
+| #   | 提案                                                            | 柱           | 規模   |
+| --- | --------------------------------------------------------------- | ------------ | ------ |
+| 1   | コードインテリジェンス層（シンボル索引・依存グラフ・影響範囲）  | コード理解   | L      |
+| 2   | 予算・安全ガードレール（トークン/コスト上限、承認ポリシー）     | 安全とコスト | M      |
+| 3   | テスト連動ループ（関連テストの自動選択と失敗の差し戻し）        | 検証         | M      |
+| 4   | チェックポイント / 一括 undo                                    | 検証         | S–M    |
+| 5   | マルチエージェント編成（worktree 分離・並列・統合レビュー）     | 並列化       | L      |
+| 6   | 小さく効く改善（履歴検索/エクスポート、注入防御、ルーティング） | 履歴・安全   | S each |
 
 ## 非目標（当面）
 
