@@ -132,7 +132,11 @@ git push origin v2.2.5-better.1
 - `build` … 12ターゲット分の CLI バイナリをビルドし、Linux は `tar.gz`、macOS / Windows は `zip` にまとめる
 - `publish` … `SHA256SUMS.txt` と一緒に GitHub Release を作成する。既存 Release にはアセットを上書きアップロードする
 - 手動で再実行する場合は `workflow_dispatch` に既存タグを指定する
-- `curl` インストール版の更新確認は `TeamFlaxia/better-opencode` の GitHub Releases を参照する。`latest` / `prod` チャネルは stable、それ以外は prerelease も対象にする
+- `curl` インストール版（`~/.opencode/bin/opencode`）の更新確認とインストールは `TeamFlaxia/better-opencode` の GitHub Releases を参照する。`latest` / `prod` チャネルは stable、それ以外は prerelease も対象にする
+- `curl` インストール版の更新は `opencode-<version>-<target>.tar.gz` / `.zip` を取得し、`SHA256SUMS.txt` で検証してから現在のバイナリを置き換える
+- 既定の更新ポリシーは通知のみ（`notify`）。自動インストールはグローバル設定の `"update": "auto"` で有効にする
+- `v2.2.5-better.8` より前の `curl` インストール版は上流インストーラーを使うため自動更新できない。`.8` 以降へは一度手動で置き換える
+- npm / pnpm / bun / yarn / vp / brew / winget 経由の更新は上流の更新サービスを参照する
 
 現時点のリリース対象は CLI のみ。npm publish は含まない。
 
