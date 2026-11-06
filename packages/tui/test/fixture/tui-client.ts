@@ -172,6 +172,10 @@ export function createFetch(override?: FetchHandler, events?: ReturnType<typeof 
     if (url.pathname === "/session") return json([])
     if (url.pathname === "/vcs") return json({ branch: "main" })
     if (url.pathname === "/api/experimental/migration/v1") return json({ status: "completed" })
+    // Fixture servers have no WebSocket handler. Answer the client MCP upgrade with a normal rejection so the
+    // experiment's reconnect loop cannot surface as an unexpected request between tests.
+    if (url.pathname === "/api/experimental/client-mcp" && request.headers.get("upgrade") === "websocket")
+      return new Response(null, { status: 404 })
     // The prompt footer reads the routed session's goal from the goal plugin's RPC; no fixture sets one.
     if (url.pathname === "/api/rpc/opencode.goal/get") return json({ output: null })
     if (url.pathname === "/api/rpc/opencode.tasklinks/get") return json({ output: null })

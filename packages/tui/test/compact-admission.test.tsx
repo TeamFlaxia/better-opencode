@@ -185,7 +185,12 @@ test.each(["first", "second"])(
       run({
         app: { name: "test", version: "test", channel: "test" },
         server: { endpoint: { url: server.url.toString() } },
-        config: { get: async () => ({ animations: false, language: "en" }), update: async () => ({}) },
+        config: {
+          // Pin the pre-fork experiment defaults: the new-designs picker only lists free models unless a
+          // provider is connected, while this test needs the demo models from a bare fixture.
+          get: async () => ({ animations: false, language: "en", experimental: { "new-designs": false } }),
+          update: async () => ({}),
+        },
         packages: { prepare: async () => ({ directory: "" }) },
         terminalHandoff: async () => ({ renderer: setup.renderer, mode: "dark", complete: ready.resolve }),
         args: { sessionID },

@@ -1939,6 +1939,8 @@ test("an oversized queue shortcut prevents backfilling shorter work and identity
       forms: [],
     },
     state: { phase: "running" },
+    // Pin the all-block spinner so the status glyph stays stable while this asserts queue-shortcut layout.
+    miniSettings: resolveMiniSettings({ mini: { work_spinner: "seed" } }),
   })
   try {
     await app.renderOnce()

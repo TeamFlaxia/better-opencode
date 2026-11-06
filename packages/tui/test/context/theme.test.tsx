@@ -11,7 +11,9 @@ import { createTuiResolvedConfig } from "../fixture/tui-runtime"
 
 test("offers opencode2 only while the new designs experiment is enabled", async () => {
   await using temporary = await tmpdir()
-  const settings: Info = {}
+  // Config updates re-resolve with the product defaults, which name the built-in theme. Pin it so switching
+  // opencode2 mirrors a real config instead of falling back to the system theme after the first update.
+  const settings: Info = { theme: { name: "opencode" } }
   let config!: ReturnType<typeof useConfig>
   let themes!: ReturnType<typeof useThemes>
   let theme!: ReturnType<typeof useTheme>
