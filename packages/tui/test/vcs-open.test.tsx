@@ -18,6 +18,9 @@ test("opens the full-pane version control view in place of the conversation", as
   await setup.ready
   await setup.waitForFrame((frame) => frame.includes("Ask anything"))
 
+  // The home screen can paint its placeholder before the keymap layers register, so a key pressed
+  // then is dropped. The prompt footer only renders shortcuts after the keymap is live.
+  await setup.waitForFrame((frame) => frame.includes("ctrl+p commands"))
   setup.mockInput.pressKey("F6")
 
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
@@ -77,6 +80,9 @@ test("switching session tabs closes the version control view", async () => {
   await setup.ready
   await setup.waitForFrame((frame) => frame.includes("Conversation A"))
 
+  // The home screen can paint its placeholder before the keymap layers register, so a key pressed
+  // then is dropped. The prompt footer only renders shortcuts after the keymap is live.
+  await setup.waitForFrame((frame) => frame.includes("ctrl+p commands"))
   setup.mockInput.pressKey("F6")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
@@ -152,6 +158,9 @@ test(`switching ${layout} tabs with the mouse leaves the version control view`, 
   })
   await setup.waitForFrame((frame) => frame.includes("Click conversation A"))
 
+  // The home screen can paint its placeholder before the keymap layers register, so a key pressed
+  // then is dropped. The prompt footer only renders shortcuts after the keymap is live.
+  await setup.waitForFrame((frame) => frame.includes("ctrl+p commands"))
   setup.mockInput.pressKey("F6")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
@@ -216,6 +225,9 @@ test("ctrl+tab switches session tabs while the version control view is open", as
   })
   await setup.waitForFrame((frame) => frame.includes("Key conversation A"))
 
+  // The home screen can paint its placeholder before the keymap layers register, so a key pressed
+  // then is dropped. The prompt footer only renders shortcuts after the keymap is live.
+  await setup.waitForFrame((frame) => frame.includes("ctrl+p commands"))
   setup.mockInput.pressKey("F6")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
@@ -257,6 +269,9 @@ test("clicking the active conversation tab closes the version control view", asy
   await setup.ready
   await setup.waitForFrame((frame) => frame.includes("Active conversation"))
 
+  // The home screen can paint its placeholder before the keymap layers register, so a key pressed
+  // then is dropped. The prompt footer only renders shortcuts after the keymap is live.
+  await setup.waitForFrame((frame) => frame.includes("ctrl+p commands"))
   setup.mockInput.pressKey("F6")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
