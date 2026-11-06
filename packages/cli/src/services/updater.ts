@@ -5,10 +5,12 @@ import { OPENCODE_ARTIFACT, OPENCODE_CHANNEL, OPENCODE_LOCAL, OPENCODE_VERSION }
 import { Context, Duration, Effect, FileSystem, Layer, Option, Ref, Schema } from "effect"
 import { ChildProcess } from "effect/process"
 import { parse, type ParseError } from "jsonc-parser"
+import { randomBytes } from "node:crypto"
 import path from "node:path"
 import { stripVTControlCharacters } from "node:util"
 import { RetainedImage } from "./retained-image"
 import { action, parseReleaseVersion, type Policy } from "./updater-action"
+import { releaseAsset, releaseChecksum, releaseTarget, releaseURL, sha256 } from "./updater-release"
 import { errorMessage } from "../util/error"
 
 export const methods = ["curl", "npm", "pnpm", "bun", "yarn", "vp", "brew", "winget"] as const
@@ -194,22 +196,6 @@ const make = Effect.gen(function* () {
     process.platform === "win32" ? "opencode.exe" : "opencode",
   )
   const curlBinary = yield* fs.realPath(curlPath).pipe(Effect.orElseSucceed(() => curlPath))
-
-  // On Windows a bare `bash` may be the WSL launcher, which cannot run the installer against Windows paths.
-  const installerBash = Effect.fnUntraced(function* () {
-    if (process.platform !== "win32") return "bash"
-    if (process.env.OPENCODE_GIT_BASH_PATH) return process.env.OPENCODE_GIT_BASH_PATH
-    const git = yield* exec(["git", "--exec-path"]).pipe(Effect.orElseSucceed(() => undefined))
-    const bash = git?.code === 0 ? path.resolve(git.stdout.trim(), "..", "..", "..", "bin", "bash.exe") : undefined
-    if (bash && (yield* fs.exists(bash).pipe(Effect.orElseSucceed(() => false)))) return bash
-    return yield* Effect.fail(
-      new UpgradeError({
-        title: "Git Bash is required to update OpenCode",
-        detail: "The OpenCode installer runs with Git Bash on Windows, and it was not found.",
-        retry: "Install Git for Windows or set OPENCODE_GIT_BASH_PATH, then run opencode upgrade again.",
-      }),
-    )
-  })
 
   const method = Effect.fnUntraced(function* () {
     if (executable === curlBinary) return "curl"
@@ -472,6 +458,160 @@ const make = Effect.gen(function* () {
     )
   }
 
+  const windowsBaseline = Effect.fnUntraced(function* () {
+    const script = `(Add-Type -MemberDefinition '[DllImport("kernel32.dll")] public static extern bool IsProcessorFeaturePresent(int ProcessorFeature);' -Name Kernel32 -Namespace Win32 -PassThru)::IsProcessorFeaturePresent(40)`
+    const run = (command: string) =>
+      exec([command, "-NoProfile", "-NonInteractive", "-Command", script]).pipe(Effect.orElseSucceed(() => undefined))
+    const result = (yield* run("powershell.exe")) ?? (yield* run("pwsh"))
+    if (!result) return true
+    const value = result.stdout.replace(/\s+/g, "").replaceAll("\r", "").toLowerCase()
+    return value !== "true" && value !== "1"
+  })
+
+  // The standalone binary is installed from the fork's GitHub release archives. Match the
+  // published asset names, including the baseline (no AVX2) and musl variants.
+  const detectTarget = Effect.fnUntraced(function* () {
+    const platform = process.platform
+    let arch = process.arch
+    // An x64 build under Windows ARM64 or Rosetta reports x64; prefer the native arm64 archive.
+    if (platform === "win32" && arch === "x64" && /ARM64/i.test(process.env.PROCESSOR_IDENTIFIER ?? "")) arch = "arm64"
+    if (platform === "darwin" && arch === "x64") {
+      const translated = yield* exec(["sysctl", "-n", "sysctl.proc_translated"]).pipe(
+        Effect.orElseSucceed(() => undefined),
+      )
+      if (translated?.code === 0 && translated.stdout.trim() === "1") arch = "arm64"
+    }
+    const baseline =
+      arch !== "x64"
+        ? false
+        : platform === "linux"
+          ? !/\bavx2\b/.test(yield* fs.readFileString("/proc/cpuinfo").pipe(Effect.orElseSucceed(() => "")))
+          : platform === "darwin"
+            ? yield* exec(["sysctl", "-n", "hw.optional.avx2_0"]).pipe(
+                Effect.map((result) => result.code !== 0 || result.stdout.trim() !== "1"),
+                Effect.orElseSucceed(() => true),
+              )
+            : platform === "win32"
+              ? yield* windowsBaseline()
+              : false
+    const musl =
+      platform === "linux" &&
+      ((yield* fs.exists("/etc/alpine-release").pipe(Effect.orElseSucceed(() => false))) ||
+        (yield* exec(["ldd", "--version"]).pipe(
+          Effect.map((result) => /musl/i.test(`${result.stdout}\n${result.stderr}`)),
+          Effect.orElseSucceed(() => false),
+        )))
+    const target = releaseTarget({ platform, arch, baseline, musl })
+    if (!target)
+      return yield* Effect.fail(
+        new UpgradeError({
+          title: "OpenCode cannot update on this platform",
+          detail: `No release archive is available for ${platform}/${arch}.`,
+          retry: "Download a release for a supported platform from the project's GitHub releases.",
+        }),
+      )
+    return target
+  })
+
+  const download = Effect.fnUntraced(function* (url: string) {
+    const response = yield* Effect.tryPromise({
+      try: (signal) =>
+        fetch(url, {
+          headers: { Accept: "application/octet-stream" },
+          signal: AbortSignal.any([signal, AbortSignal.timeout(5 * 60_000)]),
+        }),
+      catch: (cause) =>
+        new UpgradeError(
+          {
+            title: "Could not download the OpenCode update",
+            detail: errorDetail(cause),
+            retry: "Check your network, then run opencode upgrade again.",
+          },
+          { cause },
+        ),
+    })
+    if (!response.ok)
+      return yield* Effect.fail(
+        new UpgradeError({
+          title: "Could not download the OpenCode update",
+          detail: `The release download returned HTTP ${response.status}.`,
+          retry: "Try again in a few minutes.",
+        }),
+      )
+    return yield* Effect.tryPromise({
+      try: async () => new Uint8Array(await response.arrayBuffer()),
+      catch: (cause) =>
+        new UpgradeError(
+          {
+            title: "Could not read the OpenCode update",
+            detail: errorDetail(cause),
+            retry: "Try again in a few minutes.",
+          },
+          { cause },
+        ),
+    })
+  })
+
+  const installRelease = Effect.fnUntraced(function* (version: string) {
+    const target = yield* detectTarget()
+    const file = releaseAsset(target, version)
+    yield* fs.makeDirectory(global.cache, { recursive: true })
+    const directory = yield* temporaryDirectory("update-")
+    const [sums, bytes] = yield* Effect.all(
+      [download(releaseURL(version, "SHA256SUMS.txt")), download(releaseURL(version, file))],
+      { concurrency: "unbounded" },
+    )
+    const expected = releaseChecksum(new TextDecoder().decode(sums), file)
+    if (!expected)
+      return yield* Effect.fail(
+        new UpgradeError({
+          title: "Could not verify the OpenCode update",
+          detail: `${file} is missing from the release's SHA256SUMS.txt.`,
+          retry: "Try again in a few minutes, or download the release manually.",
+        }),
+      )
+    if (sha256(bytes) !== expected)
+      return yield* Effect.fail(
+        new UpgradeError({
+          title: "Could not verify the OpenCode update",
+          detail: `The checksum for ${file} did not match the published SHA256SUMS.txt.`,
+          retry: "Try again in a few minutes, or download the release manually.",
+        }),
+      )
+    const archive = path.join(directory, file)
+    yield* fs.writeFile(archive, bytes)
+    yield* runUpgrade({
+      method: "curl",
+      command: ["tar", file.endsWith(".zip") ? "-xf" : "-xzf", archive, "-C", directory],
+      title: "Could not extract the OpenCode update",
+      retry: "Try again in a few minutes, or download the release manually.",
+    })
+    const extracted = path.join(directory, process.platform === "win32" ? "opencode.exe" : "opencode")
+    if (!(yield* fs.exists(extracted).pipe(Effect.orElseSucceed(() => false))))
+      return yield* Effect.fail(
+        new UpgradeError({
+          title: "Could not extract the OpenCode update",
+          detail: `The ${file} archive did not contain an OpenCode binary.`,
+          retry: "Try again in a few minutes, or download the release manually.",
+        }),
+      )
+    // Stage beside the target so the rename stays on one filesystem and can replace a running
+    // image on Windows (the retained link above keeps the old image alive).
+    const staged = path.join(
+      path.dirname(curlPath),
+      `.opencode-update-${process.pid}-${randomBytes(4).toString("hex")}`,
+    )
+    yield* fs.makeDirectory(path.dirname(curlPath), { recursive: true })
+    yield* Effect.ensuring(
+      fs.copyFile(extracted, staged).pipe(
+        // Zip extraction can drop the executable bit; the release binary must stay runnable.
+        Effect.andThen(fs.chmod(staged, 0o755).pipe(Effect.orElseSucceed(() => undefined))),
+        Effect.andThen(fs.rename(staged, curlPath)),
+      ),
+      fs.remove(staged).pipe(Effect.ignore),
+    )
+  })
+
   const upgrade = Effect.fnUntraced(function* (method: Method, input: string) {
     if (!parseReleaseVersion(input)) return yield* Effect.fail(new Error(`Invalid version: ${input}`))
     const version = input.trim().replace(/^v/, "")
@@ -480,7 +620,9 @@ const make = Effect.gen(function* () {
         ? wingetPackage
         : method === "brew" && installedFormula === "opencode"
           ? "opencode"
-          : (yield* release(method)).package
+          : method === "curl"
+            ? "opencode"
+            : (yield* release(method)).package
     const target = `${packageName}@${version}`
     if (installedPackage && packageName !== installedPackage && (method === "pnpm" || method === "yarn")) {
       return yield* Effect.fail(new Error(`Reinstall ${target} with ${method} to migrate from ${installedPackage}.`))
@@ -522,28 +664,7 @@ const make = Effect.gen(function* () {
             }),
           )
         }
-        if (method === "curl") {
-          const bash = yield* installerBash()
-          yield* fs.makeDirectory(global.cache, { recursive: true })
-          const directory = yield* temporaryDirectory("update-")
-          const installer = path.join(directory, "install")
-          yield* runUpgrade({
-            method,
-            command: ["curl", "-fsSL", "-o", installer, "https://opencode.ai/v2/install"],
-            displayCommand: ["curl", "-fsSL", "https://opencode.ai/v2/install"],
-            title: "Could not download the OpenCode installer",
-            retry: "Check your network, then run opencode upgrade again.",
-          })
-          return yield* retaining(
-            method,
-            runUpgrade({
-              method,
-              command: [bash, installer, "--version", version, "--no-modify-path"],
-              displayCommand: ["opencode", "upgrade", version, "--method", "curl"],
-              title: "The OpenCode installer failed",
-            }),
-          )
-        }
+        if (method === "curl") return yield* retaining(method, installRelease(version))
         if (method === "brew") return yield* runUpgrade({ method, command: ["brew", "upgrade", packageName] })
         if (method === "winget")
           return yield* retaining(

@@ -6,14 +6,38 @@ import { AppProcess } from "@opencode/util/process"
 import { expect, spyOn, test } from "bun:test"
 import { Effect, FileSystem, Layer, PlatformError, Stream } from "effect"
 import { ChildProcessSpawner } from "effect/process"
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { Updater } from "../src/services/updater"
+import { releaseAsset, releaseChecksum, releaseTarget, sha256 } from "../src/services/updater-release"
 import { testEffect } from "../../core/test/lib/effect"
 
 const it = testEffect(NodeServices.layer)
 
 declare const OPENCODE_CLI_NAME: string | undefined
+
+// Release downloads are served by the fetch fixture below; the update flow verifies their checksum.
+const releaseBinary = new TextEncoder().encode("release-binary")
+const releaseDigest = sha256(releaseBinary)
+const releaseTargets = [
+  "linux-x64",
+  "linux-x64-baseline",
+  "linux-x64-musl",
+  "linux-x64-baseline-musl",
+  "linux-arm64",
+  "linux-arm64-musl",
+  "darwin-x64",
+  "darwin-x64-baseline",
+  "darwin-arm64",
+  "windows-x64",
+  "windows-x64-baseline",
+  "windows-arm64",
+]
+function releaseChecksums(version: string) {
+  return releaseTargets
+    .map((target) => `${releaseDigest}  opencode-${version}-${target}.${target.startsWith("linux-") ? "tar.gz" : "zip"}`)
+    .join("\n")
+}
 
 function fixture(
   respond: (command: {
@@ -27,6 +51,7 @@ function fixture(
   releasePackage = name,
   formula?: string,
   executableOverride?: (root: string, home: string) => Effect.Effect<string, PlatformError.PlatformError, FileSystem.FileSystem>,
+  checksums = releaseChecksums,
 ) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem
@@ -62,6 +87,14 @@ function fixture(
                   { tag_name: "v2.3.4", draft: false, prerelease: true },
                   { tag_name: "v2.3.3", draft: false, prerelease: false },
                 ])
+              const parsed = new URL(url)
+              if (parsed.hostname === "github.com" && parsed.pathname.includes("/releases/download/")) {
+                const segments = parsed.pathname.split("/")
+                const version = (segments.at(-2) ?? "").replace(/^v/, "")
+                const file = segments.at(-1) ?? ""
+                if (file === "SHA256SUMS.txt") return new Response(checksums(version))
+                return new Response(releaseBinary)
+              }
               return Response.json({ version: "2.3.4", metadata: { package: releasePackage } })
             },
             { preconnect: fetch.preconnect },
@@ -81,13 +114,6 @@ function fixture(
       log: path.join(root, "log"),
       repos: path.join(root, "repos"),
     })
-    // Windows locates the installer's Git Bash through `git --exec-path`; answer it with a fixture install.
-    const git = path.join(root, "Git")
-    const bash = process.platform === "win32" ? path.join(git, "bin", "bash.exe") : "bash"
-    if (process.platform === "win32") {
-      yield* fs.makeDirectory(path.dirname(bash), { recursive: true })
-      yield* fs.writeFileString(bash, "bash")
-    }
     const commands: string[][] = []
     const updater = yield* Updater.Service.pipe(
       Effect.provide(Updater.layer),
@@ -120,11 +146,8 @@ function fixture(
             Effect.suspend(() => {
               if (command._tag !== "StandardCommand") return Effect.die("Unexpected piped install command")
               const args = command.args.map(String)
-              const lookup = command.command === "git" && args[0] === "--exec-path"
-              if (!lookup) commands.push([command.command, ...args])
-              const result = lookup
-                ? { stdout: Buffer.from(`${path.join(git, "mingw64", "libexec", "git-core")}\n`) }
-                : respond({ command: command.command, args })
+              commands.push([command.command, ...args])
+              const result = respond({ command: command.command, args })
               if (result.error) return Effect.fail(result.error)
               return Effect.succeed({
                 command: command.command,
@@ -140,7 +163,7 @@ function fixture(
         }),
       ),
     )
-    return { updater, commands, requests, global, fs, executable, bash }
+    return { updater, commands, requests, global, fs, executable }
   })
 }
 
@@ -213,33 +236,79 @@ it.live("bun ignores install cache cleanup failures", () =>
     expect(test.commands).toHaveLength(1)
   }),
 )
-;["success", "download", "install"].forEach((failure) => {
-  it.live(`curl uses the V2 installer and cleans its directory: ${failure}`, () =>
-    Effect.gen(function* () {
-      const test = yield* fixture((command) => {
-        const installer = command.command === "curl" ? command.args[2] : command.args[0]
-        expect(existsSync(path.dirname(installer))).toBe(true)
-        return {
-          exitCode:
-            path.basename(command.command, ".exe") ===
-            (failure === "download" ? "curl" : failure === "install" ? "bash" : "")
-              ? 1
-              : 0,
-          stderr: Buffer.from(`${failure} failed`),
-        }
-      })
-      const result = yield* test.updater.upgrade("curl", "v2.3.4-beta.1").pipe(Effect.flip, Effect.option)
-      const installer = test.commands[0]?.[3]
-      expect(installer).toStartWith(path.join(test.global.cache, "update-"))
-      expect(test.commands).toEqual([
-        ["curl", "-fsSL", "-o", installer, "https://opencode.ai/v2/install"],
-        ...(failure === "download" ? [] : [[test.bash, installer, "--version", "2.3.4-beta.1", "--no-modify-path"]]),
-      ])
-      expect(yield* test.fs.readDirectory(test.global.cache)).toEqual([])
-      expect(result._tag).toBe(failure === "success" ? "None" : "Some")
-      if (result._tag === "Some") expect(result.value.message).toBe(`${failure} failed`)
-    }),
-  )
+it.live("curl installs the fork's GitHub release archive and replaces the binary", () =>
+  Effect.gen(function* () {
+    const test = yield* fixture(
+      (command) => {
+        if (command.command !== "tar") return {}
+        const archive = command.args[1]
+        const directory = command.args[command.args.indexOf("-C") + 1]
+        expect(existsSync(archive)).toBe(true)
+        writeFileSync(path.join(directory, process.platform === "win32" ? "opencode.exe" : "opencode"), releaseBinary)
+        return {}
+      },
+      "@opencode/cli",
+      false,
+      "@opencode/cli",
+      undefined,
+      (_root, home) =>
+        Effect.succeed(path.join(home, ".opencode", "bin", process.platform === "win32" ? "opencode.exe" : "opencode")),
+    )
+    yield* test.updater.upgrade("curl", "v2.3.4")
+    expect(test.commands.filter(([command]) => command === "tar")).toHaveLength(1)
+    expect(readFileSync(test.executable)).toEqual(Buffer.from(releaseBinary))
+    expect(test.requests.some((url) => url.endsWith("/SHA256SUMS.txt"))).toBe(true)
+    expect(test.requests.some((url) => /opencode-2\.3\.4-.*\.(tar\.gz|zip)$/.test(url))).toBe(true)
+    expect(yield* test.fs.readDirectory(test.global.cache)).toEqual([])
+  }),
+)
+
+it.live("curl reports an archive extraction failure and cleans its directory", () =>
+  Effect.gen(function* () {
+    const test = yield* fixture(
+      (command) =>
+        command.command === "tar" ? { exitCode: 1, stderr: Buffer.from("bad archive") } : {},
+      "@opencode/cli",
+      false,
+      "@opencode/cli",
+      undefined,
+      (_root, home) =>
+        Effect.succeed(path.join(home, ".opencode", "bin", process.platform === "win32" ? "opencode.exe" : "opencode")),
+    )
+    const error = yield* test.updater.upgrade("curl", "v2.3.4").pipe(Effect.flip)
+    expect(error.message).toBe("bad archive")
+    expect(yield* test.fs.readDirectory(test.global.cache)).toEqual([])
+  }),
+)
+
+it.live("curl verifies the published checksum before extracting", () =>
+  Effect.gen(function* () {
+    const test = yield* fixture(
+      () => ({}),
+      "@opencode/cli",
+      false,
+      "@opencode/cli",
+      undefined,
+      (_root, home) =>
+        Effect.succeed(path.join(home, ".opencode", "bin", process.platform === "win32" ? "opencode.exe" : "opencode")),
+      (version) => releaseChecksums(version).replaceAll(releaseDigest, "0".repeat(64)),
+    )
+    const error = yield* test.updater.upgrade("curl", "v2.3.4").pipe(Effect.flip)
+    expect(error.message).toContain("did not match")
+    expect(test.commands.filter(([command]) => command === "tar")).toHaveLength(0)
+  }),
+)
+
+test("release targets and checksums match the published assets", () => {
+  expect(releaseTarget({ platform: "linux", arch: "x64", baseline: true, musl: true })).toBe("linux-x64-baseline-musl")
+  expect(releaseTarget({ platform: "linux", arch: "arm64", musl: true })).toBe("linux-arm64-musl")
+  expect(releaseTarget({ platform: "darwin", arch: "x64", baseline: true })).toBe("darwin-x64-baseline")
+  expect(releaseTarget({ platform: "win32", arch: "x64" })).toBe("windows-x64")
+  expect(releaseTarget({ platform: "linux", arch: "s390x" })).toBeUndefined()
+  expect(releaseAsset("linux-x64", "2.3.4")).toBe("opencode-2.3.4-linux-x64.tar.gz")
+  expect(releaseAsset("windows-x64", "2.3.4")).toBe("opencode-2.3.4-windows-x64.zip")
+  expect(releaseChecksum(releaseChecksums("2.3.4"), "opencode-2.3.4-linux-x64.tar.gz")).toBe(releaseDigest)
+  expect(releaseChecksum(releaseChecksums("2.3.4"), "opencode-2.3.4-missing.tar.gz")).toBeUndefined()
 })
 
 it.live("invalid version targets never execute a command or create a cache", () =>
@@ -495,14 +564,16 @@ windows("windows keeps the uninstall link in the temporary directory, not the re
   }),
 )
 
-windows("windows links the curl binary before the installer replaces it", () =>
+windows("windows links the curl binary while the release archive is extracted", () =>
   Effect.gen(function* () {
     const layout = { executable: "", cache: "" }
     const test = yield* fixture(
       (command) => {
-        if (path.basename(command.command, ".exe") === "bash") {
+        if (path.basename(command.command, ".exe") === "tar") {
           expect(readFileSync(layout.executable, "utf8")).toBe("binary")
           expect(upgradeLinks(layout.cache)).toHaveLength(1)
+          const directory = command.args[command.args.indexOf("-C") + 1]
+          writeFileSync(path.join(directory, "opencode.exe"), releaseBinary)
         }
         return {}
       },
@@ -519,8 +590,8 @@ windows("windows links the curl binary before the installer replaces it", () =>
     yield* Effect.addFinalizer(() => Effect.sync(() => (process.execPath = original)))
     expect(yield* test.updater.method()).toBe("curl")
     yield* test.updater.upgrade("curl", "2.3.4")
-    expect(test.commands.map((command) => command[0])).toEqual(["curl", test.bash])
-    expect(yield* test.fs.readFileString(layout.executable)).toBe("binary")
+    expect(test.commands.filter(([command]) => path.basename(command, ".exe") === "tar")).toHaveLength(1)
+    expect(yield* test.fs.readFileString(layout.executable)).toBe(new TextDecoder().decode(releaseBinary))
     expect(links(test.global.cache)).toEqual([])
   }),
 )
