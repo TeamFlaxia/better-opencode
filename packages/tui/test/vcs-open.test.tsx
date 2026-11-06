@@ -2,18 +2,23 @@ import { expect, test } from "bun:test"
 import { createAppFixture } from "./fixture/app"
 import { directory, json } from "./fixture/tui-client"
 
+// F6 opens VCS directly so these view tests never race the leader key's pending timeout. Mock key names are
+// uppercase while keybinding config stays lowercase.
 test("opens the full-pane version control view in place of the conversation", async () => {
   await using setup = await createAppFixture({
     width: 100,
     height: 30,
-    config: { animations: false, tabs: { mode: "off" }, experimental: { "vcs-dock": true } },
+    config: {
+      animations: false,
+      tabs: { mode: "off" },
+      experimental: { "vcs-dock": true },
+      keybinds: { "vcs.open": "f6" },
+    },
   })
   await setup.ready
   await setup.waitForFrame((frame) => frame.includes("Ask anything"))
 
-  setup.mockInput.pressKey("x", { ctrl: true })
-  await setup.flush()
-  setup.mockInput.pressKey("v")
+  setup.mockInput.pressKey("F6")
 
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
   const frame = setup.captureCharFrame()
@@ -48,7 +53,12 @@ test("switching session tabs closes the version control view", async () => {
     width: 100,
     height: 30,
     args: { sessionID: first.id },
-    config: { animations: false, tabs: { mode: "on" }, experimental: { "vcs-dock": true } },
+    config: {
+      animations: false,
+      tabs: { mode: "on" },
+      experimental: { "vcs-dock": true },
+      keybinds: { "vcs.open": "f6" },
+    },
     fetch: (url) => {
       if (url.pathname === "/api/location") return json(location)
       if (url.pathname === "/api/session") return json({ data: [first, second], cursor: {} })
@@ -67,9 +77,7 @@ test("switching session tabs closes the version control view", async () => {
   await setup.ready
   await setup.waitForFrame((frame) => frame.includes("Conversation A"))
 
-  setup.mockInput.pressKey("x", { ctrl: true })
-  await setup.flush()
-  setup.mockInput.pressKey("v")
+  setup.mockInput.pressKey("F6")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
   setup.events.emit({
@@ -103,7 +111,12 @@ test(`switching ${layout} tabs with the mouse leaves the version control view`, 
     width: 110,
     height: 30,
     args: { sessionID: first.id },
-    config: { animations: false, tabs: { mode: "on", layout }, experimental: { "vcs-dock": true } },
+    config: {
+      animations: false,
+      tabs: { mode: "on", layout },
+      experimental: { "vcs-dock": true },
+      keybinds: { "vcs.open": "f6" },
+    },
     fetch: (url) => {
       if (url.pathname === "/api/location") return json(location)
       if (url.pathname === "/api/session") return json({ data: [first, second], cursor: {} })
@@ -139,9 +152,7 @@ test(`switching ${layout} tabs with the mouse leaves the version control view`, 
   })
   await setup.waitForFrame((frame) => frame.includes("Click conversation A"))
 
-  setup.mockInput.pressKey("x", { ctrl: true })
-  await setup.flush()
-  setup.mockInput.pressKey("v")
+  setup.mockInput.pressKey("F6")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
   const rows = setup.captureCharFrame().split("\n")
@@ -165,7 +176,12 @@ test("ctrl+tab switches session tabs while the version control view is open", as
     width: 110,
     height: 30,
     args: { sessionID: first.id },
-    config: { animations: false, tabs: { mode: "on", layout: "horizontal" }, experimental: { "vcs-dock": true } },
+    config: {
+      animations: false,
+      tabs: { mode: "on", layout: "horizontal" },
+      experimental: { "vcs-dock": true },
+      keybinds: { "vcs.open": "f6" },
+    },
     fetch: (url) => {
       if (url.pathname === "/api/location") return json(location)
       if (url.pathname === "/api/session") return json({ data: [first, second], cursor: {} })
@@ -200,9 +216,7 @@ test("ctrl+tab switches session tabs while the version control view is open", as
   })
   await setup.waitForFrame((frame) => frame.includes("Key conversation A"))
 
-  setup.mockInput.pressKey("x", { ctrl: true })
-  await setup.flush()
-  setup.mockInput.pressKey("v")
+  setup.mockInput.pressKey("F6")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
   setup.mockInput.pressTab({ ctrl: true })
@@ -221,7 +235,12 @@ test("clicking the active conversation tab closes the version control view", asy
     width: 110,
     height: 30,
     args: { sessionID: only.id },
-    config: { animations: false, tabs: { mode: "on", layout: "vertical" }, experimental: { "vcs-dock": true } },
+    config: {
+      animations: false,
+      tabs: { mode: "on", layout: "vertical" },
+      experimental: { "vcs-dock": true },
+      keybinds: { "vcs.open": "f6" },
+    },
     fetch: (url) => {
       if (url.pathname === "/api/location") return json(location)
       if (url.pathname === "/api/session") return json({ data: [only], cursor: {} })
@@ -238,9 +257,7 @@ test("clicking the active conversation tab closes the version control view", asy
   await setup.ready
   await setup.waitForFrame((frame) => frame.includes("Active conversation"))
 
-  setup.mockInput.pressKey("x", { ctrl: true })
-  await setup.flush()
-  setup.mockInput.pressKey("v")
+  setup.mockInput.pressKey("F6")
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
 
   const rows = setup.captureCharFrame().split("\n")
