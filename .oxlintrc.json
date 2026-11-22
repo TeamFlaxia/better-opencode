@@ -1,14 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/oxc-project.github.io/refs/heads/json-schema/src/public/.oxlintrc.schema.json",
   "jsPlugins": [
-    {
-      "name": "anti-slop",
-      "specifier": "./script/oxlint/anti-slop/index.ts"
-    },
-    {
-      "name": "anti-slop-effect",
-      "specifier": "./script/oxlint/anti-slop/effect/index.ts"
-    }
+    { "name": "anti-slop", "specifier": "./script/oxlint/anti-slop/index.ts" },
+    { "name": "anti-slop-effect", "specifier": "./script/oxlint/anti-slop/effect/index.ts" }
   ],
   "categories": {
     "correctness": "off",
@@ -30,10 +24,41 @@
   },
   "overrides": [
     {
-      "files": [
-        "packages/plugin/src/gui/**",
-        "packages/ui/**"
-      ],
+      "files": ["packages/ai/src/**"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "Reflect",
+            "message": "Use typed property access or direct invocation. Suppress this rule only for genuine reflection."
+          },
+          {
+            "name": "fetch",
+            "message": "Send HTTP through RequestExecutor, which applies executor-wide and scoped middleware (HTTP hooks). A request sent any other way skips them."
+          }
+        ],
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "effect/http",
+                "importNames": ["HttpClient", "FetchHttpClient"],
+                "message": "Send HTTP through RequestExecutor, which applies executor-wide and scoped middleware (HTTP hooks). Only route/executor.ts holds the HTTP client."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/ai/src/route/executor.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      "files": ["packages/plugin/src/gui/**", "packages/ui/**"],
       "rules": {
         "oxc/no-accumulating-spread": "warn",
         "anti-slop/no-array-filter-map": "warn",
@@ -57,9 +82,7 @@
       }
     },
     {
-      "files": [
-        "packages/plugin/src/gui/**"
-      ],
+      "files": ["packages/plugin/src/gui/**"],
       "rules": {
         "anti-slop-effect/no-manual-effect-error-tag": "warn",
         "anti-slop-effect/no-manual-tag-comparison": "warn",
@@ -69,10 +92,7 @@
       }
     },
     {
-      "files": [
-        "packages/codemode/src/interpreter/**",
-        "packages/codemode/src/stdlib/**"
-      ],
+      "files": ["packages/codemode/src/interpreter/**", "packages/codemode/src/stdlib/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -118,6 +138,8 @@
     ".pi/**",
     ".roo/**",
     ".windsurf/**",
-    "script/oxlint/anti-slop/**"
+    "script/oxlint/anti-slop/**",
+    "services/site/public/arcade3d/basis/**",
+    "services/site/public/arcade3d/draco/**"
   ]
 }

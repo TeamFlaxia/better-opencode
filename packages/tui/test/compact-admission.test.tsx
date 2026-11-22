@@ -59,7 +59,15 @@ test.each([70, 120])(
       run({
         app: { name: "test", version: "test", channel: "test" },
         server: { endpoint: { url: server.url.toString() } },
-        config: { get: async () => ({ animations: false, language: "en" }), update: async () => ({}) },
+        config: {
+          get: async () => ({
+            animations: false,
+            language: "en",
+            experimental: { "new-designs": false },
+            theme: { name: "opencode-classic" },
+          }),
+          update: async () => ({}),
+        },
         packages: { prepare: async () => ({ directory: "" }) },
         terminalHandoff: async () => ({ renderer: setup.renderer, mode: "dark", complete: ready.resolve }),
         args: { sessionID },
@@ -188,7 +196,12 @@ test.each(["first", "second"])(
         config: {
           // Pin the pre-fork experiment defaults: the new-designs picker only lists free models unless a
           // provider is connected, while this test needs the demo models from a bare fixture.
-          get: async () => ({ animations: false, language: "en", experimental: { "new-designs": false } }),
+          get: async () => ({
+            animations: false,
+            language: "en",
+            experimental: { "new-designs": false },
+            theme: { name: "opencode-classic" },
+          }),
           update: async () => ({}),
         },
         packages: { prepare: async () => ({ directory: "" }) },

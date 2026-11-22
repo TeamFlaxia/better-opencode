@@ -96,6 +96,18 @@ const pluginRuntimePlugin: BunPlugin = {
     }))
   },
 }
+// Bun drops `export * from "ws"` in this sideEffects-free module, leaving NodeWS.WebSocketServer undefined and
+// failing every WebSocket upgrade in the compiled binary. Bun's built-in ws has no PerMessageDeflate.
+const wsReexportPlugin: BunPlugin = {
+  name: "ws-named-reexports",
+  setup(build) {
+    build.onLoad({ filter: /platform-node-shared[/\\]dist[/\\]NodeWS\.js$/ }, () => ({
+      contents:
+        'export { createWebSocketStream, extension, Receiver, Sender, subprotocol, WebSocket, WebSocketServer } from "ws"',
+      loader: "js",
+    }))
+  },
+}
 
 for (const item of targets) {
   const opencodePty = await resolveOpencodePty({
@@ -135,18 +147,35 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
       }))
     },
   }
+  // The machine link's Iroh binding: this target's native package is embedded, and a target with none (Intel Macs)
+  // gets `undefined`, which the server takes as Iroh being unavailable.
+  const irohPackage =
+    item.os === "darwin" && item.arch === "x64"
+      ? undefined
+      : `@number0/iroh-${item.os}-${item.arch}${item.os === "linux" ? `-${item.abi === "musl" ? "musl" : "gnu"}` : item.os === "win32" ? "-msvc" : ""}`
+  const irohBindingPlugin: BunPlugin = {
+    name: "iroh-binding",
+    setup(build) {
+      build.onLoad({ filter: /machine[/\\]iroh-binding\.ts$/ }, () => ({
+        contents: `export default async () => ${irohPackage ? `require(${JSON.stringify(irohPackage)})` : "undefined"}`,
+        loader: "js",
+      }))
+    },
+  }
   const target = targetName(item)
   const name = target.replace(binary, "cli")
   const executablePath = await compileExecutable(item)
   console.log(`building ${name}`)
   const result = await Bun.build({
-    entrypoints: ["./src/index.ts", "./src/photon-worker.ts"],
+    entrypoints: ["./src/index.ts", "./src/photon-worker.ts", "./src/claude-folder-worker.ts"],
     tsconfig: "./tsconfig.json",
     plugins: [
       solidPlugin,
       parcelWatcherPlugin,
+      irohBindingPlugin,
       opencodePtyPlugin,
       pluginRuntimePlugin,
+      wsReexportPlugin,
       simulationGraphPlugin,
       modelsSnapshot,
     ],

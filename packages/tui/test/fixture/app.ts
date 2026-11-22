@@ -40,7 +40,7 @@ export async function createAppFixture(
     ...(provided ?? { animations: false }),
     // Keep app fixtures on the pre-fork defaults even though the product defaults now
     // mirror the maintainer's current configuration.
-    theme: { mode: "system", name: "opencode", ...provided?.theme },
+    theme: { mode: "system", name: "opencode-classic", ...provided?.theme },
     session: { sidebar: "auto", scrollbar: false, ...provided?.session },
     tabs: { mode: "auto", layout: "horizontal", ...provided?.tabs },
     experimental: {

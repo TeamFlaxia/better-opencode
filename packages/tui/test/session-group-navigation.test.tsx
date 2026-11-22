@@ -99,6 +99,7 @@ test.each([
             animations: false,
             // Keep the transcript at x=0 like the shared app fixtures; the product now defaults to a vertical rail.
             tabs: { enabled: true, scope: "global", layout: "horizontal" },
+            session: { verbosity: "medium" },
             keybinds: { "session.messages_last_user": "ctrl+shift+u", "session.message.next": "ctrl+shift+n" },
           }),
           update: async () => ({}),

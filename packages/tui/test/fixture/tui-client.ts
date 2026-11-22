@@ -171,6 +171,7 @@ export function createFetch(override?: FetchHandler, events?: ReturnType<typeof 
     if (url.pathname === "/provider") return json({ all: [], default: {}, connected: [] })
     if (url.pathname === "/session") return json([])
     if (url.pathname === "/vcs") return json({ branch: "main" })
+    if (url.pathname === "/api/experimental/job") return json({ data: [] })
     if (url.pathname === "/api/experimental/migration/v1") return json({ status: "completed" })
     // Fixture servers have no WebSocket handler. Answer the client MCP upgrade with a normal rejection so the
     // experiment's reconnect loop cannot surface as an unexpected request between tests.

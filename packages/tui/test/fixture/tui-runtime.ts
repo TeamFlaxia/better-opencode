@@ -7,6 +7,8 @@ type ResolvedInput = Omit<Info, "attention" | "keybinds" | "leader"> & {
   leader?: { timeout?: number }
 }
 
+// Tests were written for the previous designs and theme, so they keep new designs off and use
+// opencode-classic unless they choose otherwise.
 export function createTuiResolvedConfig(input: ResolvedInput = {}) {
   return resolve(
     {
@@ -14,7 +16,7 @@ export function createTuiResolvedConfig(input: ResolvedInput = {}) {
       ...input,
       // Keep component tests on the pre-fork defaults even though the product defaults
       // now mirror the maintainer's current configuration.
-      theme: { mode: "system", name: "opencode", ...input.theme },
+      theme: { mode: "system", name: "opencode-classic", ...input.theme },
       session: { sidebar: "auto", scrollbar: false, ...input.session },
       tabs: { mode: "auto", layout: "horizontal", ...input.tabs },
       experimental: {

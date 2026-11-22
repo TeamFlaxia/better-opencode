@@ -2,17 +2,14 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer, Stream } from "effect"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
 import { Config } from "@opencode/core/config"
-import { Image } from "@opencode/core/image"
-import { Permission } from "@opencode/core/permission"
 import { Session } from "@opencode/core/session"
 import { Tool } from "@opencode/core/tool"
 import { TaskWriteTool } from "@opencode/core/tool/plugin/taskgraph"
 import { Document, Info, type Entry } from "@opencode/schema/config"
 import { ConfigExperimental } from "@opencode/schema/config/experimental"
 import { testEffect } from "./lib/effect"
-import { imagePassthrough } from "./lib/image"
 import { permissionLayer } from "./lib/permission"
-import { executeTool, registerToolPlugin, toolDefinitions, toolIdentity } from "./lib/tool"
+import { executeTool, registerToolPlugin, toolDefinitions, toolIdentity, toolNodeReplacements } from "./lib/tool"
 
 const sessionID = Session.ID.make("ses_task_graph_tool_test")
 const enabled = new ConfigExperimental.Info({ "task-graph": true })
@@ -21,9 +18,7 @@ const tasks = [
   { id: "build", title: "Build", status: "active", dependsOn: ["design"] },
 ] as const
 
-const it = testEffect(
-  AppNodeBuilder.build(Tool.node, [Image.node.replace(imagePassthrough), Permission.node.replace(permissionLayer())]),
-)
+const it = testEffect(AppNodeBuilder.build(Tool.node, toolNodeReplacements()))
 
 const setup = (experimental: ConfigExperimental.Info | undefined) =>
   Effect.gen(function* () {

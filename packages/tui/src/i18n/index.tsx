@@ -317,6 +317,8 @@ const ja: Record<string, string> = {
   "Open settings": "設定を開く",
   "Ask a side question": "サイド質問をする",
   "Open a session first": "先にセッションを開いてください",
+  "{{count}} script": "{{count}} スクリプト",
+  "{{count}} scripts": "{{count}} スクリプト",
   "{{count}} subagent": "{{count}} サブエージェント",
   "{{count}} subagents": "{{count}} サブエージェント",
   "{{count}} shell": "{{count}} シェル",

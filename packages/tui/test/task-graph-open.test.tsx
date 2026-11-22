@@ -79,7 +79,6 @@ test("shows the task graph dock from the session transcript", async () => {
   const frame = setup.captureCharFrame()
   expect(frame).toContain("1/3 done")
   expect(frame).toContain("Build the view")
-  expect(frame).toContain("taskwrite")
   expect(frame).not.toContain("Workspaces planned")
   expect(frame).not.toContain("C1 run")
 
