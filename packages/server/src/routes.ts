@@ -159,6 +159,7 @@ function makeRoutes<AuthError, AuthServices>(
         claude: options.config?.claude,
         file: options.config?.file,
         content: options.config?.content,
+        defaultPlugins: options.config?.defaultPlugins,
       }),
     ),
     InstructionDiscovery.node.replace(

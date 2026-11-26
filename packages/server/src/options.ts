@@ -38,6 +38,8 @@ export const ServerOptions = Schema.Struct({
       claude: Schema.optional(Schema.Boolean),
       file: Schema.optional(Schema.String),
       content: Schema.optional(Schema.String),
+      // Packages loaded below all config documents; the CLI supplies the fork defaults.
+      defaultPlugins: Schema.optional(Schema.Array(Schema.String)),
     }),
   ),
   instructions: Schema.optional(

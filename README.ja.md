@@ -30,6 +30,8 @@ TUI では以下の機能がすべて既定で有効です。**設定 → 機能
 | TUI ツール           | エージェントが実行中の TUI 内にターミナルを開けるようにします（サーバー側の対応が必要です）。                                                                                                                                                                                                                     | —                                            |
 | 新しいデザイン       | 刷新された TUI の画面をプレビューします。                                                                                                                                                                                                                                                                         | —                                            |
 
+モデルルーティングも既定で有効です。CLI サーバーが `opencode-model-router@latest` を読み込み、npm から取得し、既存のプラグイン更新確認で自動更新します。無効化するには `"plugins": ["-opencode-model-router"]` を設定してください。詳しくは [docs/model-router.md](docs/model-router.md) を参照してください。
+
 このほか、日本語インターフェース、スタンドアロンインストール向けのフォーク対応アップデート確認、デスクトップ／Web クライアントの削除もフォーク固有の変更です。
 
 ## インストール
@@ -138,6 +140,7 @@ git push origin v2.2.5-better.1
 - [docs/vcs-dock.md](docs/vcs-dock.md) — 内蔵バージョン管理ビュー
 - [docs/task-graph.md](docs/task-graph.md) — タスクグラフと `/divide`
 - [docs/file-manager.md](docs/file-manager.md) — ファイルブラウザとプレビュー
+- [docs/model-router.md](docs/model-router.md) — 既定のモデルルーティングプラグイン、無効化、ライセンス
 - [AGENTS.md](AGENTS.md) — 実装とスタイルのルール
 - [CONTRIBUTING.md](CONTRIBUTING.md) — コントリビューションの手順
 

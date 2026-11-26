@@ -122,6 +122,37 @@ function parse(input: ConfigPlugin.Plugin): Operation {
   return { type: "remove", target: input.slice(1) }
 }
 
+// The package name without its version, for local paths too. Config may name the
+// same plugin as a package, a checkout directory, or a removal directive.
+function packageName(target: string) {
+  const spec = target.startsWith("-") ? target.slice(1) : target
+  if (spec.startsWith("file://")) return path.basename(fileURLToPath(spec))
+  if (path.isAbsolute(spec)) return path.basename(spec)
+  const version = spec.lastIndexOf("@")
+  return version > 0 ? spec.slice(0, version) : spec
+}
+
+// At most one add per package name survives, and a later removal drops an earlier
+// add. This keeps the built-in default from installing when config pins, replaces,
+// disables, or removes every plugin, while still allowing a later add to re-enable.
+function resolveOperations(operations: readonly Operation[]) {
+  const kept: Operation[] = []
+  const seen = new Set<string>()
+  let allRemoved = false
+  for (const operation of operations.toReversed()) {
+    if (operation.type === "remove") {
+      if (operation.target === "*") allRemoved = true
+      else seen.add(packageName(operation.target))
+      kept.push(operation)
+      continue
+    }
+    if (allRemoved || seen.has(packageName(operation.target))) continue
+    seen.add(packageName(operation.target))
+    kept.push(operation)
+  }
+  return kept.toReversed()
+}
+
 const scan = Effect.fn("ConfigPluginSource.scan")(function* (
   fs: FSUtil.Interface,
   location: Location.Interface,
@@ -190,5 +221,5 @@ const scan = Effect.fn("ConfigPluginSource.scan")(function* (
       )
       return [{ ...operation, mtime: Math.max(...times) }]
     }),
-  ).pipe(Effect.map((operations) => operations.flat()))
+  ).pipe(Effect.map((operations) => resolveOperations(operations.flat())))
 })

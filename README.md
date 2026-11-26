@@ -30,6 +30,8 @@ The TUI enables all of these features by default. Turn each one on or off in **S
 | TUI tools            | Lets the agent open a terminal in the running TUI (requires server support).                                                                                                                                                                                                                          | —                                            |
 | New designs          | Previews the redesigned TUI surfaces.                                                                                                                                                                                                                                                                 | —                                            |
 
+Model routing is also on by default: the CLI server loads `opencode-model-router@latest`, fetches it from npm, and updates it with the existing plugin update check. Disable it with `"plugins": ["-opencode-model-router"]`. See [docs/model-router.md](docs/model-router.md).
+
 Fork-specific work also includes the Japanese interface, fork-aware update checks for standalone installs, and the removal of the desktop and web clients.
 
 ## Install
@@ -138,6 +140,7 @@ Tags must look like `v<major>.<minor>.<patch>[-prerelease]`, and the tagged comm
 - [docs/vcs-dock.md](docs/vcs-dock.md) — built-in version control view
 - [docs/task-graph.md](docs/task-graph.md) — task graph and `/divide`
 - [docs/file-manager.md](docs/file-manager.md) — file browser and preview
+- [docs/model-router.md](docs/model-router.md) — default model routing plugin, opt-out, and license notes
 - [AGENTS.md](AGENTS.md) — implementation and style rules
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contribution workflow
 

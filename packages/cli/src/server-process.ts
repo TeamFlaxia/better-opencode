@@ -9,6 +9,7 @@ import { AppProcess } from "@opencode/util/process"
 import { randomBytes, randomUUID } from "node:crypto"
 import { Effect, Option, Redacted, Schema } from "effect"
 import { PersistentPty } from "@opencode/schema/persistent-pty"
+import { ConfigPlugin } from "@opencode/schema/config/plugin"
 import { HttpServer } from "effect/http"
 import { NetAddress } from "effect/net"
 import { Env } from "./env"
@@ -131,6 +132,9 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
             ),
             file: process.env.OPENCODE_CONFIG,
             content: process.env.OPENCODE_CONFIG_CONTENT,
+            defaultPlugins: truthy(process.env.OPENCODE_DISABLE_DEFAULT_PLUGINS)
+              ? undefined
+              : [...ConfigPlugin.defaultPackages],
           },
           instructions: {
             claude: !(

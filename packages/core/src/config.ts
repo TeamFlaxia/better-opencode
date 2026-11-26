@@ -69,6 +69,9 @@ export const Options = Schema.Struct({
   claude: Schema.optional(Schema.Boolean),
   file: Schema.optional(Schema.String),
   content: Schema.optional(Schema.String),
+  // Packages the CLI installs unless config disables or replaces them. They load
+  // below every config document, so a project or global removal still wins.
+  defaultPlugins: Schema.optional(Schema.Array(Schema.String)),
 })
 export type Options = typeof Options.Type
 
@@ -379,7 +382,17 @@ export const layer = (options?: Options) =>
             ),
           ),
         )
+        const defaults =
+          options?.defaultPlugins && options.defaultPlugins.length > 0
+            ? [
+                new Document({
+                  type: "document",
+                  info: new Info({ plugins: [...options.defaultPlugins] }),
+                }),
+              ]
+            : []
         const below = [
+          ...defaults,
           ...managedPolicies,
           ...integrated,
           ...wellknownDocuments.flat(),

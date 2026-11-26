@@ -29,6 +29,7 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 - [vcs-dock.md](vcs-dock.md) — バージョン管理ドックと内蔵 VCS ビュー
 - [task-graph.md](task-graph.md) — Task graph と `/divide`
 - [file-manager.md](file-manager.md) — ファイルマネージャーとプレビュー
+- [model-router.md](model-router.md) — 既定のモデルルーティングプラグイン、無効化、ライセンス
 
 ## 現在の機能
 
@@ -38,6 +39,7 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 | バージョン管理 | タブバー横の VCS ドックと内蔵ビュー。jj / Git / Mercurial の状態、diff、ブックマーク / ブランチ、jj の describe / split、Git の stage / commit / fetch / pull / push を扱う。`lazyjj` / `jjui` / `lazygit` は任意の外部ツール | `packages/tui/src/component/vcs-*.tsx`, `packages/tui/src/context/vcs.tsx`, `packages/core/src/vcs/`                                                              |
 | タスク         | Task graph と `/divide`。タスク、依存関係、実行状況をライブ表示し、jj のブックマーク / チェンジを紐付けられる                                                                                                                 | `packages/tui/src/component/task-graph-*.tsx`, `packages/tui/src/context/task-graph.tsx`, `packages/core/src/plugin/goal.ts`, `packages/schema/src/task-graph.ts` |
 | ファイル       | 読み取り専用のファイルマネージャーとプレビュー。`<leader>f` または `/files` で開く                                                                                                                                            | `packages/tui/src/component/file-manager-*.tsx`, `packages/tui/src/context/file-manager.tsx`, `packages/protocol/src/groups/fs.ts`                                |
+| モデル         | `opencode-model-router@latest` を既定で読み込み、fast / medium / heavy にタスクを振り分ける。npm から取得し、24 時間ごとのプラグイン更新確認で自動更新する。`"-opencode-model-router"` で無効化                               | `packages/cli/src/server-process.ts`, `packages/core/src/config.ts`, `docs/model-router.md`                                                                       |
 | セッション     | セッション、サブエージェント、バックグラウンド実行、compaction、revert、transfer                                                                                                                                              | `packages/core/src/session/`                                                                                                                                      |
 | 実行制御       | 実行キュー、再開、最大ステップ、リトライ、モデルフォールバック                                                                                                                                                                | `packages/core/src/session/runner/`, `run-coordinator.ts`                                                                                                         |
 | 作業環境       | worktree、スナップショット、diff、VCS 連携                                                                                                                                                                                    | `packages/core/src/worktree.ts`, `snapshot.ts`, `vcs/`                                                                                                            |
@@ -65,14 +67,14 @@ TUI の組み込み既定値は、日本語、ダークテーマ、縦タブ、�
 
 以下は今後の候補です。既存機能の拡張を含み、実装したものは「現在の機能」へ移してここから外します。
 
-| #   | 提案                                                            | 柱           | 規模   |
-| --- | --------------------------------------------------------------- | ------------ | ------ |
-| 1   | コードインテリジェンス層（シンボル索引・依存グラフ・影響範囲）  | コード理解   | L      |
-| 2   | 予算・安全ガードレール（トークン/コスト上限、承認ポリシー）     | 安全とコスト | M      |
-| 3   | テスト連動ループ（関連テストの自動選択と失敗の差し戻し）        | 検証         | M      |
-| 4   | チェックポイント / 一括 undo                                    | 検証         | S–M    |
-| 5   | マルチエージェント編成（worktree 分離・並列・統合レビュー）     | 並列化       | L      |
-| 6   | 小さく効く改善（履歴検索/エクスポート、注入防御、ルーティング） | 履歴・安全   | S each |
+| #   | 提案                                                           | 柱           | 規模   |
+| --- | -------------------------------------------------------------- | ------------ | ------ |
+| 1   | コードインテリジェンス層（シンボル索引・依存グラフ・影響範囲） | コード理解   | L      |
+| 2   | 予算・安全ガードレール（トークン/コスト上限、承認ポリシー）    | 安全とコスト | M      |
+| 3   | テスト連動ループ（関連テストの自動選択と失敗の差し戻し）       | 検証         | M      |
+| 4   | チェックポイント / 一括 undo                                   | 検証         | S–M    |
+| 5   | マルチエージェント編成（worktree 分離・並列・統合レビュー）    | 並列化       | L      |
+| 6   | 小さく効く改善（履歴検索/エクスポート、注入防御）              | 履歴・安全   | S each |
 
 ## 非目標（当面）
 

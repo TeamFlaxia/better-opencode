@@ -6,6 +6,7 @@ import { Config } from "@opencode/core/config"
 import { ConfigDiscovery } from "@opencode/core/config/discovery"
 import { ConfigIntegration } from "@opencode/core/config/integration"
 import { Directory, Document, type Entry, Event, Info } from "@opencode/schema/config"
+import { ConfigPlugin } from "@opencode/schema/config/plugin"
 import { ConfigModel } from "@opencode/schema/config/model"
 import { ConfigProvider } from "@opencode/schema/config/provider"
 import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
@@ -1002,6 +1003,33 @@ describe("Config", () => {
         }),
       ),
     ),
+  )
+
+  it.live("loads default plugin packages below every config document", () =>
+    withTempDir((tmp) => {
+      const global = path.join(tmp.path, "global")
+      return Effect.promise(async () => {
+        await fs.mkdir(global, { recursive: true })
+        await fs.writeFile(path.join(global, "opencode.json"), JSON.stringify({ plugins: ["plain-plugin"] }))
+      }).pipe(
+        Effect.andThen(
+          Effect.gen(function* () {
+            const config = yield* Config.Service
+            const documents = (yield* config.entries()).filter((entry): entry is Document => entry.type === "document")
+            expect(documents.map((entry) => entry.info.plugins)).toEqual([
+              [...ConfigPlugin.defaultPackages],
+              ["plain-plugin"],
+            ])
+          }).pipe(
+            Effect.provide(
+              testLayer(tmp.path, global, tmp.path, undefined, undefined, undefined, undefined, {
+                defaultPlugins: [...ConfigPlugin.defaultPackages],
+              }),
+            ),
+          ),
+        ),
+      )
+    }),
   )
 
   it.effect("backs Config.Service and Config.Test with one shared test implementation", () =>
