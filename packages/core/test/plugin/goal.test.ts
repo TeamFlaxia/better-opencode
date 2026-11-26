@@ -129,8 +129,43 @@ describe("goal plugin", () => {
       })
       const kickoff = notices[0]?.type === "synthetic" ? notices[0].text : ""
       expect(kickoff).toContain("A divide task is now active")
-      expect(kickoff).toContain("split the objective into a small task graph with the `taskwrite` tool")
-      expect(kickoff).toContain("Then execute the tasks in dependency order")
+      expect(kickoff).toContain("split the objective into a task graph with the `taskwrite` tool")
+      expect(kickoff).toContain("Shape the graph for parallelism")
+      expect(kickoff).toContain("parallelizing everything the dependencies allow")
+      expect(kickoff).toContain("dispatch one `subagent` call per independent task in the same message")
+    }),
+  )
+
+  it.live("asks a divide continuation to run ready tasks in parallel", () =>
+    Effect.gen(function* () {
+      const session = yield* project()
+      const sessions = yield* Session.Service
+      const verdicts = reviewer(
+        '{"verdict":"continue","reason":"Independent tasks remain."}',
+        '{"verdict":"done","reason":"All tasks are done."}',
+      )
+      yield* serve((request) => {
+        if (isReview(request)) return verdicts.respond(request)
+        const last = JSON.stringify(request.messages.at(-1))
+        if (!last.includes("A divide task is now active")) return TestLLM.text("Working on it", "work")
+        return TestLLM.toolCall("call-taskwrite", "taskwrite", {
+          tasks: [
+            { id: "first", title: "First", status: "pending", dependsOn: [] },
+            { id: "second", title: "Second", status: "pending", dependsOn: [] },
+            { id: "third", title: "Third", status: "pending", dependsOn: ["first"] },
+          ],
+        })
+      })
+
+      yield* sessions.command({ sessionID: session.id, command: "divide", text: "Do three things" })
+      yield* sessions.wait(session.id)
+
+      const continuations = (yield* sessions.messages({ sessionID: session.id, order: "asc" })).flatMap((message) =>
+        message.type === "synthetic" && message.metadata?.source === "goal" ? [message.text] : [],
+      )
+      expect(continuations).toHaveLength(1)
+      expect(continuations[0]).toContain("Current task graph")
+      expect(continuations[0]).toContain("dispatch one `subagent` call per independent task")
     }),
   )
 

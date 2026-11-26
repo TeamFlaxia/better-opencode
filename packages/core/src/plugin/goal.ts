@@ -460,7 +460,7 @@ export const Plugin = define({
       })
       editor.add({
         name: "divide",
-        description: "split an instruction into a task graph and work through it (requires task-graph)",
+        description: "split an instruction into a parallel task graph and work through it with subagents",
         execute: (input) =>
           Effect.gen(function* () {
             const text = unquote(input.prompt.text.trim())
@@ -496,7 +496,7 @@ export const Plugin = define({
               yield* ctx.session.update({ sessionID: input.sessionID, title: truncate(text, 60) })
             const kickoff = render(DIVIDE, {
               objective: escape(text),
-              taskGraph: TASK_GRAPH_KICKOFF,
+              taskGraph: DIVIDE_TASK_GRAPH_KICKOFF,
             })
             const metadata = { source: "divide", goalID: created.id }
             const attached = [input.prompt.files, input.prompt.agents, input.prompt.skills].some(
@@ -525,6 +525,8 @@ export const Plugin = define({
 
 const TASK_GRAPH_KICKOFF = `Before the first substantive step, split the objective into a small task graph with the \`taskwrite\` tool: 2 to 8 tasks with stable IDs, statuses, and \`dependsOn\` links. Keep that graph current as the work moves: mark a task \`active\` when it starts, \`done\` only when it is verified, and \`blocked\` with a reason when something outside the agent stops it. If this repository uses jj, create a bookmark \`task/<id>\` when you start each task and include its \`bookmark\` and \`change\` in taskwrite.`
 
+const DIVIDE_TASK_GRAPH_KICKOFF = `Before the first substantive step, split the objective into a task graph with the \`taskwrite\` tool: 2 to 8 tasks with stable IDs, statuses, and \`dependsOn\` links. Shape the graph for parallelism: add a dependency only when a task needs another task's output or edits the same files, so unrelated tasks land in the same layer and can start together. Keep that graph current as the work moves: mark a task \`active\` when it starts, \`done\` only when it is verified, and \`blocked\` with a reason when something outside the agent stops it. If this repository uses jj, create a bookmark \`task/<id>\` when you start each task and include its \`bookmark\` and \`change\` in taskwrite.`
+
 function continuation(
   goal: State,
   feedback: ReadonlyArray<string | undefined>,
@@ -546,6 +548,11 @@ function continuation(
               .join("\n"),
         "",
         "Update the graph with `taskwrite` when a task starts, finishes, or becomes blocked.",
+        ...(tasks.some((task) => task.status === "pending")
+          ? [
+              "When several tasks have all dependencies done, mark them `active` and dispatch one `subagent` call per independent task in the same message so they run concurrently. Never let two subagents edit the same files at once.",
+            ]
+          : []),
       ].join("\n")
     : ""
   return render(CONTINUATION, {

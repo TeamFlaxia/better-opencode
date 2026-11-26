@@ -18,10 +18,18 @@ clients must enable it explicitly. In `cli.json` or the Experiments dialog:
 ## Starting with /divide
 
 `/divide <instruction>` starts a goal that first splits the instruction into a task
-graph, then works through the tasks in dependency order. It is the task-graph-first
-entry point: the kickoff asks the model to call `taskwrite` with 2–8 tasks, and the
-goal reviewer keeps the session working until the instruction is met. The dock and
-full-pane view show the graph while it runs.
+graph, then works through it. It is the task-graph-first entry point: the kickoff asks
+the model to call `taskwrite` with 2–8 tasks shaped for parallelism, and the goal
+reviewer keeps the session working until the instruction is met. The dock and full-pane
+view show the graph while it runs.
+
+The graph is designed to be as parallel as the work allows. `dependsOn` is used only
+when a task needs another task's output or edits the same files, so unrelated tasks land
+in the same layer. When several tasks are ready, `/divide` starts them together: each
+independent task is dispatched to its own subagent in the same step, while the parent
+keeps work that touches the same files, needs its full context, or integrates and
+verifies the results. Subagents run in the background, and the parent is notified as
+each one finishes.
 
 `/divide` requires the `task-graph` experiment. It accepts an instruction on the
 same line, like `/goal`:
