@@ -9,6 +9,7 @@ import { useTaskGraph, type TaskGraphController } from "../context/task-graph"
 import { useTheme } from "../context/theme"
 import { useVcs } from "../context/vcs"
 import { Locale } from "../util/locale"
+import { layoutTaskChart, type TaskChartCell, type TaskChartRow } from "../util/task-graph-chart"
 import {
   statusLabel,
   statusMarker,
@@ -72,25 +73,7 @@ export function TaskGraphView(props: {
   const selected = () => nodesFor(focus()).at(selectedFor(focus()))
   const focused = (): TaskNode | undefined => selected()
   const countFor = (panel: TaskGraphPanel) => nodesFor(panel).length
-  const graphRows = createMemo(() => {
-    const tasks = model().tasks
-    const rows: { layer: number; node: TaskNode; index: number }[] = []
-    tasks.forEach((node, index) => rows.push({ layer: node.layer, node, index }))
-    return rows
-  })
   const executionRows = createMemo(() => model().execution.map((node, index) => ({ node, index })))
-
-  const visualRow = (panel: TaskGraphPanel, index: number) => {
-    if (panel !== "graph") return index
-    const rows = graphRows()
-    let row = index
-    for (let position = 1; position <= index; position++) {
-      if (rows[position] && rows[position - 1] && rows[position]!.layer !== rows[position - 1]!.layer) row++
-    }
-    return row
-  }
-  const visualCount = (panel: TaskGraphPanel) =>
-    panel === "graph" ? graphRows().length + new Set(graphRows().map((row) => row.layer)).size : executionRows().length
   const [bounds, setBounds] = createSignal({ x: 0, width: dimensions().width, height: dimensions().height })
   const defaultDetailsWidth = () =>
     bounds().width >= 80 ? Math.max(28, Math.min(42, Math.floor(bounds().width * 0.34))) : 0
@@ -109,6 +92,8 @@ export function TaskGraphView(props: {
   const detailsWidth = () => detailsSize.size()
   const sidebarWidth = () => Math.max(24, bounds().width - detailsWidth() - 3)
   const listHeight = () => Math.max(5, Math.min(12, Math.floor(bounds().height * 0.3)))
+  const layerLabel = (index: number) => (index === 0 ? "Ready to start" : `Depends on layer ${index}`)
+  const chartWidth = () => Math.max(10, sidebarWidth() - 3)
 
   const color = (status: TaskNodeStatus | undefined, selected: boolean) => {
     if (selected) return theme.text.action.primary.focused
@@ -128,6 +113,9 @@ export function TaskGraphView(props: {
     return base
   }
 
+  const scrollTarget = (panel: TaskGraphPanel, index: number) => (panel === "graph" ? chartRow(index) : index)
+  const scrollCount = (panel: TaskGraphPanel) => (panel === "graph" ? chart().rows.length : executionRows().length)
+
   createEffect(() => {
     const panel = focus()
     const index = selectedFor(panel)
@@ -137,9 +125,9 @@ export function TaskGraphView(props: {
       const limit = scroll.viewport.height
       if (limit <= 0) return
       const offset = revealSelectionOffset(scroll.scrollTop, {
-        count: visualCount(panel),
+        count: scrollCount(panel),
         limit,
-        selected: visualRow(panel, index),
+        selected: scrollTarget(panel, index),
       })
       if (offset !== scroll.scrollTop) scroll.scrollTo(offset)
     })
@@ -203,6 +191,12 @@ export function TaskGraphView(props: {
     const short = ref.length > 8 ? `${ref.slice(0, 7)}…` : ref
     return `${vcsBadge(node)} ${short}`
   }
+  const chart = createMemo(() => layoutTaskChart({ tasks: model().tasks, width: chartWidth(), layerLabel, vcsLabel }))
+  const chartRow = (index: number) => {
+    const id = model().tasks[index]?.id
+    return id === undefined ? 0 : (chart().top[id] ?? 0)
+  }
+  const [chartX, setChartX] = createSignal(0)
   const updateLink = (node: TaskNode, patch: Partial<TaskLink.Link>) =>
     task.setLink(node.id, { ...linkOf(node), ...patch, updatedAt: Date.now() })
   const requireJjTask = () => {
@@ -493,8 +487,6 @@ export function TaskGraphView(props: {
     }
   })
 
-  const layerLabel = (index: number) => (index === 0 ? "Ready to start" : `Depends on layer ${index}`)
-
   const rowIndent = (panel: TaskGraphPanel, node: TaskNode) =>
     panel === "graph" ? 1 + Math.min(6, node.layer) * 2 : 1
   const vcsWidth = (panel: TaskGraphPanel, node: TaskNode) =>
@@ -581,6 +573,36 @@ export function TaskGraphView(props: {
     )
   }
 
+  const chartCellStyle = (cell: TaskChartCell) => {
+    if (cell.part === "header") return { fg: theme.text.muted, attributes: TextAttributes.BOLD }
+    if (cell.part === "edge" || cell.part === "muted") return { fg: theme.text.muted }
+    if (focus() === "graph" && cell.nodeID !== undefined && cell.nodeID === focused()?.id)
+      return { fg: theme.text.action.primary.focused, bg: theme.background.action.primary.focused }
+    if (cell.part === "vcs") {
+      const node = model().tasks.find((item) => item.id === cell.nodeID)
+      return { fg: node ? vcsColor(node) : theme.text.muted }
+    }
+    if (cell.part === "title") return { fg: theme.text.base }
+    return { fg: color(cell.status, false) }
+  }
+  const chartRuns = (row: TaskChartRow) => {
+    const runs: { text: string; cell: TaskChartCell }[] = []
+    for (const cell of row.cells) {
+      const last = runs.at(-1)
+      if (last && last.cell.part === cell.part && last.cell.status === cell.status && last.cell.nodeID === cell.nodeID)
+        last.text += cell.text
+      else runs.push({ text: cell.text, cell })
+    }
+    return runs
+  }
+  const selectChartNode = (row: TaskChartRow, x: number) => {
+    const hit = row.nodes.find((node) => x >= node.start && x <= node.end)
+    if (!hit) return
+    const index = model().tasks.findIndex((node) => node.id === hit.id)
+    if (index < 0) return
+    setFocus("graph")
+    setSelection((value) => ({ ...value, graph: index }))
+  }
 
   const detailRow = (label: string, value: string | undefined, valueColor?: RGBA) => (
     <Show when={value}>
@@ -672,7 +694,7 @@ export function TaskGraphView(props: {
               onMouseDown={() => setFocus("graph")}
             >
               <Show
-                when={graphRows().length > 0}
+                when={chart().rows.length > 0}
                 fallback={
                   <box height={1} paddingLeft={1}>
                     <text fg={theme.text.muted} selectable={false}>
@@ -687,20 +709,32 @@ export function TaskGraphView(props: {
                   scrollX={false}
                   verticalScrollbarOptions={{ visible: true }}
                 >
-                  <For each={graphRows()}>
-                    {(row, index) => (
-                      <box flexDirection="column">
-                        <Show when={index() === 0 || graphRows()[index() - 1]!.layer !== row.layer}>
-                          <box height={1} paddingLeft={1}>
-                            <text fg={theme.text.muted} selectable={false}>
-                              <b>{layerLabel(row.layer)}</b>
-                            </text>
-                          </box>
-                        </Show>
-                        {nodeRow("graph", () => row.node, row.index)}
-                      </box>
-                    )}
-                  </For>
+                  <box
+                    width={chart().width}
+                    flexShrink={0}
+                    flexDirection="column"
+                    onSizeChange={function () {
+                      setChartX(this.x)
+                    }}
+                  >
+                    <For each={chart().rows}>
+                      {(row) => (
+                        <box
+                          height={1}
+                          width={chart().width}
+                          flexShrink={0}
+                          flexDirection="row"
+                          onMouseUp={(event) => selectChartNode(row, event.x - chartX())}
+                        >
+                          <text wrapMode="none" selectable={false}>
+                            <For each={chartRuns(row)}>
+                              {(run) => <span style={chartCellStyle(run.cell)}>{run.text}</span>}
+                            </For>
+                          </text>
+                        </box>
+                      )}
+                    </For>
+                  </box>
                 </scrollbox>
               </Show>
             </box>
@@ -732,92 +766,92 @@ export function TaskGraphView(props: {
                   scrollX={false}
                   verticalScrollbarOptions={{ visible: true }}
                 >
-                  <For each={executionRows()}>
-                    {(row) => nodeRow("execution", () => row.node, row.index)}
-                  </For>
+                  <For each={executionRows()}>{(row) => nodeRow("execution", () => row.node, row.index)}</For>
                 </scrollbox>
               </Show>
             </box>
           </box>
 
           <Show when={detailsWidth() > 0}>
-          <box
-            id="task-graph-details"
-            width={detailsWidth()}
-            flexShrink={0}
-            flexDirection="column"
-            border
-            borderColor={theme.border.base}
-            title="Details"
-            titleColor={theme.text.muted}
-            backgroundColor={theme.background.raised.base}
-          >
-            <Show
-              when={details()}
-              fallback={
-                <box paddingLeft={1} paddingTop={1}>
-                  <text fg={theme.text.muted} selectable={false}>
-                    Select a task or execution node.
-                  </text>
-                </box>
-              }
+            <box
+              id="task-graph-details"
+              width={detailsWidth()}
+              flexShrink={0}
+              flexDirection="column"
+              border
+              borderColor={theme.border.base}
+              title="Details"
+              titleColor={theme.text.muted}
+              backgroundColor={theme.background.raised.base}
             >
-              {(current) => (
-                <scrollbox flexGrow={1} minHeight={0} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
-                  <box width="100%" flexDirection="column" paddingLeft={1} paddingRight={1} gap={1}>
-                    <text width="100%" fg={theme.text.base} wrapMode="char" selectable={false}>
-                      {current().node.title}
+              <Show
+                when={details()}
+                fallback={
+                  <box paddingLeft={1} paddingTop={1}>
+                    <text fg={theme.text.muted} selectable={false}>
+                      Select a task or execution node.
                     </text>
-                    <box flexDirection="row" gap={1}>
-                      <text fg={theme.text.muted} selectable={false}>
-                        {current().node.kind}
-                      </text>
-                      <text fg={color(current().node.status, false)} selectable={false}>
-                        {statusLabel(current().node.status)}
-                      </text>
-                    </box>
-                    {detailRow("Reason", current().node.reason, theme.text.feedback.warning.base)}
-                    {detailRow("Detail", current().node.detail)}
-                    {current().node.vcs && (
-                      <box flexDirection="column" gap={1}>
-                        <text fg={theme.text.muted} selectable={false}>
-                          VCS
-                        </text>
-                        <text fg={vcsColor(current().node)} selectable={false}>
-                          {vcsState(current().node) ?? "linked"}
-                          {current().node.vcs!.broken ? " · link not found" : ""}
-                        </text>
-                        {detailRow("Change", current().node.vcs!.change || current().node.vcs!.ref)}
-                        {detailRow("Commit", current().node.vcs!.commit || undefined)}
-                        {detailRow("Bookmarks", current().node.vcs!.bookmarks.join(", ") || undefined)}
-                        {detailRow("Parent", current().node.vcs!.parents.join(", ") || undefined)}
-                      </box>
-                    )}
-                    {detailRow("Depends on", current().node.dependsOn.join(", ") || undefined)}
-                    {detailRow(
-                      "Ancestry",
-                      current()
-                        .node.dependsOn.flatMap((id) =>
-                          ancestry()[id] === undefined ? [] : [`${id}: ${ancestry()[id] ? "ancestor" : "not ancestor"}`],
-                        )
-                        .join(" · ") || undefined,
-                    )}
-                    {detailRow("Dependents", current().dependents.join(", ") || undefined)}
-                    {detailRow("Tokens", current().node.tokens?.toLocaleString())}
-                    {detailRow("Cost", current().node.cost?.toFixed(4))}
-                    {detailRow("Started", current().started)}
-                    {detailRow("Completed", current().completed)}
-                    {detailRow("Session", current().node.sessionID)}
-                    <Show when={current().node.sessionID}>
-                      <text fg={theme.text.muted} selectable={false}>
-                        enter opens the session
-                      </text>
-                    </Show>
                   </box>
-                </scrollbox>
-              )}
-            </Show>
-          </box>
+                }
+              >
+                {(current) => (
+                  <scrollbox flexGrow={1} minHeight={0} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
+                    <box width="100%" flexDirection="column" paddingLeft={1} paddingRight={1} gap={1}>
+                      <text width="100%" fg={theme.text.base} wrapMode="char" selectable={false}>
+                        {current().node.title}
+                      </text>
+                      <box flexDirection="row" gap={1}>
+                        <text fg={theme.text.muted} selectable={false}>
+                          {current().node.kind}
+                        </text>
+                        <text fg={color(current().node.status, false)} selectable={false}>
+                          {statusLabel(current().node.status)}
+                        </text>
+                      </box>
+                      {detailRow("Reason", current().node.reason, theme.text.feedback.warning.base)}
+                      {detailRow("Detail", current().node.detail)}
+                      {current().node.vcs && (
+                        <box flexDirection="column" gap={1}>
+                          <text fg={theme.text.muted} selectable={false}>
+                            VCS
+                          </text>
+                          <text fg={vcsColor(current().node)} selectable={false}>
+                            {vcsState(current().node) ?? "linked"}
+                            {current().node.vcs!.broken ? " · link not found" : ""}
+                          </text>
+                          {detailRow("Change", current().node.vcs!.change || current().node.vcs!.ref)}
+                          {detailRow("Commit", current().node.vcs!.commit || undefined)}
+                          {detailRow("Bookmarks", current().node.vcs!.bookmarks.join(", ") || undefined)}
+                          {detailRow("Parent", current().node.vcs!.parents.join(", ") || undefined)}
+                        </box>
+                      )}
+                      {detailRow("Depends on", current().node.dependsOn.join(", ") || undefined)}
+                      {detailRow(
+                        "Ancestry",
+                        current()
+                          .node.dependsOn.flatMap((id) =>
+                            ancestry()[id] === undefined
+                              ? []
+                              : [`${id}: ${ancestry()[id] ? "ancestor" : "not ancestor"}`],
+                          )
+                          .join(" · ") || undefined,
+                      )}
+                      {detailRow("Dependents", current().dependents.join(", ") || undefined)}
+                      {detailRow("Tokens", current().node.tokens?.toLocaleString())}
+                      {detailRow("Cost", current().node.cost?.toFixed(4))}
+                      {detailRow("Started", current().started)}
+                      {detailRow("Completed", current().completed)}
+                      {detailRow("Session", current().node.sessionID)}
+                      <Show when={current().node.sessionID}>
+                        <text fg={theme.text.muted} selectable={false}>
+                          enter opens the session
+                        </text>
+                      </Show>
+                    </box>
+                  </scrollbox>
+                )}
+              </Show>
+            </box>
           </Show>
           <Show when={detailsWidth() > 0}>
             <PaneResizeHandle resize={detailsSize} left={1 + sidebarWidth()} />

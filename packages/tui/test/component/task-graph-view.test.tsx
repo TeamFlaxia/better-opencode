@@ -61,7 +61,11 @@ function dataset() {
         id: "tool-1",
         name: "read",
         time: { created: 2, completed: 3 },
-        state: { status: "completed", input: { path: "src/component/task-graph-view.tsx" }, content: [{ type: "text", text: "ok" }] },
+        state: {
+          status: "completed",
+          input: { path: "src/component/task-graph-view.tsx" },
+          content: [{ type: "text", text: "ok" }],
+        },
       },
     ]),
   ] satisfies SessionMessageInfo[]
@@ -117,10 +121,7 @@ const vcsStub: TaskGraphVcsController = {
 }
 
 function findScrollBoxes(node: Renderable): ScrollBoxRenderable[] {
-  return [
-    ...(node instanceof ScrollBoxRenderable ? [node] : []),
-    ...node.getChildren().flatMap(findScrollBoxes),
-  ]
+  return [...(node instanceof ScrollBoxRenderable ? [node] : []), ...node.getChildren().flatMap(findScrollBoxes)]
 }
 
 function Providers(props: ParentProps) {
@@ -194,6 +195,29 @@ test("keeps the selected node in view and shows its details", async () => {
   }
 })
 
+test("selects a task by clicking its chart node", async () => {
+  const app = await testRender(
+    () => (
+      <Providers>
+        <TaskGraphView controller={controller()} vcs={vcsStub} onClose={() => {}} />
+      </Providers>
+    ),
+    { width: 110, height: 30, kittyKeyboard: true },
+  )
+
+  try {
+    app.renderer.start()
+    await app.waitForFrame((frame) => frame.includes("Ready to start") && frame.includes("Verify on CI"))
+    const rows = app.captureCharFrame().split("\n")
+    const row = rows.findIndex((line) => line.includes("Verify on CI"))
+    const column = rows[row]!.indexOf("Verify on CI")
+    await app.mockMouse.click(column, row)
+    await app.waitForFrame((frame) => frame.includes("needs a release tag") && frame.includes("blocked"))
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
 test("draws vertical scrollbars only", async () => {
   const app = await testRender(
     () => (
@@ -238,7 +262,6 @@ test("uses the full width and hides the details pane on a narrow terminal", asyn
     app.renderer.destroy()
   }
 })
-
 
 test("resizes the details pane from the divider", async () => {
   const app = await testRender(
@@ -371,7 +394,13 @@ test("shows a linked jj change in the task row and details", async () => {
 
   try {
     app.renderer.start()
-    await app.waitForFrame((frame) => frame.includes("task/de") && frame.includes("Design the graph"))
+    await app.waitForFrame(
+      (frame) =>
+        frame.includes("task/de") &&
+        frame.includes("Design the graph") &&
+        frame.includes("Ready to start") &&
+        frame.includes("!"),
+    )
     const frame = app.captureCharFrame()
     expect(frame).toContain("!")
     expect(frame).toContain("conflict")
@@ -380,7 +409,6 @@ test("shows a linked jj change in the task row and details", async () => {
     app.renderer.destroy()
   }
 })
-
 
 test("opens the jj task action menu", async () => {
   const app = await testRender(
@@ -403,7 +431,6 @@ test("opens the jj task action menu", async () => {
     app.renderer.destroy()
   }
 })
-
 
 test("creates a change and links the selected task", async () => {
   const calls: string[] = []
@@ -443,11 +470,7 @@ test("creates a change and links the selected task", async () => {
     await app.waitForFrame((frame) => frame.includes("New jj change for task"))
     app.mockInput.pressEnter()
     await app.waitFor(() => calls.length === 3)
-    expect(calls).toEqual([
-      "new:task(design): Design the graph",
-      "bookmark:newchange:task/design",
-      "link:design",
-    ])
+    expect(calls).toEqual(["new:task(design): Design the graph", "bookmark:newchange:task/design", "link:design"])
   } finally {
     app.renderer.destroy()
   }

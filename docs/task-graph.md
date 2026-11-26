@@ -72,16 +72,21 @@ declared any tasks yet and shows `No tasks yet` until the graph arrives. The doc
 a progress summary and the current task; click it to open the full-pane view.
 
 The full-pane view keeps long detail values inside the Details pane by wrapping them at
-the character level. Drag the divider between the task list and Details to resize the
+the character level. Drag the divider between the task chart and Details to resize the
 panes; double-click the divider to restore the default widths.
 
 The full-pane view has:
 
 - a header with the goal objective, counts, and the current round;
-- a dependency-layered task list, grouped from independent tasks down to dependents;
+- a node chart of the declared tasks, with one box per task grouped into dependency
+  layers and orthogonal edges joining each layer to the next;
 - an execution list of steps, tools, and subagents;
 - a details pane for the selected node, including dependencies, dependents, reason,
   timing, tokens, cost, and the linked session.
+
+Each node shows its status marker and ID on the top border, its title inside the box, and
+its status and jj badge on the bottom border. Layers wider than the pane wrap into
+continuation bands instead of adding a horizontal scrollbar.
 
 ## Declaring tasks
 
@@ -198,5 +203,5 @@ task displays as stalled with the goal's reason.
   store is merged with the taskwrite fields using the `updatedAt` timestamp.
 - jj links are resolved in one `jj log` call, with a per-reference fallback when one
   reference is malformed.
-- Both panels scroll vertically only. Long titles are truncated rather than adding a
-  horizontal scrollbar.
+- Both panels scroll vertically only. The task chart wraps wide layers and truncates long
+  titles rather than adding a horizontal scrollbar.
