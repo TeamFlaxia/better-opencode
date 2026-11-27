@@ -69,7 +69,7 @@ export function VcsDock(props: {
       ...(selected
         ? [{ title: `Open ${selected.label}`, value: "open" as const, description: "Launch the external TUI" }]
         : []),
-      { title: "Open diff viewer", value: "diff" as const, description: "Review changes inside OpenCode" },
+      { title: "Open diff viewer", value: "diff" as const, description: "Review changes inside Theia Code" },
       ...(current?.change
         ? [
             { title: "Copy change ID", value: "copy_change" as const, description: current.change },

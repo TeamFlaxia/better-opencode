@@ -1,6 +1,6 @@
-# Contributing to better-opencode
+# Contributing to Theia Code
 
-better-opencode is a fork of opencode. Upstream changes arrive on `upstream`; fork work happens on `main`. Before starting, read:
+Theia Code (the `theia-code` project) is a fork of opencode. Upstream changes arrive on `upstream`; fork work happens on `main`. Before starting, read:
 
 - [docs/README.md](docs/README.md) — fork policy, current feature inventory, and scope
 - [AGENTS.md](AGENTS.md) — implementation, style, and verification rules

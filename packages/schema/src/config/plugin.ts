@@ -14,7 +14,7 @@ export type Plugin = typeof Plugin.Type
 export const Plugins = Plugin.pipe(Schema.Array)
 
 /**
- * Packages better-opencode's CLI server loads when no config mentions them.
+ * Packages theia-code's CLI server loads when no config mentions them.
  *
  * They stay ordinary external packages: the repository and release artifacts do
  * not bundle their code. npm installs them from their publisher, and `@latest`

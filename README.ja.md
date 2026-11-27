@@ -1,18 +1,18 @@
-# better-opencode
+# Theia Code
 
 [English](README.md) | 日本語
 
 コードベースを理解し、予算を守り、自分の作業を検証できるコーディングエージェントを求める開発者のための、[opencode](https://github.com/anomalyco/opencode) のフォーカスしたフォークです。
 
-> better-opencode は独立したフォークであり、Anomaly Innovations とは提携していません。OpenCode は Anomaly Innovations, Inc. の商標です。上流の変更を継続的にマージできるよう、ランタイムと `@opencode/*` パッケージ名前空間は上流のまま維持しています。現在は上流 v2.4.2 を追従しています。
+> Theia Code（`theia-code` プロジェクト）は独立したフォークであり、Anomaly Innovations とは提携していません。OpenCode は Anomaly Innovations, Inc. の商標です。上流の変更を継続的にマージできるよう、ランタイムと `@opencode/*` パッケージ名前空間は上流のまま維持しています。現在は上流 v2.4.2 を追従しています。
 
 ## ステータス
 
-初期開発中です。better-opencode は上流の opencode v2 を追従しており、TUI ファーストです。デスクトップアプリと Web UI は削除済みで、ターミナルインターフェースが唯一のクライアントです。TUI の表示言語は既定で日本語です。英語に切り替えるには **設定 → 言語** を使います。
+初期開発中です。Theia Code は上流の opencode v2 を追従しており、TUI ファーストです。デスクトップアプリと Web UI は削除済みで、ターミナルインターフェースが唯一のクライアントです。TUI の表示言語は既定で日本語です。英語に切り替えるには **設定 → 言語** を使います。
 
 | ブランチ          | 用途                                                                                          |
 | ----------------- | --------------------------------------------------------------------------------------------- |
-| `main`            | better-opencode の開発ブランチ。フォークの機能はここに入ります。                              |
+| `main`            | Theia Code の開発ブランチ。フォークの機能はここに入ります。                              |
 | `upstream`        | 上流 `anomalyco/opencode` の `dev` をそのまま保持するミラー。フォークのコミットは置きません。 |
 | `origin/upstream` | 同期に使う上流の `dev`。                                                                      |
 
@@ -36,7 +36,7 @@ TUI では以下の機能がすべて既定で有効です。**設定 → 機能
 
 ## インストール
 
-ビルド済みの CLI バイナリは [リリースページ](https://github.com/TeamFlaxia/better-opencode/releases) で公開しています。Linux は `opencode-<version>-<target>.tar.gz`、macOS と Windows は `.zip` を取得し、`SHA256SUMS.txt` で検証してから `opencode` を `PATH` に置いてください。
+ビルド済みの CLI バイナリは [リリースページ](https://github.com/TeamFlaxia/theia-code/releases) で公開しています。Linux は `opencode-<version>-<target>.tar.gz`、macOS と Windows は `.zip` を取得し、`SHA256SUMS.txt` で検証してから `opencode` を `PATH` に置いてください。
 
 curl でインストールしたビルド（`~/.opencode/bin/opencode`）は、`opencode upgrade` でこのフォークの GitHub Releases を確認します。既定の更新ポリシーは通知のみです。自動インストールを有効にするには、グローバル設定で `"update": "auto"` を指定します。パッケージマネージャー経由のインストールは、引き続き上流の更新サービスを使います。
 
@@ -128,11 +128,11 @@ bun run sync:upstream                # upstream/dev まで取り込む
 ```bash
 git switch main
 git pull
-git tag v2.4.2-better.1
-git push origin v2.4.2-better.1
+git tag v2.4.2-theia.1
+git push origin v2.4.2-theia.1
 ```
 
-フォークのタグは上流の semver 本体に `-better.N` を付けます。`N` は上流のベースバージョンごとに 1 から始めます。タグは `v<major>.<minor>.<patch>[-prerelease]` の形式で、タグのコミットが `main` の祖先である必要があります。`-` を含むタグは prerelease として公開されます。リリースワークフローは 12 ターゲット分の CLI をビルドし、Linux は `tar.gz`、macOS と Windows は `zip` にまとめ、`SHA256SUMS.txt` と一緒に公開します。ジョブ構成は [docs/development.md](docs/development.md#リリース) を参照してください。
+フォークのタグは上流の semver 本体に `-theia.N` を付けます。`N` は上流のベースバージョンごとに 1 から始めます。タグは `v<major>.<minor>.<patch>[-prerelease]` の形式で、タグのコミットが `main` の祖先である必要があります。`-` を含むタグは prerelease として公開されます。リリースワークフローは 12 ターゲット分の CLI をビルドし、Linux は `tar.gz`、macOS と Windows は `zip` にまとめ、`SHA256SUMS.txt` と一緒に公開します。ジョブ構成は [docs/development.md](docs/development.md#リリース) を参照してください。
 
 ## ドキュメント
 

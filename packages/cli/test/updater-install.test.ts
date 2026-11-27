@@ -328,11 +328,11 @@ managers.forEach((manager) => {
       expect(yield* test.updater.method()).toBeUndefined()
       const latest = yield* test.updater.managed()
       const pinned = yield* test.updater.managed("v2.2.6")
-      expect(latest?.title).toBe(`OpenCode is managed by ${manager.name}`)
+      expect(latest?.title).toBe(`Theia Code is managed by ${manager.name}`)
       expect(latest?.command).toBe(`${manager.command}@2.3.4`)
       expect(pinned?.command).toBe(`${manager.command}@2.2.6`)
       const applied = yield* test.updater.apply("2.3.4").pipe(Effect.flip)
-      expect(applied.message).toBe(`OpenCode is managed by ${manager.name}. Update it with ${manager.command}@2.3.4`)
+      expect(applied.message).toBe(`Theia Code is managed by ${manager.name}. Update it with ${manager.command}@2.3.4`)
       // An explicit --method keeps its existing command, and the version check reports the untouched copy.
       const explicit = yield* test.updater.upgrade("npm", "2.3.4").pipe(Effect.flip)
       expect(explicit.message).toContain("is still version 2.2.7")
@@ -585,7 +585,7 @@ it.live("Homebrew Core installs check and upgrade the Core formula", () =>
   )
 })
 
-it.live("curl installs check better-opencode GitHub releases", () =>
+it.live("curl installs check theia-code GitHub releases", () =>
   Effect.gen(function* () {
     const test = yield* fixture(
       () => ({}),
@@ -598,7 +598,7 @@ it.live("curl installs check better-opencode GitHub releases", () =>
     expect(yield* test.updater.method()).toBe("curl")
     // Draft releases never count, and local builds accept the newest published prerelease.
     expect(yield* test.updater.latest()).toBe("2.3.4")
-    expect(test.requests).toEqual(["https://api.github.com/repos/TeamFlaxia/better-opencode/releases?per_page=20"])
+    expect(test.requests).toEqual(["https://api.github.com/repos/TeamFlaxia/theia-code/releases?per_page=20"])
   }),
 )
 

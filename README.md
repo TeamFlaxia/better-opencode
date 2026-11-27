@@ -1,18 +1,18 @@
-# better-opencode
+# Theia Code
 
 English | [日本語](README.ja.md)
 
 A focused fork of [opencode](https://github.com/anomalyco/opencode) for developers who want the coding agent to understand the codebase, respect a budget, and verify its own work.
 
-> better-opencode is an independent fork and is not affiliated with Anomaly Innovations. OpenCode is a trademark of Anomaly Innovations, Inc. The fork keeps the upstream runtime and the `@opencode/*` package namespace so that upstream changes can be merged continuously. It currently tracks upstream v2.4.2.
+> Theia Code (the `theia-code` project) is an independent fork and is not affiliated with Anomaly Innovations. OpenCode is a trademark of Anomaly Innovations, Inc. The fork keeps the upstream runtime and the `@opencode/*` package namespace so that upstream changes can be merged continuously. It currently tracks upstream v2.4.2.
 
 ## Status
 
-Early development. better-opencode tracks upstream opencode v2 and is TUI-first: the desktop app and web UI are removed, so the terminal interface is the only client. The TUI defaults to Japanese; switch to English in **Settings → Language**.
+Early development. Theia Code tracks upstream opencode v2 and is TUI-first: the desktop app and web UI are removed, so the terminal interface is the only client. The TUI defaults to Japanese; switch to English in **Settings → Language**.
 
 | Branch            | Purpose                                                                            |
 | ----------------- | ---------------------------------------------------------------------------------- |
-| `main`            | better-opencode development. Fork features land here.                              |
+| `main`            | Theia Code development. Fork features land here.                                   |
 | `upstream`        | Clean mirror of upstream `anomalyco/opencode` `dev`. Do not commit fork work here. |
 | `origin/upstream` | Upstream `dev`, fetched for synchronization.                                       |
 
@@ -36,7 +36,7 @@ Fork-specific work also includes the Japanese interface, fork-aware update check
 
 ## Install
 
-Prebuilt CLI binaries are published on the [releases page](https://github.com/TeamFlaxia/better-opencode/releases). Download `opencode-<version>-<target>.tar.gz` for Linux or `.zip` for macOS and Windows, verify it against `SHA256SUMS.txt`, and put `opencode` on your `PATH`.
+Prebuilt CLI binaries are published on the [releases page](https://github.com/TeamFlaxia/theia-code/releases). Download `opencode-<version>-<target>.tar.gz` for Linux or `.zip` for macOS and Windows, verify it against `SHA256SUMS.txt`, and put `opencode` on your `PATH`.
 
 A curl-installed build (`~/.opencode/bin/opencode`) checks this fork's GitHub releases on `opencode upgrade`. The default update policy only notifies; set `"update": "auto"` in the global configuration to install automatically. Package-manager installs keep using the upstream update service.
 
@@ -128,11 +128,11 @@ Push a tag to build the CLI for every supported target and publish a GitHub Rele
 ```bash
 git switch main
 git pull
-git tag v2.4.2-better.1
-git push origin v2.4.2-better.1
+git tag v2.4.2-theia.1
+git push origin v2.4.2-theia.1
 ```
 
-Fork tags use the upstream semver core plus `-better.N`; `N` restarts at 1 for each upstream base version. Tags must look like `v<major>.<minor>.<patch>[-prerelease]`, and the tagged commit must be an ancestor of `main`. Tags containing `-` are published as prereleases. The release workflow builds 12 CLI targets, packages Linux archives as `tar.gz` and macOS/Windows archives as `zip`, and publishes them with `SHA256SUMS.txt`. See [docs/development.md](docs/development.md#リリース) for the job layout.
+Fork tags use the upstream semver core plus `-theia.N`; `N` restarts at 1 for each upstream base version. Tags must look like `v<major>.<minor>.<patch>[-prerelease]`, and the tagged commit must be an ancestor of `main`. Tags containing `-` are published as prereleases. The release workflow builds 12 CLI targets, packages Linux archives as `tar.gz` and macOS/Windows archives as `zip`, and publishes them with `SHA256SUMS.txt`. See [docs/development.md](docs/development.md#リリース) for the job layout.
 
 ## Documentation
 

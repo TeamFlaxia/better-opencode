@@ -1,6 +1,6 @@
 name: release-tag
 
-# Publishing a tag like v2.4.2 or v2.4.2-better.1 builds the CLI for every supported target and
+# Publishing a tag like v2.4.2 or v2.4.2-theia.1 builds the CLI for every supported target and
 # creates a GitHub Release with the archives and checksums. This is a fork-local workflow; the
 # upstream release.yml is not used here.
 
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to release, for example v2.4.2-better.1"
+        description: "Existing tag to release, for example v2.4.2-theia.1"
         required: true
         type: string
 
@@ -47,7 +47,7 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Tag '$TAG' must look like v2.4.2 or v2.4.2-better.1"
+            echo "::error::Tag '$TAG' must look like v2.4.2 or v2.4.2-theia.1"
             exit 1
           fi
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
@@ -98,8 +98,8 @@ jobs:
 
       - name: Configure git identity
         run: |
-          git config --global user.email "ci@better-opencode.local"
-          git config --global user.name "better-opencode CI"
+          git config --global user.email "ci@theia-code.local"
+          git config --global user.name "theia-code CI"
 
       - name: Run all unit tests
         timeout-minutes: 35

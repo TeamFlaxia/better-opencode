@@ -47,7 +47,7 @@ bun run dev:live /path   # 対象ディレクトリを指定
 
 | ブランチ          | 用途                                                                              |
 | ----------------- | --------------------------------------------------------------------------------- |
-| `main`            | better-opencode の開発基準。機能追加はここから分岐する                            |
+| `main`            | Theia Code の開発基準。機能追加はここから分岐する                                |
 | `upstream`        | 上流 `anomalyco/opencode` の `dev` を保持するミラー。フォークのコミットを置かない |
 | `origin/upstream` | 上流の `dev`。同期に使う                                                          |
 
@@ -56,7 +56,7 @@ bun run dev:live /path   # 対象ディレクトリを指定
 ワークツリーを使う場合も基準は `main`:
 
 ```bash
-git worktree add ../better-opencode-code-index -b code-index main
+git worktree add ../theia-code-index -b code-index main
 ```
 
 ## 上流の取り込み
@@ -128,11 +128,11 @@ bun run script/test.ts test/session-runner.test.ts   # 1ファイルだけ
 ```bash
 git switch main
 git pull
-git tag v2.4.2-better.1
-git push origin v2.4.2-better.1
+git tag v2.4.2-theia.1
+git push origin v2.4.2-theia.1
 ```
 
-- フォークのタグは上流の semver 本体に `-better.N` を付ける。`N` は上流のベースバージョンごとに 1 から始める（例: `v2.4.2-better.1`）。
+- フォークのタグは上流の semver 本体に `-theia.N` を付ける。`N` は上流のベースバージョンごとに 1 から始める（例: `v2.4.2-theia.1`）。
 - タグは `v<major>.<minor>.<patch>[-prerelease]` の形式のみ受け付ける。
 - `-` を含むタグは GitHub Release 上で prerelease として扱う。
 - タグのコミットが `main` の祖先であることを確認する（`main` 以外からのリリースを防ぐ）。
@@ -140,11 +140,11 @@ git push origin v2.4.2-better.1
 - `build` … 12ターゲット分の CLI バイナリをビルドし、Linux は `tar.gz`、macOS / Windows は `zip` にまとめる
 - `publish` … `SHA256SUMS.txt` と一緒に GitHub Release を作成する。既存 Release にはアセットを上書きアップロードする
 - 手動で再実行する場合は `workflow_dispatch` に既存タグを指定する
-- `curl` インストール版（`~/.opencode/bin/opencode`）の更新確認とインストールは `TeamFlaxia/better-opencode` の GitHub Releases を参照する。`latest` / `prod` チャネルは stable、それ以外は prerelease も対象にする
+- `curl` インストール版（`~/.opencode/bin/opencode`）の更新確認とインストールは `TeamFlaxia/theia-code` の GitHub Releases を参照する。`latest` / `prod` チャネルは stable、それ以外は prerelease も対象にする
 - `curl` インストール版の更新は `opencode-<version>-<target>.tar.gz` / `.zip` を取得し、`SHA256SUMS.txt` で検証してから現在のバイナリを置き換える
 - 既定の更新ポリシーは通知のみ（`notify`）。自動インストールはグローバル設定の `"update": "auto"` で有効にする
 - `v2.2.5-better.8` より前の `curl` インストール版は上流インストーラーを使うため自動更新できない。`.8` 以降へは一度手動で置き換える
-- 現在の系列は `v2.4.2-better.N`。上流ベースが変わったため `N` は 1 から始まる
+- 現在の系列は `v2.4.2-theia.N`。上流ベースが変わったため `N` は 1 から始まる
 - npm / pnpm / bun / yarn / vp / brew / winget 経由の更新は上流の更新サービスを参照する
 
 現時点のリリース対象は CLI のみ。npm publish は含まない。
@@ -191,7 +191,7 @@ bun test --timeout 30000 test/cli/tui/dialog-select.test.tsx test/config.test.ts
 
 ## ブランディングの境界
 
-現時点では **ドキュメントとリポジトリメタデータだけを better-opencode に合わせる**。
+このプロジェクトは **`theia-code`**（表示名 **Theia Code**）です。ドキュメントとリポジトリメタデータはこの名前に合わせます。
 
 意図的に変更しないもの:
 
@@ -200,7 +200,7 @@ bun test --timeout 30000 test/cli/tui/dialog-select.test.tsx test/config.test.ts
 - 上流のモデルプロバイダ名（`OpenCode` / `Anomaly / OpenCode`）
 - `.github/workflows` の上流由来リリース設定（フォークのリリースは `release-tag.yml`）
 
-これらは上流とのマージコストと、モデルプロバイダ名との混同を避けるための判断。全面改名は機能が固まった後に別ブランチで行う。
+これらは上流とのマージコストと、モデルプロバイダ名との混同を避けるための判断。表示名や UI のブランディングは **Theia Code** に統一するが、これらの識別子の改名は行わない。全面改名は機能が固まった後に別ブランチで行う。
 
 デスクトップアプリと Web UI は削除済み。UI の変更は TUI のみを対象にする。
 

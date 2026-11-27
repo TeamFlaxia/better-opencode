@@ -537,7 +537,7 @@ export function createPromptState(input: PromptInput): PromptState {
       } satisfies SlashOption,
       ...EXIT_COMMANDS.map(
         (name) =>
-          ({ kind: "slash", name, display: `/${name}`, description: t("close OpenCode") }) satisfies SlashOption,
+          ({ kind: "slash", name, display: `/${name}`, description: t("close Theia Code") }) satisfies SlashOption,
       ),
     ]
     const hidden = new Set(builtins.map((item) => item.name))

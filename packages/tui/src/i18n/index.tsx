@@ -262,7 +262,7 @@ const ja: Record<string, string> = {
   Patterns: "パターン",
   "No diff provided": "差分はありません",
   "Reject permission": "権限を拒否",
-  "Tell OpenCode what to do differently": "OpenCode に別の進め方を伝える",
+  "Tell Theia Code what to do differently": "Theia Code に別の進め方を伝える",
   "Rejection reason": "拒否理由",
   "Rejection actions": "拒否時の操作",
   "Confirm rejection": "拒否を確定",
@@ -285,8 +285,8 @@ const ja: Record<string, string> = {
   "Fix broken tests": "壊れたテストを修正",
   Shell: "シェル",
   "Getting started": "はじめに",
-  "OpenCode includes free models so you can start immediately.":
-    "OpenCode には無料モデルが含まれているので、すぐに始められます。",
+  "Theia Code includes free models so you can start immediately.":
+    "Theia Code には無料モデルが含まれているので、すぐに始められます。",
   "Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc":
     "Claude、GPT、Gemini など、75 以上のプロバイダーから接続して他のモデルを使用できます",
   "Connect provider": "プロバイダーに接続",
@@ -326,7 +326,7 @@ const ja: Record<string, string> = {
   agents: "エージェント",
   commands: "コマンド",
   "View status": "ステータスを表示",
-  "Update OpenCode": "OpenCode を更新",
+  "Update Theia Code": "Theia Code を更新",
   "Pair device": "デバイスをペアリング",
   "Restart service": "サービスを再起動",
   "Reload configuration": "設定を再読み込み",
@@ -834,11 +834,11 @@ const ja: Record<string, string> = {
   Restart: "再起動",
   "Confirm update action": "更新操作を確定",
   "Checking for updates…": "更新を確認中…",
-  "An update is available. After installing, you'll be prompted to restart OpenCode.":
-    "更新があります。インストール後に OpenCode の再起動を求められます。",
-  "Update successful! Restart closes OpenCode, then run opencode to use the new version.":
-    "更新に成功しました！再起動すると OpenCode が閉じるので、新しいバージョンを使うには opencode を実行してください。",
-  "OpenCode is already up to date.": "OpenCode は最新です。",
+  "An update is available. After installing, you'll be prompted to restart Theia Code.":
+    "更新があります。インストール後に Theia Code の再起動を求められます。",
+  "Update successful! Restart closes Theia Code, then run opencode to use the new version.":
+    "更新に成功しました！再起動すると Theia Code が閉じるので、新しいバージョンを使うには opencode を実行してください。",
+  "Theia Code is already up to date.": "Theia Code は最新です。",
   "Cancel permission rejection": "権限の拒否をキャンセル",
   "Confirm permission rejection": "権限の拒否を確定",
   "Toggle permission fullscreen": "権限プロンプトを全画面切り替え",
@@ -928,7 +928,7 @@ const ja: Record<string, string> = {
   "configure Mini transcript output": "ミニのトランスクリプト出力を設定",
   "start a new session": "新しいセッションを開始",
   "compact older session context to free space": "古いセッションコンテキストを圧縮して空きを作る",
-  "close OpenCode": "OpenCode を閉じる",
+  "close Theia Code": "Theia Code を閉じる",
   "Exit pending": "終了待ち",
   "Stop pending": "停止待ち",
   Running: "実行中",

@@ -48,7 +48,7 @@ bun run sync:upstream --continue
 
 最後に次のチェックリストが表示されます。Protocol に変更があった場合は
 `packages/client` でクライアントを再生成してから検証し、
-`v<base>-better.N`（例: `v2.4.2-better.1`）のタグを付けます。
+`v<base>-theia.N`（例: `v2.4.2-theia.1`）のタグを付けます。
 
 ```bash
 bun install
@@ -74,5 +74,5 @@ fetch・ブランチ作成・マージ・push は一切行いません。
 - コンフリクトした場合は**自動解消せず**、 dedicated issue を更新して失敗します。ローカルの
   `bun run sync:upstream --tag <tag>` で解消してください。
 - この workflow は `main` への push、タグの作成、GitHub Release の公開を行いません。
-  PR をマージした後に、`v<base>-better.1` を push してリリースします。
+  PR をマージした後に、`v<base>-theia.1` を push してリリースします。
 - ミラー（`origin/upstream`）は更新しません。必要なら手動で `--push-mirror` を使ってください。

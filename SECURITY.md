@@ -10,7 +10,7 @@ submit one that will be an automatic ban from the project.
 
 ### Overview
 
-OpenCode is an AI-powered coding assistant that runs locally on your machine. It provides an agent system with access to powerful tools including shell execution, file operations, and web access. better-opencode is a fork of OpenCode and keeps the same runtime and threat model.
+OpenCode is an AI-powered coding assistant that runs locally on your machine. It provides an agent system with access to powerful tools including shell execution, file operations, and web access. Theia Code is a fork of OpenCode and keeps the same runtime and threat model.
 
 ### No Sandbox
 
@@ -38,7 +38,7 @@ Server mode is opt-in only. When enabled, set `OPENCODE_SERVER_PASSWORD` to requ
 
 We appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
 
-To report a security issue in better-opencode, please use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/TeamFlaxia/better-opencode/security/advisories/new) tab of this repository.
+To report a security issue in Theia Code, please use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/TeamFlaxia/theia-code/security/advisories/new) tab of this repository.
 
 The team will send a response indicating the next steps in handling your report. After the initial reply to your report, the security team will keep you informed of the progress towards a fix and full announcement, and may ask for additional information or guidance.
 
