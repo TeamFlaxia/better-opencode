@@ -116,7 +116,8 @@ bun run script/test.ts test/session-runner.test.ts   # 1ファイルだけ
 - 同じ PR への追加コミットは古い実行をキャンセルする。
 - `workflow_dispatch` では影響範囲を絞らず、全パッケージの型チェック・全テスト・全ビルドを実行する。
 - PR の `check` / `test` / `build` は変更されたパッケージとその依存先だけを対象にする。未変更パッケージは `main` で検証済みという前提。
-- 上流由来のリリース・デプロイ・トリアージ workflow は削除済み。現在の CI は `pr-check.yml`、`release-tag.yml`、`check-process-daemon.yml` のみ。
+- `upstream-sync-pr.yml` は毎日上流の安定タグを確認し、未同期なら `main` 向けの同期 PR を自動作成／更新する（詳細: [upstream-sync.md](upstream-sync.md)）。
+- 上流由来のデプロイ workflow は削除済み。現在の workflow は `pr-check.yml`、`release-tag.yml`、`upstream-sync-pr.yml`、`check-process-daemon.yml`、`backfill-blockmaps.yml`、`triage-close-linked.yml`、`triage-slop.yml`。
 
 ブランチ保護で `check` / `test` / `build` を必須チェックにすると、PR のマージ前に検証を強制できる。
 

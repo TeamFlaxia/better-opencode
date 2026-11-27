@@ -58,3 +58,21 @@ cd ../.. && bun run check
 
 `--dry-run` は引数と参照だけを確認して実行予定の git コマンドを表示します。
 fetch・ブランチ作成・マージ・push は一切行いません。
+
+## 自動同期PR
+
+`.github/workflows/upstream-sync-pr.yml` が毎日 03:17 UTC に上流を確認し、手動実行
+（`workflow_dispatch`）では任意の安定タグを指定できます。
+
+1. 上流を fetch し、ルート `package.json` のバージョン（最後に同期した上流ベース）より
+   新しい安定タグ（`vX.Y.Z`）を選ぶ。上流の maintenance ブランチにあるタグは `main` の
+   祖先とは限らないため、祖先判定ではなくバージョンで比較する。
+2. `main` から `upstream-sync-<version>` ブランチを作り、`--no-ff` でマージする。
+3. 生成クライアント / OpenAPI を再生成し、`bun run check`、`bun run typecheck:tsc`、生成物の差分確認を実行する。
+4. ブランチを push し、`main` 宛の PR を作成または更新する。
+
+- コンフリクトした場合は**自動解消せず**、 dedicated issue を更新して失敗します。ローカルの
+  `bun run sync:upstream --tag <tag>` で解消してください。
+- この workflow は `main` への push、タグの作成、GitHub Release の公開を行いません。
+  PR をマージした後に、`v<base>-better.1` を push してリリースします。
+- ミラー（`origin/upstream`）は更新しません。必要なら手動で `--push-mirror` を使ってください。
