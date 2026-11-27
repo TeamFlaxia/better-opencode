@@ -2,7 +2,7 @@ export * as UpdaterRelease from "./updater-release"
 
 import { createHash } from "node:crypto"
 
-export const repository = "TeamFlaxia/better-opencode"
+export const repository = "TeamFlaxia/theia-code"
 
 export type ReleaseTarget = {
   readonly platform: NodeJS.Platform

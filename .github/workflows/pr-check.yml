@@ -1,6 +1,6 @@
 name: pr-check
 
-# Pull-request gate for the better-opencode fork. Upstream CI targets upstream branches and Blacksmith runners,
+# Pull-request gate for the theia-code fork. Upstream CI targets upstream branches and Blacksmith runners,
 # so this workflow uses GitHub-hosted runners and main as the base. Pushes do not run checks; use a pull
 # request, or workflow_dispatch when a full run is needed.
 
@@ -84,8 +84,8 @@ jobs:
 
       - name: Configure git identity
         run: |
-          git config --global user.email "ci@better-opencode.local"
-          git config --global user.name "better-opencode CI"
+          git config --global user.email "ci@theia-code.local"
+          git config --global user.name "theia-code CI"
 
       - name: Run unit tests
         timeout-minutes: 35

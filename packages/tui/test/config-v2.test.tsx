@@ -20,7 +20,7 @@ test("exposes the language setting", () => {
   expect(settings.find((setting) => setting.path.join(".") === "language")?.values).toEqual(["ja", "en"])
 })
 
-test("exposes better-opencode features as settings toggles", () => {
+test("exposes theia-code features as settings toggles", () => {
   const features = settings.filter((setting) => setting.category === "Features")
   expect(features.map((setting) => setting.path.join("."))).toEqual([
     "experimental.vcs-dock",

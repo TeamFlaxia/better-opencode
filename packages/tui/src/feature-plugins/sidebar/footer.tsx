@@ -57,7 +57,7 @@ export function SidebarOnboarding(props: { context: Plugin.Context; sessionID: s
             </text>
           </box>
           <text fg={props.context.theme.text.muted}>
-            {t("OpenCode includes free models so you can start immediately.")}
+            {t("Theia Code includes free models so you can start immediately.")}
           </text>
           <text fg={props.context.theme.text.muted}>
             {t("Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc")}

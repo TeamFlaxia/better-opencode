@@ -32,7 +32,7 @@ test("opens the full-pane version control view in place of the conversation", as
   await setup.waitForFrame((frame) => frame.includes("No Git, jj, or Mercurial repository"))
   const frame = setup.captureCharFrame()
   expect(frame).not.toContain("Ask anything")
-  expect(frame).not.toContain("OpenCode crashed")
+  expect(frame).not.toContain("Theia Code crashed")
 
   setup.mockInput.pressKey("q")
   await setup.waitForFrame((next) => next.includes("Ask anything"))

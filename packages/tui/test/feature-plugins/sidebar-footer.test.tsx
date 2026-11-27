@@ -90,7 +90,7 @@ test("sidebar shows onboarding without a connected integration", async () => {
   try {
     const frame = app.captureCharFrame()
     expect(frame).toContain("Getting started")
-    expect(frame).toContain("OpenCode includes free models")
+    expect(frame).toContain("Theia Code includes free models")
     expect(frame).toContain("Connect provider")
     expect(frame).toContain("/connect")
   } finally {

@@ -1,4 +1,4 @@
-/** Metadata for better-opencode features that can be enabled or disabled from Settings and the Experiments dialog. */
+/** Metadata for theia-code features that can be enabled or disabled from Settings and the Experiments dialog. */
 export type Feature = {
   id: string
   title: string

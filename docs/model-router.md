@@ -1,6 +1,6 @@
 # モデルルーティング（opencode-model-router）
 
-better-opencode は [opencode-model-router](https://github.com/marco-jardim/opencode-model-router) を既定の外部プラグインとして読み込みます。タスクを fast / medium / heavy の階層に振り分け、安いモデルで足りる作業に高いモデルを使わないようにします。
+Theia Code は [opencode-model-router](https://github.com/marco-jardim/opencode-model-router) を既定の外部プラグインとして読み込みます。タスクを fast / medium / heavy の階層に振り分け、安いモデルで足りる作業に高いモデルを使わないようにします。
 
 ## 既定の動作
 
@@ -37,8 +37,8 @@ better-opencode は [opencode-model-router](https://github.com/marco-jardim/open
 
 ## ライセンスと配布
 
-- `opencode-model-router` は **GPL-3.0-only**、better-opencode は **MIT** です。
-- better-opencode はプラグインのコードを同梱・ベンダー・リンクしていません。リポジトリとリリース物に含まれるのは、npm パッケージを指す既定設定だけです。実際のコードは利用者のマシンが npm から取得し、配布主体はパッケージの公開者です。
+- `opencode-model-router` は **GPL-3.0-only**、Theia Code は **MIT** です。
+- Theia Code はプラグインのコードを同梱・ベンダー・リンクしていません。リポジトリとリリース物に含まれるのは、npm パッケージを指す既定設定だけです。実際のコードは利用者のマシンが npm から取得し、配布主体はパッケージの公開者です。
 - したがって、この既定設定自体は GPL コードの再配布には当たらないという整理です。ただし、リリース物へパッケージを同梱する、`package.json` の依存に加えてバンドルする、ソースを取り込むといった変更をすると、GPL の結合著作物・再配布の検討が必要になります。その場合は法務確認なしに既定搭載へ戻さないでください。
 - 利用者がインストール済みプラグインを再配布する場合は、プラグイン側の GPL-3.0 条件が適用されます。
 - これは実装上の整理であり、法的助言ではありません。配布方法を変える場合は法務に確認してください。

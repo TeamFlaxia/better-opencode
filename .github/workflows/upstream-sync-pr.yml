@@ -30,7 +30,7 @@ env:
 jobs:
   sync:
     name: sync
-    if: github.repository == 'TeamFlaxia/better-opencode'
+    if: github.repository == 'TeamFlaxia/theia-code'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -45,8 +45,8 @@ jobs:
 
       - name: Configure git identity
         run: |
-          git config --global user.name "better-opencode CI"
-          git config --global user.email "ci@better-opencode.local"
+          git config --global user.name "theia-code CI"
+          git config --global user.email "ci@theia-code.local"
 
       - name: Resolve upstream release
         id: release
@@ -155,7 +155,7 @@ jobs:
 
           - Resolve conflicts by keeping the upstream structure and re-applying fork features.
           - If Protocol or Server \`HttpApi\` changed, regenerate with \`bun run generate\` from \`packages/client\`.
-          - Merge this PR, then tag \`${tag#v}-better.1\` (N restarts at 1 for each upstream base version).
+          - Merge this PR, then tag \`${tag#v}-theia.1\` (N restarts at 1 for each upstream base version).
           - **This workflow does not push tags or publish a release.**
           - This branch is automation-managed; manual commits to it are overwritten on the next run.
 

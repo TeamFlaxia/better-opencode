@@ -127,7 +127,7 @@ export function make(input: {
       }
       if (params.clientCapabilities?._meta?.["terminal-auth"] === true) {
         authMethod._meta = {
-          "terminal-auth": { command: "opencode", args: ["auth", "login"], label: "OpenCode Login" },
+          "terminal-auth": { command: "opencode", args: ["auth", "login"], label: "Theia Code Login" },
         }
       }
       return {
@@ -141,7 +141,7 @@ export function make(input: {
         },
         authMethods: [authMethod],
         _meta: { steering: { supported: true } },
-        agentInfo: { name: "OpenCode", version: OPENCODE_CLIENT_VERSION },
+        agentInfo: { name: "Theia Code", version: OPENCODE_CLIENT_VERSION },
       }
     }),
     authenticate: Effect.fnUntraced(function* (params) {

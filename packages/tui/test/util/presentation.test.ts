@@ -17,7 +17,7 @@ test("formats session continuation summary", () => {
   ])
 })
 
-test("tells the user to start OpenCode again after an update", () => {
+test("tells the user to start Theia Code again after an update", () => {
   expect(rows(epilogue({ updatedVersion: "2.0.0" }))).toEqual(["  Run opencode to use 2.0.0"])
 })
 

@@ -51,7 +51,7 @@ const decodeManifestVersion = Schema.decodeUnknownOption(
 )
 
 const installNames: Record<Method, string> = {
-  curl: "The OpenCode installer",
+  curl: "The Theia Code installer",
   npm: "npm",
   pnpm: "pnpm",
   bun: "Bun",
@@ -300,19 +300,19 @@ const make = Effect.gen(function* () {
 
   const release = Effect.fnUntraced(function* (method?: Method) {
     const core = method === "brew" && installedFormula === "opencode"
-    // A curl install is a better-opencode build, so it follows the fork's GitHub releases.
+    // A curl install is a theia-code build, so it follows the fork's GitHub releases.
     // Homebrew and package-manager installs keep the upstream release service.
     if (method === "curl" || method === undefined) {
       const response = yield* Effect.tryPromise({
         try: (signal) =>
-          fetch("https://api.github.com/repos/TeamFlaxia/better-opencode/releases?per_page=20", {
+          fetch("https://api.github.com/repos/TeamFlaxia/theia-code/releases?per_page=20", {
             headers: { Accept: "application/vnd.github+json" },
             signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
           }),
         catch: (cause) =>
           new UpgradeError(
             {
-              title: "Could not check for OpenCode updates",
+              title: "Could not check for Theia Code updates",
               detail: errorDetail(cause),
               retry: "Check your network, then run opencode upgrade again.",
             },
@@ -322,8 +322,8 @@ const make = Effect.gen(function* () {
       if (!response.ok)
         return yield* Effect.fail(
           new UpgradeError({
-            title: "Could not check for OpenCode updates",
-            detail: `The better-opencode release service returned HTTP ${response.status}.`,
+            title: "Could not check for Theia Code updates",
+            detail: `The theia-code release service returned HTTP ${response.status}.`,
             retry: "Try again in a few minutes.",
           }),
         )
@@ -332,7 +332,7 @@ const make = Effect.gen(function* () {
         catch: (cause) =>
           new UpgradeError(
             {
-              title: "Could not read the OpenCode update information",
+              title: "Could not read the Theia Code update information",
               detail: errorDetail(cause),
               retry: "Try again in a few minutes.",
             },
@@ -365,7 +365,7 @@ const make = Effect.gen(function* () {
       catch: (cause) =>
         new UpgradeError(
           {
-            title: "Could not check for OpenCode updates",
+            title: "Could not check for Theia Code updates",
             detail: errorDetail(cause),
             retry: "Check your network, then run opencode upgrade again.",
           },
@@ -375,7 +375,7 @@ const make = Effect.gen(function* () {
     if (!response.ok)
       return yield* Effect.fail(
         new UpgradeError({
-          title: "Could not check for OpenCode updates",
+          title: "Could not check for Theia Code updates",
           detail: `The update service returned HTTP ${response.status}.`,
           retry: "Try again in a few minutes.",
         }),
@@ -386,7 +386,7 @@ const make = Effect.gen(function* () {
         catch: (cause) =>
           new UpgradeError(
             {
-              title: "Could not read the OpenCode update information",
+              title: "Could not read the Theia Code update information",
               detail: errorDetail(cause),
               retry: "Try again in a few minutes.",
             },
@@ -398,7 +398,7 @@ const make = Effect.gen(function* () {
     if (!version || !packageName)
       return yield* Effect.fail(
         new UpgradeError({
-          title: "Could not read the OpenCode update information",
+          title: "Could not read the Theia Code update information",
           detail: "The update service returned incomplete release information.",
           retry: "Try again in a few minutes.",
         }),
@@ -411,7 +411,7 @@ const make = Effect.gen(function* () {
     const failure = (detail: string, cause?: unknown) =>
       new UpgradeError(
         {
-          title: "Could not check for OpenCode updates",
+          title: "Could not check for Theia Code updates",
           detail,
           command: ["winget", "search", ...wingetArgs].join(" "),
           retry: "Fix the issue above, then run opencode upgrade again.",
@@ -443,10 +443,10 @@ const make = Effect.gen(function* () {
 
   const managedError = (owner: { name: string; command: string }, target: string) =>
     new UpgradeError({
-      title: `OpenCode is managed by ${owner.name}`,
-      detail: `This copy was installed with ${owner.name}, which keeps its own record of the installed version, so OpenCode won't update it directly.`,
+      title: `Theia Code is managed by ${owner.name}`,
+      detail: `This copy was installed with ${owner.name}, which keeps its own record of the installed version, so Theia Code won't update it directly.`,
       command: `${owner.command}${target}`,
-      retry: "Run the command above, then restart OpenCode.",
+      retry: "Run the command above, then restart Theia Code.",
     })
 
   const managedMessage = (error: UpgradeError) => `${error.title}. Update it with ${error.command}`
@@ -492,7 +492,7 @@ const make = Effect.gen(function* () {
     const failure = (detail: string, cause?: unknown) =>
       new UpgradeError(
         {
-          title: input.title ?? `${installNames[input.method]} could not install OpenCode`,
+          title: input.title ?? `${installNames[input.method]} could not install Theia Code`,
           detail,
           command: (input.displayCommand ?? input.command).join(" "),
           retry: input.retry ?? "Fix the issue above, then run opencode upgrade again.",
@@ -563,7 +563,7 @@ const make = Effect.gen(function* () {
     if (!target)
       return yield* Effect.fail(
         new UpgradeError({
-          title: "OpenCode cannot update on this platform",
+          title: "Theia Code cannot update on this platform",
           detail: `No release archive is available for ${platform}/${arch}.`,
           retry: "Download a release for a supported platform from the project's GitHub releases.",
         }),
@@ -581,7 +581,7 @@ const make = Effect.gen(function* () {
       catch: (cause) =>
         new UpgradeError(
           {
-            title: "Could not download the OpenCode update",
+            title: "Could not download the Theia Code update",
             detail: errorDetail(cause),
             retry: "Check your network, then run opencode upgrade again.",
           },
@@ -591,7 +591,7 @@ const make = Effect.gen(function* () {
     if (!response.ok)
       return yield* Effect.fail(
         new UpgradeError({
-          title: "Could not download the OpenCode update",
+          title: "Could not download the Theia Code update",
           detail: `The release download returned HTTP ${response.status}.`,
           retry: "Try again in a few minutes.",
         }),
@@ -601,7 +601,7 @@ const make = Effect.gen(function* () {
       catch: (cause) =>
         new UpgradeError(
           {
-            title: "Could not read the OpenCode update",
+            title: "Could not read the Theia Code update",
             detail: errorDetail(cause),
             retry: "Try again in a few minutes.",
           },
@@ -623,7 +623,7 @@ const make = Effect.gen(function* () {
     if (!expected)
       return yield* Effect.fail(
         new UpgradeError({
-          title: "Could not verify the OpenCode update",
+          title: "Could not verify the Theia Code update",
           detail: `${file} is missing from the release's SHA256SUMS.txt.`,
           retry: "Try again in a few minutes, or download the release manually.",
         }),
@@ -631,7 +631,7 @@ const make = Effect.gen(function* () {
     if (sha256(bytes) !== expected)
       return yield* Effect.fail(
         new UpgradeError({
-          title: "Could not verify the OpenCode update",
+          title: "Could not verify the Theia Code update",
           detail: `The checksum for ${file} did not match the published SHA256SUMS.txt.`,
           retry: "Try again in a few minutes, or download the release manually.",
         }),
@@ -641,15 +641,15 @@ const make = Effect.gen(function* () {
     yield* runUpgrade({
       method: "curl",
       command: ["tar", file.endsWith(".zip") ? "-xf" : "-xzf", archive, "-C", directory],
-      title: "Could not extract the OpenCode update",
+      title: "Could not extract the Theia Code update",
       retry: "Try again in a few minutes, or download the release manually.",
     })
     const extracted = path.join(directory, process.platform === "win32" ? "opencode.exe" : "opencode")
     if (!(yield* fs.exists(extracted).pipe(Effect.orElseSucceed(() => false))))
       return yield* Effect.fail(
         new UpgradeError({
-          title: "Could not extract the OpenCode update",
-          detail: `The ${file} archive did not contain an OpenCode binary.`,
+          title: "Could not extract the Theia Code update",
+          detail: `The ${file} archive did not contain a Theia Code binary.`,
           retry: "Try again in a few minutes, or download the release manually.",
         }),
       )
@@ -708,7 +708,7 @@ const make = Effect.gen(function* () {
     }
     yield* Effect.scoped(
       Effect.gen(function* () {
-        // Other OpenCode processes may be installing at the same time. Wait longer than the
+        // Other Theia Code processes may be installing at the same time. Wait longer than the
         // slowest install (curl runs two 5-minute commands).
         yield* flock.acquire("cli-upgrade", undefined, { timeoutMs: Duration.toMillis("15 minutes") })
         if (method === "bun") {
@@ -750,7 +750,7 @@ const make = Effect.gen(function* () {
           ? cause
           : new UpgradeError(
               {
-                title: "Could not prepare the OpenCode upgrade",
+                title: "Could not prepare the Theia Code upgrade",
                 detail: errorDetail(cause),
                 retry: "Fix the issue above, then run opencode upgrade again.",
               },
@@ -768,7 +768,7 @@ const make = Effect.gen(function* () {
     if (installed !== version)
       return yield* Effect.fail(
         new UpgradeError({
-          title: `${installNames[method]} did not update this copy of OpenCode`,
+          title: `${installNames[method]} did not update this copy of Theia Code`,
           detail: `${installNames[method]} reported success, but ${executable} is still version ${installed ?? "unknown"}.`,
           retry: `Update the copy at ${executable} with the package manager that installed it, then run opencode upgrade again.`,
         }),
@@ -801,7 +801,7 @@ const make = Effect.gen(function* () {
       yield* Effect.logInfo("update check done", { action: "up-to-date" })
       return undefined
     }
-    yield* Effect.logInfo("OpenCode update available", { current, latest: version, action: next })
+    yield* Effect.logInfo("Theia Code update available", { current, latest: version, action: next })
     return { policy, version }
   })
 
@@ -814,7 +814,7 @@ const make = Effect.gen(function* () {
     const current = yield* Ref.get(installedVersion)
     yield* upgrade(detected, version)
     yield* Ref.set(installedVersion, version)
-    yield* Effect.logInfo("updated OpenCode", { from: current, to: version, method: detected })
+    yield* Effect.logInfo("updated Theia Code", { from: current, to: version, method: detected })
     return true
   })
 
@@ -834,7 +834,7 @@ const make = Effect.gen(function* () {
     if (OPENCODE_LOCAL)
       return {
         type: "unavailable" as const,
-        message: "This build runs from a source checkout. Use an installed OpenCode release to check for updates.",
+        message: "This build runs from a source checkout. Use an installed Theia Code release to check for updates.",
       }
     const detected = yield* method()
     if (!detected && installedOwner) {

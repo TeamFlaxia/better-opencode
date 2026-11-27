@@ -1,13 +1,13 @@
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit generated client files directly.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk` composes Client, Core, and Server.
 - This repository does not use Changesets. Do not add `.changeset` files; follow the existing release workflow instead.
-- This is the **better-opencode** fork. `main` is the development branch: base branches, worktrees, PRs, and diffs on it. `upstream` mirrors upstream `anomalyco/opencode`; sync `origin/upstream` into `main` and never commit fork work to `upstream`.
+- This is the **Theia Code** (`theia-code`) fork. `main` is the development branch: base branches, worktrees, PRs, and diffs on it. `upstream` mirrors upstream `anomalyco/opencode`; sync `origin/upstream` into `main` and never commit fork work to `upstream`.
 - Keep the upstream rules below unless a fork note overrides them.
 
 ## Fork Scope
 
-- Keep `@opencode/*` package names, the `opencode` binary name, config paths, and `OPENCODE_*` environment variables. A full rename is deferred to a dedicated rebrand branch.
-- Documentation and repository metadata use better-opencode. Model provider names stay upstream so they are not confused with the OpenCode provider. The TUI is the only client; do not add desktop or web UI surfaces.
+- Keep `@opencode/*` package names, the `opencode` binary name, config paths, and `OPENCODE_*` environment variables. A rename of those identifiers is deferred to a dedicated rebrand branch.
+- Documentation and repository metadata use Theia Code (project `theia-code`). Model provider names stay upstream so they are not confused with the OpenCode provider. The TUI is the only client; do not add desktop or web UI surfaces.
 - Feature proposals and design decisions live in `docs/`. Add new behavior as experimental first.
 
 ## Live TUI Testing

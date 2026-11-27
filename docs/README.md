@@ -1,6 +1,6 @@
-# better-opencode ドキュメント
+# Theia Code ドキュメント
 
-opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を強化したフォーク **better-opencode** の設計方針、現在の機能、今後の候補をまとめる場所です。
+opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を強化したフォーク **Theia Code**（`theia-code`）の設計方針、現在の機能、今後の候補をまとめる場所です。
 
 ## 開発方針
 
@@ -15,7 +15,7 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 
 ## ブランチ
 
-- `main` … better-opencode の開発基準ブランチ（`upstream` から作成済み）
+- `main` … Theia Code の開発基準ブランチ（`upstream` から作成済み）
 - `upstream` … 上流 `anomalyco/opencode` の `dev` をそのまま保持するミラー。フォークのコミットは置かない
 - 作業ブランチは `main` から切り、最大3語のハイフン区切り（例: `code-index`, `session-search`）
 - 上流追従は `origin/upstream` を `main` にマージして行う
@@ -26,7 +26,7 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 ## ドキュメント
 
 - [development.md](development.md) — セットアップ、ブランチ運用、上流の取り込み、検証、CI、リリース
-- [upstream-sync.md](upstream-sync.md) — 上流ミラー同期ヘルパーと `v<base>-better.N` タグ
+- [upstream-sync.md](upstream-sync.md) — 上流ミラー同期ヘルパーと `v<base>-theia.N` タグ
 - [vcs-dock.md](vcs-dock.md) — バージョン管理ドックと内蔵 VCS ビュー
 - [task-graph.md](task-graph.md) — Task graph と `/divide`
 - [file-manager.md](file-manager.md) — ファイルマネージャーとプレビュー
