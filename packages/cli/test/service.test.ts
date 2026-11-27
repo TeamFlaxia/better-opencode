@@ -431,8 +431,8 @@ test("concurrent service processes elect one server", async () => {
   const command = [process.execPath, path.join(import.meta.dir, "../src/index.ts"), "serve", "--service"]
   const registration = path.join(root, "state", "opencode", "service-local.json")
   const port = await availablePort()
-  const config = path.join(root, "config", "opencode", "service-local.json")
-  await fs.mkdir(path.join(root, "config", "opencode"), { recursive: true })
+  const config = path.join(root, "config", "theiacode", "service-local.json")
+  await fs.mkdir(path.join(root, "config", "theiacode"), { recursive: true })
   await fs.writeFile(config, JSON.stringify({ port }))
   const processes = Array.from({ length: 10 }, () => Bun.spawn(command, { env, stderr: "pipe", stdout: "pipe" }))
 
@@ -499,8 +499,8 @@ test("configured managed service port overrides the channel default", async () =
   const port = await availablePort()
   const env = serviceEnv(root)
   const registration = path.join(root, "state", "opencode", "service-local.json")
-  const config = path.join(root, "config", "opencode", "service-local.json")
-  await fs.mkdir(path.join(root, "config", "opencode"), { recursive: true })
+  const config = path.join(root, "config", "theiacode", "service-local.json")
+  await fs.mkdir(path.join(root, "config", "theiacode"), { recursive: true })
   await fs.writeFile(config, JSON.stringify({ port, password: "" }))
   const owner = Bun.spawn([process.execPath, path.join(import.meta.dir, "../src/index.ts"), "serve", "--service"], {
     env,
@@ -648,10 +648,10 @@ test("unresponsive managed port occupancy reports a bounded conflict", async () 
     },
   })
   const registration = path.join(root, "state", "opencode", "service-local.json")
-  await fs.mkdir(path.join(root, "config", "opencode"), { recursive: true })
+  await fs.mkdir(path.join(root, "config", "theiacode"), { recursive: true })
   await fs.mkdir(path.dirname(registration), { recursive: true })
   await fs.writeFile(
-    path.join(root, "config", "opencode", "service-local.json"),
+    path.join(root, "config", "theiacode", "service-local.json"),
     JSON.stringify({ port: listener.port, env: { XDG_STATE_HOME: path.join(root, "elsewhere") } }),
   )
   const stale = {
@@ -718,7 +718,7 @@ test("port contender recognizes an incumbent registered during the bind race", a
     },
   })
   const registration = path.join(root, "state", "opencode", "service-local.json")
-  const config = path.join(root, "config", "opencode", "service-local.json")
+  const config = path.join(root, "config", "theiacode", "service-local.json")
   await fs.mkdir(path.dirname(config), { recursive: true })
   await fs.writeFile(config, JSON.stringify({ port: listener.port }))
   await fs.mkdir(path.dirname(registration), { recursive: true })
@@ -798,8 +798,8 @@ test("a failed service stays registered and owns the selected port until stopped
   const port = await availablePort()
   const database = path.join(root, "database")
   await fs.mkdir(database)
-  await fs.mkdir(path.join(root, "config", "opencode"), { recursive: true })
-  await fs.writeFile(path.join(root, "config", "opencode", "service-local.json"), JSON.stringify({ port }))
+  await fs.mkdir(path.join(root, "config", "theiacode"), { recursive: true })
+  await fs.writeFile(path.join(root, "config", "theiacode", "service-local.json"), JSON.stringify({ port }))
   const env = { ...serviceEnv(root), OPENCODE_DB: database }
   const command = [process.execPath, path.join(import.meta.dir, "../src/index.ts"), "serve", "--service"]
   const registration = path.join(root, "state", "opencode", "service-local.json")
@@ -917,9 +917,9 @@ async function startManagedService(prefix: string, failBoot = false) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix))
   const port = await availablePort()
   const registration = path.join(root, "state", "opencode", "service-local.json")
-  await fs.mkdir(path.join(root, "config", "opencode"), { recursive: true })
+  await fs.mkdir(path.join(root, "config", "theiacode"), { recursive: true })
   if (failBoot) await fs.mkdir(path.join(root, "database"))
-  await fs.writeFile(path.join(root, "config", "opencode", "service-local.json"), JSON.stringify({ port }))
+  await fs.writeFile(path.join(root, "config", "theiacode", "service-local.json"), JSON.stringify({ port }))
   const owner = Bun.spawn([process.execPath, path.join(import.meta.dir, "../src/index.ts"), "serve", "--service"], {
     env: failBoot ? { ...serviceEnv(root), OPENCODE_DB: path.join(root, "database") } : serviceEnv(root),
     stderr: "pipe",

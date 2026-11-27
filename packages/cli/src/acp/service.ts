@@ -120,7 +120,7 @@ export function make(input: {
     initialize: Effect.fnUntraced(function* (params) {
       yield* Ref.set(input.capabilities, ACPCapabilities.parse(params.clientCapabilities))
       const authMethod: AuthMethod = {
-        description: "Run `opencode auth login` in the terminal",
+        description: "Run `theiacode auth login` in the terminal",
         name: "Login with opencode",
         id: AuthMethodID,
         ...(params.clientCapabilities?.auth?.terminal ? { type: "terminal" as const, args: ["--login"] } : {}),

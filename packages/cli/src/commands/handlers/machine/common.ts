@@ -27,7 +27,7 @@ export const ensureMachineClient = Effect.fn("cli.machine.client")(function* () 
   const config = yield* ServiceConfig.read()
   if (Option.isNone(serverFlag) && config.disabled === true)
     return yield* Effect.fail(
-      new Error("Managing machines requires the background service; run `opencode service unset disabled` first."),
+      new Error("Managing machines requires the background service; run `theiacode service unset disabled` first."),
     )
   const server = yield* ServerConnection.resolve()
   return OpenCode.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })

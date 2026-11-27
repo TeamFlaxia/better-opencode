@@ -147,4 +147,32 @@ describe("ConfigDiscovery.discover", () => {
       ),
     ),
   )
+
+  it.live("discovers .theiacode and .opencode directories at every ancestor level", () =>
+    Effect.acquireDisposable(Effect.promise(() => tmpdir())).pipe(
+      Effect.flatMap((tmp) =>
+        Effect.gen(function* () {
+          const root = yield* Effect.promise(() => fs.realpath(tmp.path))
+          const ancestor = path.join(root, "repo")
+          const nested = path.join(ancestor, "app")
+          yield* Effect.promise(async () => {
+            await fs.mkdir(path.join(ancestor, ".opencode"), { recursive: true })
+            await fs.mkdir(path.join(ancestor, ".theiacode"), { recursive: true })
+            await fs.mkdir(path.join(nested, ".theiacode"), { recursive: true })
+          })
+
+          const sources = yield* discoverWith(root, nested, ancestor)
+
+          // The project list is farthest-first and load order gives a later entry priority, so the
+          // nearest level comes last and `.theiacode` comes after `.opencode` within a level.
+          expect(sources.project.filter((entry) => inFixture(ancestor, entry.path))).toEqual([
+            { path: AbsolutePath.make(path.join(ancestor, ".opencode")), present: true },
+            { path: AbsolutePath.make(path.join(ancestor, ".theiacode")), present: true },
+            { path: AbsolutePath.make(path.join(nested, ".opencode")), present: false },
+            { path: AbsolutePath.make(path.join(nested, ".theiacode")), present: true },
+          ])
+        }),
+      ),
+    ),
+  )
 })

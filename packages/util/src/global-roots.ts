@@ -7,12 +7,17 @@ const cache = process.env.XDG_CACHE_HOME || (home ? path.join(home, ".cache") : 
 const config = process.env.XDG_CONFIG_HOME || (home ? path.join(home, ".config") : undefined)
 const state = process.env.XDG_STATE_HOME || (home ? path.join(home, ".local", "state") : undefined)
 
-/** The XDG base directories that root opencode's global paths. */
-export function roots(app: string) {
+/**
+ * The XDG base directories that root opencode's global paths.
+ *
+ * `configApp` names the application config directory when it differs from the
+ * other roots, which keep using `app`.
+ */
+export function roots(app: string, configApp = app) {
   return {
     data: path.join(data!, app),
     cache: path.join(cache!, app),
-    config: path.join(config!, app),
+    config: path.join(config!, configApp),
     state: path.join(state!, app),
     tmp: path.join(os.tmpdir(), app),
   }

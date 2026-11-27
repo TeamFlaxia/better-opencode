@@ -69,7 +69,7 @@ const LoginParams = {
   ),
 }
 
-const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME : "opencode", {
+const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME : "theiacode", {
   description: "Theia Code command line interface",
   params: {
     ...ServerParams,

@@ -6,7 +6,7 @@
 
 ## Fork Scope
 
-- Keep `@opencode/*` package names, the `opencode` binary name, config paths, and `OPENCODE_*` environment variables. A rename of those identifiers is deferred to a dedicated rebrand branch.
+- The `theiacode` command name and the `theiacode` config directory (`~/.config/theiacode`) are now implemented. This supersedes the older "keep config paths" rule for the config directory only: keep `@opencode/*` package names, `OPENCODE_*` environment variables, and the `opencode`-named data, cache, and state roots. `opencode` remains a compatible command, and an existing `~/.config/opencode` is copied into `~/.config/theiacode` on first start.
 - Documentation and repository metadata use Theia Code (project `theia-code`). Model provider names stay upstream so they are not confused with the OpenCode provider. The TUI is the only client; do not add desktop or web UI surfaces.
 - Feature proposals and design decisions live in `docs/`. Add new behavior as experimental first.
 

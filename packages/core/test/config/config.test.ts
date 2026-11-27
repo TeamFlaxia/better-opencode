@@ -1670,7 +1670,16 @@ describe("Config", () => {
               {
                 type: "entries",
                 path: tmp.path,
-                names: [".agents", ".claude", ".opencode", "opencode.json", "opencode.jsonc"],
+                names: [
+                  ".agents",
+                  ".claude",
+                  ".opencode",
+                  ".theiacode",
+                  "opencode.json",
+                  "opencode.jsonc",
+                  "theiacode.json",
+                  "theiacode.jsonc",
+                ],
               },
             ])
           }).pipe(Effect.provide(testLayer(tmp.path, undefined, undefined, undefined, Watcher.testLayer)))
@@ -2041,7 +2050,16 @@ describe("Config", () => {
             expect(yield* watcher.subscriptions()).toContainEqual({
               path: tmp.path,
               type: "entries",
-              names: [".agents", ".claude", ".opencode", "opencode.json", "opencode.jsonc"],
+              names: [
+                ".agents",
+                ".claude",
+                ".opencode",
+                ".theiacode",
+                "opencode.json",
+                "opencode.jsonc",
+                "theiacode.json",
+                "theiacode.jsonc",
+              ],
             })
           }).pipe(Effect.provide(testLayer(tmp.path)))
         }),
@@ -2134,6 +2152,59 @@ describe("Config", () => {
               }),
             ),
           )
+        })
+      }),
+    ),
+  )
+
+  it.live("prefers .theiacode over .opencode and nearer ancestors over farther ones", () =>
+    Effect.acquireDisposable(Effect.promise(() => tmpdir())).pipe(
+      Effect.flatMap((tmp) => {
+        const global = path.join(tmp.path, "global")
+        const root = path.join(tmp.path, "repo")
+        const directory = path.join(root, "app")
+        return Effect.gen(function* () {
+          yield* Effect.promise(async () => {
+            await fs.mkdir(path.join(root, ".opencode"), { recursive: true })
+            await fs.mkdir(path.join(root, ".theiacode"), { recursive: true })
+            await fs.mkdir(path.join(directory, ".opencode"), { recursive: true })
+            await fs.mkdir(path.join(directory, ".theiacode"), { recursive: true })
+            await Promise.all([
+              fs.writeFile(path.join(root, "opencode.json"), JSON.stringify({ $schema: "root-file" })),
+              fs.writeFile(path.join(root, "theiacode.json"), JSON.stringify({ $schema: "root-theiacode-file" })),
+              fs.writeFile(path.join(root, ".opencode", "opencode.json"), JSON.stringify({ $schema: "root-dir" })),
+              fs.writeFile(
+                path.join(root, ".theiacode", "theiacode.json"),
+                JSON.stringify({ $schema: "root-theiacode-dir" }),
+              ),
+              fs.writeFile(
+                path.join(directory, ".opencode", "opencode.json"),
+                JSON.stringify({ $schema: "near-dir", model: "a/one" }),
+              ),
+              fs.writeFile(
+                path.join(directory, ".theiacode", "theiacode.json"),
+                JSON.stringify({ $schema: "near-theiacode-dir", model: "b/two" }),
+              ),
+            ])
+          })
+
+          return yield* Effect.gen(function* () {
+            const config = yield* Config.Service
+            const documents = (yield* config.entries()).flatMap((entry) =>
+              entry.type === "document" && entry.path && inFixture(tmp.path, entry.path) ? [entry] : [],
+            )
+            // Load order is the priority order: same-level `theiacode` names come after `opencode`
+            // ones, and the nearest ancestor comes after the farther one.
+            expect(documents.map((document) => document.info.$schema)).toEqual([
+              "root-file",
+              "root-theiacode-file",
+              "root-dir",
+              "root-theiacode-dir",
+              "near-dir",
+              "near-theiacode-dir",
+            ])
+            expect(Config.latest(yield* config.entries(), "model")).toEqual(selection("b/two"))
+          }).pipe(Effect.provide(testLayer(directory, global, root)))
         })
       }),
     ),

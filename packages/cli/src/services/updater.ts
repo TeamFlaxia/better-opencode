@@ -314,7 +314,7 @@ const make = Effect.gen(function* () {
             {
               title: "Could not check for Theia Code updates",
               detail: errorDetail(cause),
-              retry: "Check your network, then run opencode upgrade again.",
+              retry: "Check your network, then run theiacode upgrade again.",
             },
             { cause },
           ),
@@ -367,7 +367,7 @@ const make = Effect.gen(function* () {
           {
             title: "Could not check for Theia Code updates",
             detail: errorDetail(cause),
-            retry: "Check your network, then run opencode upgrade again.",
+            retry: "Check your network, then run theiacode upgrade again.",
           },
           { cause },
         ),
@@ -414,7 +414,7 @@ const make = Effect.gen(function* () {
           title: "Could not check for Theia Code updates",
           detail,
           command: ["winget", "search", ...wingetArgs].join(" "),
-          retry: "Fix the issue above, then run opencode upgrade again.",
+          retry: "Fix the issue above, then run theiacode upgrade again.",
         },
         cause === undefined ? undefined : { cause },
       )
@@ -495,7 +495,7 @@ const make = Effect.gen(function* () {
           title: input.title ?? `${installNames[input.method]} could not install Theia Code`,
           detail,
           command: (input.displayCommand ?? input.command).join(" "),
-          retry: input.retry ?? "Fix the issue above, then run opencode upgrade again.",
+          retry: input.retry ?? "Fix the issue above, then run theiacode upgrade again.",
         },
         cause === undefined ? undefined : { cause },
       )
@@ -583,7 +583,7 @@ const make = Effect.gen(function* () {
           {
             title: "Could not download the Theia Code update",
             detail: errorDetail(cause),
-            retry: "Check your network, then run opencode upgrade again.",
+            retry: "Check your network, then run theiacode upgrade again.",
           },
           { cause },
         ),
@@ -752,7 +752,7 @@ const make = Effect.gen(function* () {
               {
                 title: "Could not prepare the Theia Code upgrade",
                 detail: errorDetail(cause),
-                retry: "Fix the issue above, then run opencode upgrade again.",
+                retry: "Fix the issue above, then run theiacode upgrade again.",
               },
               { cause },
             ),
@@ -770,7 +770,7 @@ const make = Effect.gen(function* () {
         new UpgradeError({
           title: `${installNames[method]} did not update this copy of Theia Code`,
           detail: `${installNames[method]} reported success, but ${executable} is still version ${installed ?? "unknown"}.`,
-          retry: `Update the copy at ${executable} with the package manager that installed it, then run opencode upgrade again.`,
+          retry: `Update the copy at ${executable} with the package manager that installed it, then run theiacode upgrade again.`,
         }),
       )
   })

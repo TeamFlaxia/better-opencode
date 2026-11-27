@@ -18,7 +18,7 @@ describe("global roots", () => {
     expect(run(env)).toEqual({
       data: path.join(env.XDG_DATA_HOME, "opencode"),
       cache: path.join(env.XDG_CACHE_HOME, "opencode"),
-      config: path.join(env.XDG_CONFIG_HOME, "opencode"),
+      config: path.join(env.XDG_CONFIG_HOME, "theiacode"),
       state: path.join(env.XDG_STATE_HOME, "opencode"),
       tmp: path.join(os.tmpdir(), "opencode"),
     })
@@ -38,19 +38,36 @@ describe("global roots", () => {
     ).toEqual({
       data: path.join(home, ".local", "share", "opencode"),
       cache: path.join(home, ".cache", "opencode"),
-      config: path.join(home, ".config", "opencode"),
+      config: path.join(home, ".config", "theiacode"),
       state: path.join(home, ".local", "state", "opencode"),
       tmp: path.join(os.tmpdir(), "opencode"),
     })
   })
+
+  test("config keeps the upstream app name when no config app is given", () => {
+    const root = path.join(os.tmpdir(), "opencode-xdg-default-config")
+    const result = Bun.spawnSync({
+      cmd: [
+        process.execPath,
+        "-e",
+        `const { roots } = await import(${JSON.stringify(module)}); console.log(JSON.stringify(roots("opencode")))`,
+      ],
+      env: { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") },
+      stdout: "pipe",
+      stderr: "pipe",
+    })
+
+    expect(result.exitCode, result.stderr.toString()).toBe(0)
+    expect(JSON.parse(result.stdout.toString()).config).toBe(path.join(root, "config", "opencode"))
+  })
 })
 
-function run(env: Record<string, string>) {
+function run(env: Record<string, string>, configApp = "theiacode") {
   const result = Bun.spawnSync({
     cmd: [
       process.execPath,
       "-e",
-      `const { roots } = await import(${JSON.stringify(module)}); console.log(JSON.stringify(roots("opencode")))`,
+      `const { roots } = await import(${JSON.stringify(module)}); console.log(JSON.stringify(roots("opencode", ${JSON.stringify(configApp)})))`,
     ],
     env: { ...process.env, ...env },
     stdout: "pipe",

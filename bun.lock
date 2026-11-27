@@ -55,6 +55,7 @@
       "bin": {
         "opencode": "./bin/opencode.cjs",
         "opencode2": "./bin/opencode2.cjs",
+        "theiacode": "./bin/opencode.cjs",
       },
       "dependencies": {
         "@agentclientprotocol/sdk": "1.6.0",

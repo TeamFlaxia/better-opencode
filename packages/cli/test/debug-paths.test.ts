@@ -11,7 +11,7 @@ describe("debug paths command", () => {
     expect(debug.stdout).toContain("paths")
     expect(debug.stdout).toContain("Show global paths (data, config, cache, state)")
     expect(paths.exitCode).toBe(0)
-    expect(paths.stdout).toContain("opencode debug paths [flags]")
+    expect(paths.stdout).toContain("theiacode debug paths [flags]")
   })
 
   test("prints resolved global paths without starting a server", async () => {
@@ -35,7 +35,7 @@ describe("debug paths command", () => {
       expect(paths).toMatchObject({
         home: os.homedir(),
         data: path.join(root, "data", "opencode"),
-        config: path.join(root, "config", "opencode"),
+        config: path.join(root, "config", "theiacode"),
         cache: path.join(root, "cache", "opencode"),
         state: path.join(root, "state", "opencode"),
         bin: path.join(root, "cache", "opencode", "bin"),

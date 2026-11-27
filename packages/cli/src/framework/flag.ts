@@ -1,7 +1,7 @@
 import { Flag } from "effect/cli"
 
 // `--name` and `--name=` parse as `true`, `--name=value` as the value. Like git's `--color[=when]`, the value must be
-// attached with `=`: the next argument is never consumed, so `opencode run -w "fix it"` keeps "fix it" positional.
+// attached with `=`: the next argument is never consumed, so `theiacode run -w "fix it"` keeps "fix it" positional.
 export function optionalValue(name: string, metavar: string) {
   return Flag.String(name).pipe(
     Flag.withOptionalValue(""),

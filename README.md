@@ -4,7 +4,7 @@ English | [日本語](README.ja.md)
 
 A focused fork of [opencode](https://github.com/anomalyco/opencode) for developers who want the coding agent to understand the codebase, respect a budget, and verify its own work.
 
-> Theia Code (the `theia-code` project) is an independent fork and is not affiliated with Anomaly Innovations. OpenCode is a trademark of Anomaly Innovations, Inc. The fork keeps the upstream runtime and the `@opencode/*` package namespace so that upstream changes can be merged continuously. It currently tracks upstream v2.4.2.
+> Theia Code (the `theia-code` project) is an independent fork and is not affiliated with Anomaly Innovations. OpenCode is a trademark of Anomaly Innovations, Inc. The fork keeps the upstream runtime and the `@opencode/*` package namespace so that upstream changes can be merged continuously. The command is `theiacode`; `opencode` remains a compatible alias. It currently tracks upstream v2.4.2.
 
 ## Status
 
@@ -36,9 +36,11 @@ Fork-specific work also includes the Japanese interface, fork-aware update check
 
 ## Install
 
-Prebuilt CLI binaries are published on the [releases page](https://github.com/TeamFlaxia/theia-code/releases). Download `opencode-<version>-<target>.tar.gz` for Linux or `.zip` for macOS and Windows, verify it against `SHA256SUMS.txt`, and put `opencode` on your `PATH`.
+Prebuilt CLI binaries are published on the [releases page](https://github.com/TeamFlaxia/theia-code/releases). Download `opencode-<version>-<target>.tar.gz` for Linux or `.zip` for macOS and Windows, verify it against `SHA256SUMS.txt`, and put `theiacode` on your `PATH` (the `opencode` command remains available as a compatible alias).
 
-A curl-installed build (`~/.opencode/bin/opencode`) checks this fork's GitHub releases on `opencode upgrade`. The default update policy only notifies; set `"update": "auto"` in the global configuration to install automatically. Package-manager installs keep using the upstream update service.
+Configuration lives in `~/.config/theiacode`; on first start, an existing `~/.config/opencode` configuration is copied there.
+
+A curl-installed build (`~/.opencode/bin/opencode`) checks this fork's GitHub releases on `theiacode upgrade`. The default update policy only notifies; set `"update": "auto"` in the global configuration to install automatically. Package-manager installs keep using the upstream update service.
 
 To run from source, install Bun 1.4.4 (pinned in `.bun-version`):
 
@@ -52,7 +54,7 @@ bun run dev
 
 ```bash
 bun run dev            # V2 CLI and TUI against the local build
-bun run dev:live       # development TUI against the installed opencode service
+bun run dev:live       # development TUI against the installed theiacode service
 bun run check          # lint + typecheck
 ```
 

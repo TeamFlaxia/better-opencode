@@ -6,7 +6,7 @@
 - Git
 - ripgrep（`rg`）。`packages/core` の検索テストが使う。無いと多数のテストが失敗する
 - 任意: `lsof`（サービス系テストのポート所有者表示）
-- 任意: インストール済みの `opencode`（`bun run dev:live` を使う場合）
+- 任意: インストール済みの `theiacode`（`bun run dev:live` を使う場合）
 
 初回は Bun を導入してから依存をインストールする。
 
@@ -21,11 +21,11 @@ bun install
 
 ```bash
 bun run dev              # ローカルビルドの CLI / TUI
-bun run dev:live         # インストール済み opencode サービスに接続
+bun run dev:live         # インストール済み theiacode サービスに接続
 bun run dev:live /path   # 対象ディレクトリを指定
 ```
 
-`dev:live` は `opencode service status` でサーバーを探し、`opencode service get password` の資格情報を注入する。TUI のストレージチャネルは `dev` を使うため、インストール済みクライアントとタブ状態が揃う。
+`dev:live` は `theiacode service status` でサーバーを探し、`theiacode service get password` の資格情報を注入する。`opencode` コマンドは互換エイリアスとして引き続き使える。TUI のストレージチャネルは `dev` を使うため、インストール済みクライアントとタブ状態が揃う。
 
 明示的に `--server` を渡した場合は、クライアントバージョン差でサービスが置き換えられない。暗黙接続では置き換わることがあるため、ライブセッションを守りたいときは `dev:live` を使う。
 
@@ -177,7 +177,7 @@ TUI の日本語訳は `packages/tui/src/i18n/index.tsx` の `ja` 辞書にあ�
 - キーは英語の原文そのもの。`t("Settings")` のように呼び出す。
 - 未訳の文字列は英語のまま表示されるため、翻訳を少しずつ追加できる。
 - `{{name}}` などのプレースホルダーは `t("...", { name })` で渡す。
-- 既定の表示言語は日本語。`~/.config/opencode/cli.json` の `language` を `"en"` にすると英語へ切り替わる。
+- 既定の表示言語は日本語。`~/.config/theiacode/cli.json` の `language` を `"en"` にすると英語へ切り替わる。
 - 設定画面では **設定 → 言語**（英語表示では Settings → Language）からも切り替えられる。
 - `DialogHeader` / `DialogSelect` はタイトル・説明・カテゴリを自動で翻訳するので、個別のダイアログに毎回 `t` を足す必要はない。
 
@@ -193,10 +193,12 @@ bun test --timeout 30000 test/cli/tui/dialog-select.test.tsx test/config.test.ts
 
 このプロジェクトは **`theia-code`**（表示名 **Theia Code**）です。ドキュメントとリポジトリメタデータはこの名前に合わせます。
 
+コマンド名は `theiacode`、設定ディレクトリは `~/.config/theiacode` に実装済み。`opencode` コマンドは互換エイリアスとして残り、既存の `~/.config/opencode` は初回起動時に `~/.config/theiacode` へコピーされる。
+
 意図的に変更しないもの:
 
 - `@opencode/*` のパッケージスコープ
-- `opencode` バイナリ名、設定ディレクトリ、環境変数（`OPENCODE_*`）
+- 環境変数（`OPENCODE_*`）と `data` / `cache` / `state` / `log` などのルートディレクトリ
 - 上流のモデルプロバイダ名（`OpenCode` / `Anomaly / OpenCode`）
 - `.github/workflows` の上流由来リリース設定（フォークのリリースは `release-tag.yml`）
 
@@ -206,7 +208,7 @@ bun test --timeout 30000 test/cli/tui/dialog-select.test.tsx test/config.test.ts
 
 ## 困ったとき
 
-- `dev:live` が別サーバーに繋がる: `--server "$(opencode service status)"` を明示する。
+- `dev:live` が別サーバーに繋がる: `--server "$(theiacode service status)"` を明示する。
 - 型チェックが遅い/差分が出る: `packages/<name>` で `bun typecheck`、必要なら `bun run typecheck:tsc`。
 - テストがタイムアウトする: `.opencode/skills/unit-tests` と `tui-tests` の待機方法を確認する。
 - 生成物の差分: `packages/client` で `bun run generate` を実行し、手編集を戻す。

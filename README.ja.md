@@ -36,9 +36,11 @@ TUI では以下の機能がすべて既定で有効です。**設定 → 機能
 
 ## インストール
 
-ビルド済みの CLI バイナリは [リリースページ](https://github.com/TeamFlaxia/theia-code/releases) で公開しています。Linux は `opencode-<version>-<target>.tar.gz`、macOS と Windows は `.zip` を取得し、`SHA256SUMS.txt` で検証してから `opencode` を `PATH` に置いてください。
+ビルド済みの CLI バイナリは [リリースページ](https://github.com/TeamFlaxia/theia-code/releases) で公開しています。Linux は `opencode-<version>-<target>.tar.gz`、macOS と Windows は `.zip` を取得し、`SHA256SUMS.txt` で検証してから `theiacode` を `PATH` に置いてください（`opencode` コマンドも互換エイリアスとして使えます）。
 
-curl でインストールしたビルド（`~/.opencode/bin/opencode`）は、`opencode upgrade` でこのフォークの GitHub Releases を確認します。既定の更新ポリシーは通知のみです。自動インストールを有効にするには、グローバル設定で `"update": "auto"` を指定します。パッケージマネージャー経由のインストールは、引き続き上流の更新サービスを使います。
+設定ディレクトリは `~/.config/theiacode` です。既存の `~/.config/opencode` 設定は初回起動時に `~/.config/theiacode` へコピーされます。
+
+curl でインストールしたビルド（`~/.opencode/bin/opencode`）は、`theiacode upgrade` でこのフォークの GitHub Releases を確認します。既定の更新ポリシーは通知のみです。自動インストールを有効にするには、グローバル設定で `"update": "auto"` を指定します。パッケージマネージャー経由のインストールは、引き続き上流の更新サービスを使います。
 
 ソースから実行する場合は、Bun 1.4.4（`.bun-version` で固定）を導入します。
 

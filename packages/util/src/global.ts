@@ -10,7 +10,11 @@ import { Flock } from "./flock.js"
 import { makeGlobalNode } from "./effect/app-node.js"
 
 const app = "opencode"
-const { data, cache, config, state, tmp } = roots(app)
+// The config directory is rebranded to `theiacode`; every other root keeps the
+// upstream `opencode` name so existing data, cache, state, logs and binaries
+// keep working.
+const { data, cache, config, state, tmp } = roots(app, "theiacode")
+const legacyConfig = path.join(path.dirname(config), app)
 
 const paths = {
   get home() {
@@ -74,9 +78,38 @@ const acquire = (input: Partial<Interface>) =>
     return Service.of({ ...service, tmp: input.tmp ?? canonicalTmp })
   })
 
+/**
+ * Seeds the rebranded config directory from the legacy `opencode` one on first
+ * run. Best effort: never overwrites existing files, never deletes the legacy
+ * directory, and never fails startup when the legacy directory is unreadable.
+ */
+const migrateConfig = Effect.promise(async () => {
+  const entries = await fs.promises.readdir(legacyConfig).catch(() => undefined)
+  if (!entries?.length) return
+  const existing = await fs.promises.readdir(Path.config).catch(() => [])
+  if (existing.length > 0) return
+  await fs.promises.mkdir(Path.config, { recursive: true })
+  await Promise.all(
+    entries.map((entry) =>
+      fs.promises
+        .cp(path.join(legacyConfig, entry), path.join(Path.config, entry), {
+          recursive: true,
+          force: false,
+          errorOnExist: false,
+        })
+        .catch(() => undefined),
+    ),
+  )
+})
+
 const layer = Layer.effect(
   Service,
-  Effect.suspend(() => acquire({ config: process.env.OPENCODE_CONFIG_DIR ?? Path.config })),
+  Effect.suspend(() => {
+    // An explicit config directory is the user's choice: start fresh there.
+    const configDir = process.env.OPENCODE_CONFIG_DIR
+    if (configDir !== undefined) return acquire({ config: configDir })
+    return Effect.flatMap(migrateConfig, () => acquire({}))
+  }),
 )
 
 export const node = makeGlobalNode({ service: Service, layer: layer, deps: [] })

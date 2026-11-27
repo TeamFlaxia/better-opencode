@@ -18,7 +18,7 @@ if (!process.env.OPENCODE_TEST_HOME) {
   process.env.XDG_DATA_HOME = path.join(home, ".local", "share")
   process.env.XDG_CACHE_HOME = path.join(home, ".cache")
   process.env.XDG_STATE_HOME = path.join(home, ".local", "state")
-  process.env.OPENCODE_CONFIG_DIR = path.join(home, ".config", "opencode")
+  process.env.OPENCODE_CONFIG_DIR = path.join(home, ".config", "theiacode")
   delete process.env.OPENCODE_CONFIG
   delete process.env.OPENCODE_CONFIG_CONTENT
   process.env.TMPDIR = temporary

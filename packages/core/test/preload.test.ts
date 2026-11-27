@@ -15,7 +15,7 @@ describe("Core test environment", () => {
 
     expect(os.homedir()).toBe(home)
     expect(Global.Path.home).toBe(home)
-    expect(Global.Path.config).toBe(path.join(home, ".config", "opencode"))
+    expect(Global.Path.config).toBe(path.join(home, ".config", "theiacode"))
     expect(Global.Path.data).toBe(path.join(home, ".local", "share", "opencode"))
     expect(Global.Path.cache).toBe(path.join(home, ".cache", "opencode"))
     expect(Global.Path.state).toBe(path.join(home, ".local", "state", "opencode"))
@@ -55,7 +55,7 @@ describe("Core test environment", () => {
     const result = JSON.parse(stdout.trim())
     expect(result.envHome).toBeDefined()
     expect(result.home).toBe(result.envHome)
-    expect(result.config).toBe(path.join(result.envHome, ".config", "opencode"))
+    expect(result.config).toBe(path.join(result.envHome, ".config", "theiacode"))
     expect(result.data).toBe(path.join(result.envHome, ".local", "share", "opencode"))
   })
 })
