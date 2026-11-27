@@ -205,7 +205,7 @@ export default { path: file, version: ${JSON.stringify(opencodePty.version)}, sh
     define: {
       OPENCODE_VERSION: `'${Script.version}'`,
       OPENCODE_CLIENT_VERSION: `'${clientVersion}'`,
-      OPENCODE_CLI_NAME: "'opencode'",
+      OPENCODE_CLI_NAME: JSON.stringify(process.env.OPENCODE_CLI_NAME ?? "theiacode"),
       OPENCODE_CHANNEL: `'${Script.channel}'`,
       OPENCODE_ARTIFACT: `'cli'`,
       ...(highlights ? { OPENCODE_RELEASE_HIGHLIGHTS: JSON.stringify(highlights) } : {}),
