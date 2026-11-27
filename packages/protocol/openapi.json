@@ -5506,16 +5506,6 @@
               }
             }
           },
-          "403": {
-            "description": "ForbiddenError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ForbiddenErrorEncoded"
-                }
-              }
-            }
-          },
           "404": {
             "description": "ProviderNotFoundError | ModelNotFoundError | LocationNotFoundError",
             "content": {
@@ -5567,7 +5557,7 @@
             }
           }
         },
-        "description": "Submit a video job to a video model using the server's base configuration and return its ID once the provider accepted it. The server polls the job and stores the finished videos as blobs; read the job with GET /api/experimental/generate/video/:id and the video with GET /api/experimental/blob/:id. Behind the video_generate flag. Experimental: may change without compatibility guarantees.",
+        "description": "Submit a video job to a video model using the server's base configuration and return its ID once the provider accepted it. The server polls the job and stores the finished videos as blobs; read the job with GET /api/experimental/generate/video/:id and the video with GET /api/experimental/blob/:id. Experimental: may change without compatibility guarantees.",
         "summary": "Create a video generation",
         "requestBody": {
           "content": {
@@ -5627,16 +5617,6 @@
               }
             }
           },
-          "403": {
-            "description": "ForbiddenError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ForbiddenErrorEncoded"
-                }
-              }
-            }
-          },
           "404": {
             "description": "VideoNotFoundError | LocationNotFoundError",
             "content": {
@@ -5655,7 +5635,7 @@
             }
           }
         },
-        "description": "Read a video job: running, completed with its videos' blobs, or error with a reason. Jobs survive a server restart, which resumes polling running ones. A job is not found 24 hours after it finished, or once none of its blobs remain. Behind the video_generate flag. Experimental: may change without compatibility guarantees.",
+        "description": "Read a video job: running, completed with its videos' blobs, or error with a reason. Jobs survive a server restart, which resumes polling running ones. A job is not found 24 hours after it finished, or once none of its blobs remain. Experimental: may change without compatibility guarantees.",
         "summary": "Read a video generation"
       }
     },
@@ -12337,7 +12317,7 @@
             }
           }
         },
-        "description": "Stream a stored blob's bytes, such as a generated video, with single byte Range, ETag and 304 Not Modified support. Blobs are kept until removed. Experimental: may change without compatibility guarantees.",
+        "description": "Stream a stored blob's bytes, such as a generated video, with single byte Range, ETag and 304 Not Modified support. A blob is deleted a week after it was stored. Experimental: may change without compatibility guarantees.",
         "summary": "Read a blob"
       }
     },
@@ -16902,7 +16882,7 @@
             "$ref": "#/components/schemas/Automation.Trigger.Event"
           }
         ],
-        "description": "When it runs: { type: \"at\", at: \"in 20 minutes\" | \"2026-10-27T09:00\" }, { type: \"every\", every: \"1 hour\" } or { type: \"cron\", cron: \"0 9 * * 1-5\" }, each with an optional tz. Or { type: \"event\", server, event, args? } for a connected MCP server advertising push delivery (requires mcp_events)."
+        "description": "When it runs: { type: \"at\", at: \"in 20 minutes\" | \"2026-10-27T09:00\" }, { type: \"every\", every: \"1 hour\" } or { type: \"cron\", cron: \"0 9 * * 1-5\" }, each with an optional tz. Or { type: \"event\", server, event, args? } for a connected MCP server advertising push delivery."
       },
       "Automation.Trigger.At": {
         "type": "object",
@@ -17673,6 +17653,30 @@
               "artifacts": {
                 "type": "boolean"
               },
+              "console_watches": {
+                "type": "boolean"
+              },
+              "recommended_api": {
+                "type": "boolean"
+              },
+              "full_codemode": {
+                "type": "boolean"
+              },
+              "machines": {
+                "type": "boolean"
+              },
+              "home_memory": {
+                "type": "boolean"
+              },
+              "project_overlay": {
+                "type": "boolean"
+              },
+              "opencode_api": {
+                "type": "boolean"
+              },
+              "sqlite_fts": {
+                "type": "boolean"
+              },
               "video_generate": {
                 "anyOf": [
                   {
@@ -17712,33 +17716,6 @@
                     "additionalProperties": false
                   }
                 ]
-              },
-              "console_watches": {
-                "type": "boolean"
-              },
-              "mcp_events": {
-                "type": "boolean"
-              },
-              "recommended_api": {
-                "type": "boolean"
-              },
-              "full_codemode": {
-                "type": "boolean"
-              },
-              "machines": {
-                "type": "boolean"
-              },
-              "home_memory": {
-                "type": "boolean"
-              },
-              "project_overlay": {
-                "type": "boolean"
-              },
-              "sqlite_fts": {
-                "type": "boolean"
-              },
-              "task-graph": {
-                "type": "boolean"
               },
               "part_rows": {
                 "type": "boolean"
@@ -26862,6 +26839,12 @@
           "model": {
             "type": "string"
           },
+          "name": {
+            "type": "string"
+          },
+          "engine": {
+            "type": "string"
+          },
           "provider": {
             "type": "string"
           },
@@ -26875,7 +26858,7 @@
             "type": "boolean"
           }
         },
-        "required": ["model", "provider", "transports", "available"],
+        "required": ["model", "name", "engine", "provider", "transports", "available"],
         "additionalProperties": false
       },
       "VoiceModelsResponse": {

@@ -2,18 +2,18 @@ export * as ShellTool from "./shell.js"
 
 import { ToolFailure } from "@opencode/ai/effect"
 import type { Context } from "@opencode/plugin/effect/plugin"
-import type { SessionHooks } from "@opencode/plugin/effect/session"
 import type { ShellCreateBefore } from "@opencode/plugin/effect/shell"
 import type { Shell as ShellSchema } from "@opencode/schema/shell"
 import type { Tool } from "@opencode/schema/tool"
-import { Clock, Deferred, Effect, Fiber, Option, Schema, Struct } from "effect"
+import { Clock, Deferred, Effect, Fiber, Option, Schema, Stream, Struct } from "effect"
+import { Agent } from "../../agent.js"
+import { Bus } from "../../bus.js"
 import { Config } from "../../config.js"
 import { ConfigEntryObserver } from "../../config/plugin/entry-observer.js"
 import { Environment } from "../../environment/index.js"
 import { Flag } from "../../flag.js"
 import { Job } from "../../job.js"
 import { FileAccess } from "../../file-access.js"
-import { Location } from "../../location.js"
 import { Permission } from "../../permission.js"
 import { NonNegativeInt } from "../../schema.js"
 import { Session } from "../../session.js"
@@ -88,9 +88,9 @@ const StructuredOutput = Schema.Struct({
       "The exit code once the command has exited: 0 means success. null while it is still running, or when a signal ended it.",
   }),
   signal: Schema.optionalKey(Schema.String).annotate({ description: "The signal that ended the command, if any" }),
-  output: Schema.String.annotate({
+  killed: Schema.optionalKey(Schema.String).annotate({
     description:
-      "Combined stdout and stderr as one string; there are no separate stdout or stderr fields. While shellID is present it is a notice instead, and the output streams to outputPath.",
+      "Why the command ended without an exit code, when the reason is known: the machine's worker restarted or lost the process, or the local process daemon stopped",
   }),
   outputPath: Schema.optionalKey(Schema.String).annotate({
     description: "File with the full output, when output was truncated or the command is running in the background",
@@ -98,11 +98,11 @@ const StructuredOutput = Schema.Struct({
   pid: Schema.optionalKey(NonNegativeInt).annotate({
     description: "Process ID while the command is running in the background",
   }),
-  killed: Schema.optionalKey(Schema.String).annotate({
-    description:
-      "Why the command ended without an exit code, when the reason is known: the machine's worker restarted or lost the process, or the local process daemon stopped",
-  }),
   wallTimeSeconds: Schema.Number.annotate({ description: "Seconds since the command started" }),
+  output: Schema.String.annotate({
+    description:
+      "Combined stdout and stderr as one string; there are no separate stdout or stderr fields. While shellID is present it is a notice instead, and the output streams to outputPath.",
+  }),
 })
 
 type Output = ReturnType<typeof ShellResult.output> & {
@@ -304,10 +304,10 @@ export const Plugin = {
   id: "opencode.tool.shell",
   effect: Effect.fn("ShellTool.Plugin")(function* (ctx: Context) {
     const sessions = yield* Session.Service
+    const agents = yield* Agent.Service
     const jobs = yield* Job.Service
     const access = yield* FileAccess.Service
-    const environment = yield* Environment.Service
-    const location = yield* Location.Service
+    const workingDirectory = yield* Environment.workingDirectory
     const shell = yield* Shell.Service
     const shellSelect = yield* ShellSelect.Service
     const compatibleShell = shellSelect.resolve({ priority: "compat" })
@@ -330,8 +330,8 @@ export const Plugin = {
           : yield* access.resolve({
               path: invocation.cwd,
               base:
-                requested.target.environment.id === environment.id
-                  ? { absolute: location.directory, environment }
+                requested.target.environment.id === workingDirectory.environment.id
+                  ? workingDirectory
                   : requested.target,
               kind: "directory",
             })
@@ -341,7 +341,11 @@ export const Plugin = {
         command: invocation.command,
         program: invocation.shell,
         target,
-        local: target.environment.id === environment.id,
+        rules: Effect.gen(function* () {
+          const session = yield* sessions.get(context.sessionID)
+          const agent = yield* agents.resolve(context.agent)
+          return Permission.merge(agent?.permissions ?? [], session.permissions ?? [])
+        }),
       })
       yield* Effect.forEach(
         requests,
@@ -396,8 +400,17 @@ export const Plugin = {
       })
     })
 
+    // The descriptions name the selected shell, so they're rebuilt whenever it changes.
+    const bus = yield* Bus.Service
+    yield* bus.subscribe(ShellSelect.Event.Updated).pipe(
+      Stream.runForEach(() => ctx.tool.reload()),
+      Effect.forkScoped({ startImmediately: true }),
+    )
+    const runSync = Effect.runSyncWith(yield* Effect.context())
     yield* ctx.tool
-      .transform((editor) =>
+      .transform((editor) => {
+        // Named in both the direct and the Code Mode description, so a model knows the shell either way.
+        const shellName = ShellSelect.name(runSync(compatibleShell))
         editor.add({
           name,
           // With full_codemode, shell is allowed in Code Mode and pinned so the catalog always lists it.
@@ -405,12 +418,12 @@ export const Plugin = {
             ? {
                 codemode: {
                   pinned: true,
-                  description: description(undefined, true),
+                  description: description(shellName, true),
                   input: CodeModeInput,
                 },
               }
             : { codemode: false },
-          description: description(),
+          description: description(shellName),
           input: Input,
           output: StructuredOutput,
           execute: (input, context) => {
@@ -441,7 +454,7 @@ export const Plugin = {
                 )
                 return yield* Effect.gen(function* () {
                   // The same default `Shell.create` gives the hooks, so `prepare` can tell whether one moved it.
-                  const cwd = input.workdir ?? location.directory
+                  const cwd = input.workdir ?? workingDirectory.absolute
                   const target = yield* restore(
                     Effect.raceFirst(access.resolve({ path: cwd, kind: "directory" }), stoppedBeforeStart),
                   )
@@ -549,18 +562,8 @@ export const Plugin = {
               Effect.mapError(toolFailure(`Unable to execute command: ${input.command}`)),
             )
           },
-        }),
-      )
-      .pipe(Effect.orDie)
-
-    const hook = (event: SessionHooks["context"]) =>
-      Effect.gen(function* () {
-        const tool = event.tools[name]
-        if (!tool) return
-        tool.description = description(ShellSelect.name(yield* compatibleShell))
+        })
       })
-    yield* ctx.session.hook("context", hook)
-    yield* ctx.session.hook("compaction", hook)
-    yield* ctx.session.hook("generate", hook)
+      .pipe(Effect.orDie)
   }),
 }
