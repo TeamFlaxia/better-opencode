@@ -79,15 +79,19 @@ const acquire = (input: Partial<Interface>) =>
   })
 
 /**
- * Seeds the rebranded config directory from the legacy `opencode` one on first
- * run. Best effort: never overwrites existing files, never deletes the legacy
+ * Seeds the rebranded config directory from the legacy `opencode` one once.
+ * Best effort: never overwrites existing files, never deletes the legacy
  * directory, and never fails startup when the legacy directory is unreadable.
+ * The marker keeps later starts from restoring entries the user removed.
  */
+const migrationMarker = path.join(Path.config, ".migrated-from-opencode")
+
 const migrateConfig = Effect.promise(async () => {
+  if (await Bun.file(migrationMarker).exists()) return
   const entries = await fs.promises.readdir(legacyConfig).catch(() => undefined)
   if (!entries?.length) return
-  const existing = await fs.promises.readdir(Path.config).catch(() => [])
-  if (existing.length > 0) return
+  // The config directory can already hold service or CLI state written during
+  // startup, so copy only the entries that are still missing.
   await fs.promises.mkdir(Path.config, { recursive: true })
   await Promise.all(
     entries.map((entry) =>
@@ -100,20 +104,22 @@ const migrateConfig = Effect.promise(async () => {
         .catch(() => undefined),
     ),
   )
+  await Bun.write(migrationMarker, "")
 })
 
-const layer = Layer.effect(
-  Service,
+const acquireWithMigration = (input: Partial<Interface>) =>
   Effect.suspend(() => {
     // An explicit config directory is the user's choice: start fresh there.
+    if (input.config !== undefined) return acquire(input)
     const configDir = process.env.OPENCODE_CONFIG_DIR
-    if (configDir !== undefined) return acquire({ config: configDir })
-    return Effect.flatMap(migrateConfig, () => acquire({}))
-  }),
-)
+    if (configDir !== undefined) return acquire({ ...input, config: configDir })
+    return Effect.flatMap(migrateConfig, () => acquire(input))
+  })
+
+const layer = Layer.effect(Service, acquireWithMigration({}))
 
 export const node = makeGlobalNode({ service: Service, layer: layer, deps: [] })
 
-export const layerWith = (input: Partial<Interface>) => Layer.effect(Service, acquire(input))
+export const layerWith = (input: Partial<Interface>) => Layer.effect(Service, acquireWithMigration(input))
 
 export * as Global from "./global.js"

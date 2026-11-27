@@ -95,7 +95,7 @@ describe("global config migration", () => {
     fs.rmSync(root, { recursive: true, force: true })
   })
 
-  test("leaves an existing non-empty theiacode directory untouched", () => {
+  test("fills missing entries into an existing theiacode directory without overwriting", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-migrate-"))
     const legacy = path.join(root, "config", "opencode")
     const current = path.join(root, "config", "theiacode")
@@ -109,7 +109,22 @@ describe("global config migration", () => {
 
     expect(result.exitCode, result.stderr.toString()).toBe(0)
     expect(fs.readFileSync(path.join(current, "opencode.json"), "utf8")).toBe('{"source":"current"}')
-    expect(fs.existsSync(path.join(current, "only-legacy.json"))).toBe(false)
+    expect(fs.readFileSync(path.join(current, "only-legacy.json"), "utf8")).toBe("{}")
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  test("migrates only once", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-migrate-"))
+    const legacy = path.join(root, "config", "opencode")
+    const current = path.join(root, "config", "theiacode")
+    fs.mkdirSync(legacy, { recursive: true })
+    fs.writeFileSync(path.join(legacy, "opencode.json"), "{}")
+
+    expect(acquire(root).exitCode).toBe(0)
+    fs.writeFileSync(path.join(legacy, "later.json"), "{}")
+    expect(acquire(root).exitCode).toBe(0)
+
+    expect(fs.existsSync(path.join(current, "later.json"))).toBe(false)
     fs.rmSync(root, { recursive: true, force: true })
   })
 
@@ -138,9 +153,20 @@ describe("global config migration", () => {
     expect(fs.existsSync(path.join(root, "config", "theiacode"))).toBe(false)
     fs.rmSync(root, { recursive: true, force: true })
   })
-})
+  test("seeds through layerWith, which the CLI runtime uses", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-migrate-"))
+    const legacy = path.join(root, "config", "opencode")
+    fs.mkdirSync(legacy, { recursive: true })
+    fs.writeFileSync(path.join(legacy, "opencode.json"), '{"legacy":true}')
 
-function acquire(root: string, env: Record<string, string> = {}) {
+    const result = acquire(root, {}, "Global.layerWith({})")
+
+    expect(result.exitCode, result.stderr.toString()).toBe(0)
+    expect(fs.readFileSync(path.join(root, "config", "theiacode", "opencode.json"), "utf8")).toBe('{"legacy":true}')
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+})
+function acquire(root: string, env: Record<string, string> = {}, build = "compile(Global.node)") {
   const directories = ["data", "cache", "config", "state", "tmp"].map((directory) => path.join(root, directory))
   const module = pathToFileURL(path.join(import.meta.dir, "../src/global.ts")).href
   const layerNode = pathToFileURL(path.join(import.meta.dir, "../src/effect/layer-node.ts")).href
@@ -152,7 +178,7 @@ function acquire(root: string, env: Record<string, string> = {}) {
         import { Context, Effect, Layer } from "effect"
         const { Global } = await import(${JSON.stringify(module)})
         const { compile } = await import(${JSON.stringify(layerNode)})
-        const context = await Effect.runPromise(Effect.scoped(Layer.build(compile(Global.node))))
+        const context = await Effect.runPromise(Effect.scoped(Layer.build(${build})))
         process.stdout.write(Context.get(context, Global.Service).tmp)
       `,
     ],
