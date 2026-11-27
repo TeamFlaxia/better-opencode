@@ -60,15 +60,14 @@ Tests must run from the package directory. Running `bun test` from the repositor
 
 ## Syncing upstream
 
-Never commit fork work to `upstream`.
+Never commit fork work to `upstream`. From a clean `main`, run the sync helper:
 
 ```bash
-git fetch origin
-git switch main
-git merge origin/upstream
+bun run sync:upstream --tag v2.4.2   # a stable release
+bun run sync:upstream                # upstream/dev
 ```
 
-Resolve conflicts by keeping fork features on top of the upstream structure. If a conflict is ambiguous, stop and document the decision in the pull request or `docs/`.
+It fast-forwards the local mirror, merges through an `upstream-sync` branch, and stops on conflicts. Resolve them by keeping fork features on top of the upstream structure, then run `bun run sync:upstream --continue`. See [docs/upstream-sync.md](docs/upstream-sync.md) for all options. If a conflict is ambiguous, stop and document the decision in the pull request or `docs/`.
 
 ## Documentation
 

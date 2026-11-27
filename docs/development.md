@@ -61,11 +61,17 @@ git worktree add ../better-opencode-code-index -b code-index main
 
 ## 上流の取り込み
 
+クリーンな `main` で同期ヘルパーを実行する。
+
 ```bash
-git fetch origin
-git switch main
-git merge origin/upstream
+bun run sync:upstream --tag v2.4.2   # 安定リリースまで
+bun run sync:upstream                # upstream/dev まで
 ```
+
+ヘルパーは上流を fetch し、ローカルの `upstream` ブランチを fast-forward で更新してから、
+`upstream-sync` ブランチでマージし、成功すると `main` にマージする。ミラーをこのフォークの
+`origin/upstream` にも公開する場合は `--push-mirror` を付ける。オプションとコンフリクト時の
+手順は [upstream-sync.md](upstream-sync.md) を参照。
 
 - コンフリクトは「上流の構造 + フォークの機能」を保つように解消する。
 - `upstream` は上流の参照用に保ち、書き換えない。
@@ -121,10 +127,11 @@ bun run script/test.ts test/session-runner.test.ts   # 1ファイルだけ
 ```bash
 git switch main
 git pull
-git tag v2.2.5-better.1
-git push origin v2.2.5-better.1
+git tag v2.4.2-better.1
+git push origin v2.4.2-better.1
 ```
 
+- フォークのタグは上流の semver 本体に `-better.N` を付ける。`N` は上流のベースバージョンごとに 1 から始める（例: `v2.4.2-better.1`）。
 - タグは `v<major>.<minor>.<patch>[-prerelease]` の形式のみ受け付ける。
 - `-` を含むタグは GitHub Release 上で prerelease として扱う。
 - タグのコミットが `main` の祖先であることを確認する（`main` 以外からのリリースを防ぐ）。
@@ -136,6 +143,7 @@ git push origin v2.2.5-better.1
 - `curl` インストール版の更新は `opencode-<version>-<target>.tar.gz` / `.zip` を取得し、`SHA256SUMS.txt` で検証してから現在のバイナリを置き換える
 - 既定の更新ポリシーは通知のみ（`notify`）。自動インストールはグローバル設定の `"update": "auto"` で有効にする
 - `v2.2.5-better.8` より前の `curl` インストール版は上流インストーラーを使うため自動更新できない。`.8` 以降へは一度手動で置き換える
+- 現在の系列は `v2.4.2-better.N`。上流ベースが変わったため `N` は 1 から始まる
 - npm / pnpm / bun / yarn / vp / brew / winget 経由の更新は上流の更新サービスを参照する
 
 現時点のリリース対象は CLI のみ。npm publish は含まない。

@@ -4,7 +4,7 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 
 ## 開発方針
 
-- 上流（`anomalyco/opencode`）の `dev` ブランチを継続的に取り込み、差分を小さく保つ。
+- 上流（`anomalyco/opencode`）の `dev` ブランチを継続的に取り込み、差分を小さく保つ。同期は `bun run sync:upstream`（[upstream-sync.md](upstream-sync.md)）を使い、ミラーを直接書き換えない。
 - まずはブランディングと設定だけを分け、パッケージスコープ（`@opencode/*`）は当面変更しない。スコープ改名は上流マージを壊すため、機能が固まってから別途判断する。
 - 新しい振る舞い・エンドポイントは既存ルールに従って **experimental** から始める。
   - 設定は `experimental.*`
@@ -26,6 +26,7 @@ opencode v2（上流ブランチ `upstream`）を出発点に、開発体験を�
 ## ドキュメント
 
 - [development.md](development.md) — セットアップ、ブランチ運用、上流の取り込み、検証、CI、リリース
+- [upstream-sync.md](upstream-sync.md) — 上流ミラー同期ヘルパーと `v<base>-better.N` タグ
 - [vcs-dock.md](vcs-dock.md) — バージョン管理ドックと内蔵 VCS ビュー
 - [task-graph.md](task-graph.md) — Task graph と `/divide`
 - [file-manager.md](file-manager.md) — ファイルマネージャーとプレビュー

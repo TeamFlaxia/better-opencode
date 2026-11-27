@@ -4,7 +4,7 @@
 
 コードベースを理解し、予算を守り、自分の作業を検証できるコーディングエージェントを求める開発者のための、[opencode](https://github.com/anomalyco/opencode) のフォーカスしたフォークです。
 
-> better-opencode は独立したフォークであり、Anomaly Innovations とは提携していません。OpenCode は Anomaly Innovations, Inc. の商標です。上流の変更を継続的にマージできるよう、ランタイムと `@opencode/*` パッケージ名前空間は上流のまま維持しています。
+> better-opencode は独立したフォークであり、Anomaly Innovations とは提携していません。OpenCode は Anomaly Innovations, Inc. の商標です。上流の変更を継続的にマージできるよう、ランタイムと `@opencode/*` パッケージ名前空間は上流のまま維持しています。現在は上流 v2.4.2 を追従しています。
 
 ## ステータス
 
@@ -112,13 +112,14 @@ git switch -c code-index
 
 ## 上流の取り込み
 
+クリーンな `main` から同期ヘルパーを実行します。
+
 ```bash
-git fetch origin
-git switch main
-git merge origin/upstream
+bun run sync:upstream --tag v2.4.2   # 安定リリースまで取り込む
+bun run sync:upstream                # upstream/dev まで取り込む
 ```
 
-コンフリクトは上流の構造を保ちながら、このフォークの機能を優先して解消します。`upstream` は上流の参照用に保ち、書き換えません。
+上流を fetch し、ローカルの `upstream` ミラーを fast-forward で更新してから、`upstream-sync` ブランチ経由で `main` にマージします。コンフリクトは推測せず停止するため、解消後に `--continue` を使います。`--push-mirror` を付けると、このフォークの `upstream` ブランチにもミラーを公開します。コンフリクトは上流の構造を保ちながら、このフォークの機能を優先して解消してください。詳しくは [docs/upstream-sync.md](docs/upstream-sync.md) を参照。`upstream` は上流の参照用に保ち、書き換えません。
 
 ## リリース
 
@@ -127,16 +128,17 @@ git merge origin/upstream
 ```bash
 git switch main
 git pull
-git tag v2.2.5-better.1
-git push origin v2.2.5-better.1
+git tag v2.4.2-better.1
+git push origin v2.4.2-better.1
 ```
 
-タグは `v<major>.<minor>.<patch>[-prerelease]` の形式で、タグのコミットが `main` の祖先である必要があります。`-` を含むタグは prerelease として公開されます。リリースワークフローは 12 ターゲット分の CLI をビルドし、Linux は `tar.gz`、macOS と Windows は `zip` にまとめ、`SHA256SUMS.txt` と一緒に公開します。ジョブ構成は [docs/development.md](docs/development.md#リリース) を参照してください。
+フォークのタグは上流の semver 本体に `-better.N` を付けます。`N` は上流のベースバージョンごとに 1 から始めます。タグは `v<major>.<minor>.<patch>[-prerelease]` の形式で、タグのコミットが `main` の祖先である必要があります。`-` を含むタグは prerelease として公開されます。リリースワークフローは 12 ターゲット分の CLI をビルドし、Linux は `tar.gz`、macOS と Windows は `zip` にまとめ、`SHA256SUMS.txt` と一緒に公開します。ジョブ構成は [docs/development.md](docs/development.md#リリース) を参照してください。
 
 ## ドキュメント
 
 - [docs/README.md](docs/README.md) — フォークの方針、現在の機能棚卸し、スコープ
 - [docs/development.md](docs/development.md) — セットアップ、ブランチ運用、上流の取り込み、検証、リリース
+- [docs/upstream-sync.md](docs/upstream-sync.md) — 上流ミラー用ヘルパー、コンフリクト対応、バージョンタグ
 - [docs/vcs-dock.md](docs/vcs-dock.md) — 内蔵バージョン管理ビュー
 - [docs/task-graph.md](docs/task-graph.md) — タスクグラフと `/divide`
 - [docs/file-manager.md](docs/file-manager.md) — ファイルブラウザとプレビュー

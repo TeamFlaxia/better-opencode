@@ -4,7 +4,7 @@ English | [日本語](README.ja.md)
 
 A focused fork of [opencode](https://github.com/anomalyco/opencode) for developers who want the coding agent to understand the codebase, respect a budget, and verify its own work.
 
-> better-opencode is an independent fork and is not affiliated with Anomaly Innovations. OpenCode is a trademark of Anomaly Innovations, Inc. The fork keeps the upstream runtime and the `@opencode/*` package namespace so that upstream changes can be merged continuously.
+> better-opencode is an independent fork and is not affiliated with Anomaly Innovations. OpenCode is a trademark of Anomaly Innovations, Inc. The fork keeps the upstream runtime and the `@opencode/*` package namespace so that upstream changes can be merged continuously. It currently tracks upstream v2.4.2.
 
 ## Status
 
@@ -112,13 +112,14 @@ This fork does not use Changesets. Do not add `.changeset` files.
 
 ## Keeping up with upstream
 
+Run the sync helper from a clean `main`:
+
 ```bash
-git fetch origin
-git switch main
-git merge origin/upstream
+bun run sync:upstream --tag v2.4.2   # sync up to a stable release
+bun run sync:upstream                # sync up to upstream/dev
 ```
 
-Resolve conflicts in favor of this fork's features while keeping the upstream structure. Do not rewrite `upstream`; it is the clean upstream reference.
+It fetches upstream, fast-forwards the local `upstream` mirror, merges into `main` through an `upstream-sync` branch, and stops on conflicts instead of guessing. Use `--continue` after resolving them, or `--push-mirror` to also publish the mirror to this fork's `upstream` branch. Resolve conflicts in favor of this fork's features while keeping the upstream structure. See [docs/upstream-sync.md](docs/upstream-sync.md); never rewrite `upstream` or commit fork work to it.
 
 ## Releases
 
@@ -127,16 +128,17 @@ Push a tag to build the CLI for every supported target and publish a GitHub Rele
 ```bash
 git switch main
 git pull
-git tag v2.2.5-better.1
-git push origin v2.2.5-better.1
+git tag v2.4.2-better.1
+git push origin v2.4.2-better.1
 ```
 
-Tags must look like `v<major>.<minor>.<patch>[-prerelease]`, and the tagged commit must be an ancestor of `main`. Tags containing `-` are published as prereleases. The release workflow builds 12 CLI targets, packages Linux archives as `tar.gz` and macOS/Windows archives as `zip`, and publishes them with `SHA256SUMS.txt`. See [docs/development.md](docs/development.md#リリース) for the job layout.
+Fork tags use the upstream semver core plus `-better.N`; `N` restarts at 1 for each upstream base version. Tags must look like `v<major>.<minor>.<patch>[-prerelease]`, and the tagged commit must be an ancestor of `main`. Tags containing `-` are published as prereleases. The release workflow builds 12 CLI targets, packages Linux archives as `tar.gz` and macOS/Windows archives as `zip`, and publishes them with `SHA256SUMS.txt`. See [docs/development.md](docs/development.md#リリース) for the job layout.
 
 ## Documentation
 
 - [docs/README.md](docs/README.md) — fork policy, current feature inventory, and scope
 - [docs/development.md](docs/development.md) — setup, branch workflow, upstream sync, verification, and releases
+- [docs/upstream-sync.md](docs/upstream-sync.md) — upstream mirror helper, conflict flow, and version tags
 - [docs/vcs-dock.md](docs/vcs-dock.md) — built-in version control view
 - [docs/task-graph.md](docs/task-graph.md) — task graph and `/divide`
 - [docs/file-manager.md](docs/file-manager.md) — file browser and preview
