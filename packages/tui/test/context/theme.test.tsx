@@ -111,7 +111,7 @@ test("names the new theme opencode and the previous one opencode-classic", async
   }
 })
 
-test("removing theme or theme.name from config reverts to opencode", async () => {
+test("removing theme or theme.name from config reverts to the default theme", async () => {
   await using temporary = await tmpdir()
   let settings: Info = { theme: { name: "gruvbox", mode: "light" } }
   let config!: ReturnType<typeof useConfig>
@@ -153,17 +153,18 @@ test("removing theme or theme.name from config reverts to opencode", async () =>
     expect(themes.selected).toBe("gruvbox")
     expect(themes.mode()).toBe("light")
     expect(theme.background.base.equals(opencodeLight)).toBeFalse()
+    const gruvboxLight = theme.background.base
 
-    // Removing theme.name reverts to opencode while preserving pinned mode.
+    // Removing theme.name reverts to the configured default (system) while preserving pinned mode.
     await config.update((draft) => {
       delete draft.theme?.name
     })
     await app.renderOnce()
-    expect(themes.selected).toBe("opencode")
+    expect(themes.selected).toBe("system")
     expect(themes.mode()).toBe("light")
-    expect(theme.background.base.equals(opencodeLight)).toBeTrue()
+    expect(theme.background.base.equals(gruvboxLight)).toBeFalse()
 
-    // Re-applying a theme and removing the entire theme block also reverts to opencode.
+    // Re-applying a theme and removing the entire theme block reverts the same way.
     await config.update((draft) => {
       draft.theme = { name: "gruvbox", mode: "light" }
     })
@@ -175,8 +176,8 @@ test("removing theme or theme.name from config reverts to opencode", async () =>
       delete draft.theme
     })
     await app.renderOnce()
-    expect(themes.selected).toBe("opencode")
-    expect(theme.background.base.equals(opencodeLight)).toBeTrue()
+    expect(themes.selected).toBe("system")
+    expect(theme.background.base.equals(gruvboxLight)).toBeFalse()
   } finally {
     app.renderer.destroy()
   }
