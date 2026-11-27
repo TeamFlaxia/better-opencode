@@ -18573,6 +18573,9 @@
               "sqlite_fts": {
                 "type": "boolean"
               },
+              "task-graph": {
+                "type": "boolean"
+              },
               "video_generate": {
                 "anyOf": [
                   {
