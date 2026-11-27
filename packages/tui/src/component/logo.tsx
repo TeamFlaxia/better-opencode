@@ -3,14 +3,14 @@ import { For, type JSX } from "solid-js"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "../context/theme"
 import { tint } from "../theme/color"
-import { go, logo } from "../logo"
+import { go, logo, logoGap } from "../logo"
 
 export function Logo() {
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
+  const shadow = tint(theme.background.base, theme.text.base, 0.3)
 
   const renderLine = (line: string, fg: RGBA, bold: boolean): JSX.Element[] => {
-    const shadow = tint(theme.background.base, fg, 0.25)
     const attrs = bold ? TextAttributes.BOLD : undefined
     return Array.from(line).map((char) => {
       if (char === "_") {
@@ -55,7 +55,7 @@ export function Logo() {
         <For each={go.right.slice(1)}>
           {(line) => <box flexDirection="row">{renderLine(line, theme.text.base, true)}</box>}
         </For>
-      ) : dimensions().width < 49 ? (
+      ) : dimensions().width < 70 ? (
         <>
           <For each={logo.left}>
             {(line) => <box flexDirection="row">{renderLine(line, theme.text.muted, false)}</box>}
@@ -67,7 +67,7 @@ export function Logo() {
       ) : (
         <For each={logo.left}>
           {(line, index) => (
-            <box flexDirection="row" gap={1}>
+            <box flexDirection="row" gap={logoGap}>
               <box flexDirection="row">{renderLine(line, theme.text.muted, false)}</box>
               <box flexDirection="row">{renderLine(logo.right[index()], theme.text.base, true)}</box>
             </box>
