@@ -31,8 +31,8 @@ function fail(message: string): never {
   process.exit(1)
 }
 
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i]
+for (const [index, arg] of args.entries()) {
+  if (index > 0 && (args[index - 1] === "--tag" || args[index - 1] === "--ref")) continue
   if (arg === "--help" || arg === "-h") {
     console.log(usage)
     process.exit(0)
@@ -44,7 +44,7 @@ for (let i = 0; i < args.length; i++) {
     continue
   }
   if (arg === "--tag" || arg === "--ref") {
-    const value = args[++i]
+    const value = args[index + 1]
     if (!value || value.startsWith("-")) usageError(`Missing value for ${arg}`)
     const key = arg === "--tag" ? "tag" : "ref"
     if (options[key]) usageError(`Duplicate option: ${arg}`)
@@ -81,13 +81,16 @@ async function run(command: string[], env?: Record<string, string>): Promise<Git
 }
 
 if (options.dryRun) {
-  plan(["status", "--porcelain"])
+  if (!options.continue) plan(["status", "--porcelain"])
   plan(["rev-parse", "--abbrev-ref", "HEAD"])
   if (options.continue) plan(["rev-parse", "-q", "--verify", "MERGE_HEAD"])
 }
 if (!options.dryRun) {
-  const status = await check(["status", "--porcelain"])
-  if (status.text) fail(`Working tree is dirty; commit or stash changes first:\n${status.text}`)
+  // Resolved conflicts are staged during a merge, so porcelain status is dirty by design in --continue mode.
+  if (!options.continue) {
+    const status = await check(["status", "--porcelain"])
+    if (status.text) fail(`Working tree is dirty; commit or stash changes first:\n${status.text}`)
+  }
 
   const branch = await check(["rev-parse", "--abbrev-ref", "HEAD"])
   if (options.continue) {
@@ -124,9 +127,10 @@ if (ancestor.code !== 0) {
 }
 const oldRef = await check(["rev-parse", "-q", "--verify", "upstream"])
 const newRef = await check(["rev-parse", "-q", "--verify", "upstream/dev"])
-if (newRef.code !== 0) fail("upstream/dev could not be resolved; the fetch may have failed")
-const oldTip = oldRef.code === 0 ? oldRef.text : newRef.text
-const newTip = newRef.text
+if (newRef.code !== 0 && !options.dryRun) fail("upstream/dev could not be resolved; the fetch may have failed")
+// A dry run may happen before the first fetch, so it plans with a placeholder instead of an unresolved OID.
+const newTip = newRef.code === 0 ? newRef.text : "<upstream/dev>"
+const oldTip = oldRef.code === 0 ? oldRef.text : newTip
 const updated = await run(["update-ref", "refs/heads/upstream", newTip, oldTip])
 if (updated.code !== 0) fail("Failed to fast-forward the local upstream mirror")
 
