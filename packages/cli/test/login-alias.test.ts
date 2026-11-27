@@ -13,7 +13,7 @@ test("login is hidden from root help but has the same help as auth login", async
 
   expect(root.help).toMatch(/^\s+auth\s/m)
   expect(root.help).not.toMatch(/^\s+login\s/m)
-  expect(login.help).toContain("opencode login [flags] [<target>]")
+  expect(login.help).toContain("theiacode login [flags] [<target>]")
   expect(sections(login.help)).toEqual(sections(auth.help))
 })
 
