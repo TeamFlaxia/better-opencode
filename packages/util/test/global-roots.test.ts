@@ -18,7 +18,7 @@ describe("global roots", () => {
     expect(run(env)).toEqual({
       data: path.join(env.XDG_DATA_HOME, "opencode"),
       cache: path.join(env.XDG_CACHE_HOME, "opencode"),
-      config: path.join(env.XDG_CONFIG_HOME, "theiacode"),
+      config: path.join(env.XDG_CONFIG_HOME, "opencode"),
       state: path.join(env.XDG_STATE_HOME, "opencode"),
       tmp: path.join(os.tmpdir(), "opencode"),
     })
@@ -38,7 +38,7 @@ describe("global roots", () => {
     ).toEqual({
       data: path.join(home, ".local", "share", "opencode"),
       cache: path.join(home, ".cache", "opencode"),
-      config: path.join(home, ".config", "theiacode"),
+      config: path.join(home, ".config", "opencode"),
       state: path.join(home, ".local", "state", "opencode"),
       tmp: path.join(os.tmpdir(), "opencode"),
     })
@@ -62,7 +62,7 @@ describe("global roots", () => {
   })
 })
 
-function run(env: Record<string, string>, configApp = "theiacode") {
+function run(env: Record<string, string>, configApp = "opencode") {
   const result = Bun.spawnSync({
     cmd: [
       process.execPath,

@@ -29,6 +29,7 @@ The TUI enables all of these features by default. Turn each one on or off in **S
 | File manager         | Read-only browser and preview for the current session location. Open it with `<leader>f` or `/files`.                                                                                                                                                                                                 | [docs/file-manager.md](docs/file-manager.md) |
 | TUI tools            | Lets the agent open a terminal in the running TUI (requires server support).                                                                                                                                                                                                                          | —                                            |
 | New designs          | Previews the redesigned TUI surfaces.                                                                                                                                                                                                                                                                 | —                                            |
+| Project dashboard    | Adds a persistent top-level Chat/Dashboard tab bar above the main content. The dashboard summarizes usage across all projects (30-day default) with an activity calendar, metrics, top models, and recent sessions. Switch with `alt+1`/`alt+2` or `/dashboard` (`/stats` alias).                  | [docs/project-dashboard.md](docs/project-dashboard.md) |
 
 Model routing is also on by default: the CLI server loads `opencode-model-router@latest`, fetches it from npm, and updates it with the existing plugin update check. Disable it with `"plugins": ["-opencode-model-router"]`. See [docs/model-router.md](docs/model-router.md).
 
@@ -38,7 +39,7 @@ Fork-specific work also includes the Japanese interface, fork-aware update check
 
 Prebuilt CLI binaries are published on the [releases page](https://github.com/TeamFlaxia/theia-code/releases). Download `opencode-<version>-<target>.tar.gz` for Linux or `.zip` for macOS and Windows, verify it against `SHA256SUMS.txt`, and put `theiacode` on your `PATH` (the `opencode` command remains available as a compatible alias).
 
-Configuration lives in `~/.config/theiacode`; on first start, an existing `~/.config/opencode` configuration is copied there.
+Configuration lives in `~/.config/opencode`; on first start, a legacy `~/.config/theiacode` configuration is merged into it once.
 
 A curl-installed build (`~/.opencode/bin/opencode`) checks this fork's GitHub releases on `theiacode upgrade`. The default update policy only notifies; set `"update": "auto"` in the global configuration to install automatically. Package-manager installs keep using the upstream update service.
 
@@ -144,6 +145,7 @@ Fork tags use the upstream semver core plus `-theia.N`; `N` restarts at 1 for ea
 - [docs/vcs-dock.md](docs/vcs-dock.md) — built-in version control view
 - [docs/task-graph.md](docs/task-graph.md) — task graph and `/divide`
 - [docs/file-manager.md](docs/file-manager.md) — file browser and preview
+- [docs/project-dashboard.md](docs/project-dashboard.md) — top-level Chat/Dashboard tabs and the all-project usage dashboard
 - [docs/model-router.md](docs/model-router.md) — default model routing plugin, opt-out, and license notes
 - [AGENTS.md](AGENTS.md) — implementation and style rules
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contribution workflow

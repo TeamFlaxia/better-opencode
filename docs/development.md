@@ -177,7 +177,7 @@ TUI の日本語訳は `packages/tui/src/i18n/index.tsx` の `ja` 辞書にあ�
 - キーは英語の原文そのもの。`t("Settings")` のように呼び出す。
 - 未訳の文字列は英語のまま表示されるため、翻訳を少しずつ追加できる。
 - `{{name}}` などのプレースホルダーは `t("...", { name })` で渡す。
-- 既定の表示言語は日本語。`~/.config/theiacode/cli.json` の `language` を `"en"` にすると英語へ切り替わる。
+- 既定の表示言語は日本語。`~/.config/opencode/cli.json` の `language` を `"en"` にすると英語へ切り替わる。
 - 設定画面では **設定 → 言語**（英語表示では Settings → Language）からも切り替えられる。
 - `DialogHeader` / `DialogSelect` はタイトル・説明・カテゴリを自動で翻訳するので、個別のダイアログに毎回 `t` を足す必要はない。
 
@@ -193,7 +193,7 @@ bun test --timeout 30000 test/cli/tui/dialog-select.test.tsx test/config.test.ts
 
 このプロジェクトは **`theia-code`**（表示名 **Theia Code**）です。ドキュメントとリポジトリメタデータはこの名前に合わせます。
 
-コマンド名は `theiacode`、設定ディレクトリは `~/.config/theiacode` に実装済み。`opencode` コマンドは互換エイリアスとして残り、既存の `~/.config/opencode` は初回起動時に `~/.config/theiacode` へコピーされる。
+コマンド名は `theiacode`、設定ディレクトリは上流と同じ `~/.config/opencode`。旧 `~/.config/theiacode` の設定は初回起動時に `~/.config/opencode` へ一度だけマージされる。`opencode` コマンドは互換エイリアスとして残る。
 
 意図的に変更しないもの:
 

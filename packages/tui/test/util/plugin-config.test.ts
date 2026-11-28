@@ -38,7 +38,7 @@ describe("plugin config", () => {
 
   test("enables and disables a package in the global server config", async () => {
     const dir = await home()
-    const file = path.join(dir, ".config", "theiacode", "opencode.jsonc")
+    const file = path.join(dir, ".config", "opencode", "opencode.jsonc")
     await Bun.write(
       file,
       `{

@@ -9,7 +9,7 @@ Theia Code は [opencode-model-router](https://github.com/marco-jardim/opencode-
 - `@latest` は既存のプラグイン更新機構の対象です。24 時間ごとに新しい版を確認し、あれば自動でインストールして再読み込みします。
 - プラグインが提供する TUI のステータス行も、サーバー側のプラグイン一覧から自動で読み込まれます。
 
-ルーティング先のモデルや予算モードはプラグイン側の設定です。まず `/preset` で利用中のプロバイダーに合わせ、`/budget` で方針を選んでください。詳細はプラグインの README と `~/.config/theiacode/opencode-model-router.overrides.jsonc` を参照してください。
+ルーティング先のモデルや予算モードはプラグイン側の設定です。まず `/preset` で利用中のプロバイダーに合わせ、`/budget` で方針を選んでください。詳細はプラグインの README と `~/.config/opencode/opencode-model-router.overrides.jsonc` を参照してください。
 
 ## 無効化・バージョン固定
 

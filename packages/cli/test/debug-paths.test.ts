@@ -35,7 +35,7 @@ describe("debug paths command", () => {
       expect(paths).toMatchObject({
         home: os.homedir(),
         data: path.join(root, "data", "opencode"),
-        config: path.join(root, "config", "theiacode"),
+        config: path.join(root, "config", "opencode"),
         cache: path.join(root, "cache", "opencode"),
         state: path.join(root, "state", "opencode"),
         bin: path.join(root, "cache", "opencode", "bin"),

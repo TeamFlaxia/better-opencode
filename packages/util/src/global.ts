@@ -10,11 +10,11 @@ import { Flock } from "./flock.js"
 import { makeGlobalNode } from "./effect/app-node.js"
 
 const app = "opencode"
-// The config directory is rebranded to `theiacode`; every other root keeps the
-// upstream `opencode` name so existing data, cache, state, logs and binaries
-// keep working.
-const { data, cache, config, state, tmp } = roots(app, "theiacode")
-const legacyConfig = path.join(path.dirname(config), app)
+// Every root, including config, keeps the upstream `opencode` name so existing
+// data, cache, state, logs and binaries keep working. The fork's former
+// `theiacode` config directory is migrated into it once below.
+const { data, cache, config, state, tmp } = roots(app)
+const legacyConfig = path.join(path.dirname(config), "theiacode")
 
 const paths = {
   get home() {
@@ -79,30 +79,50 @@ const acquire = (input: Partial<Interface>) =>
   })
 
 /**
- * Seeds the rebranded config directory from the legacy `opencode` one once.
- * Best effort: never overwrites existing files, never deletes the legacy
- * directory, and never fails startup when the legacy directory is unreadable.
- * The marker keeps later starts from restoring entries the user removed.
+ * Seeds the canonical `opencode` config directory from the fork's former
+ * `theiacode` one once. Best effort: copy an entry only when the destination is
+ * missing or the source file is newer, never overwrite a newer destination,
+ * never delete the legacy directory, and never fail startup when it is
+ * unreadable. The marker keeps later starts from restoring entries the user
+ * removed; skip both marker names so a stale marker is never copied along.
  */
-const migrationMarker = path.join(Path.config, ".migrated-from-opencode")
+const migrationMarker = path.join(Path.config, ".migrated-from-theiacode")
+const migrationMarkers = new Set([".migrated-from-theiacode", ".migrated-from-opencode"])
+
+async function copyNewer(source: string, destination: string) {
+  const [sourceStat, destinationStat] = await Promise.all([
+    fs.promises.stat(source),
+    fs.promises.stat(destination).catch(() => undefined),
+  ])
+  if (!destinationStat) {
+    await fs.promises.cp(source, destination, { recursive: true, force: true, errorOnExist: false })
+    return
+  }
+  if (sourceStat.isDirectory() && destinationStat.isDirectory()) {
+    const entries = await fs.promises.readdir(source)
+    await Promise.all(
+      entries
+        .filter((entry) => !migrationMarkers.has(entry))
+        .map((entry) => copyNewer(path.join(source, entry), path.join(destination, entry))),
+    )
+    return
+  }
+  if (sourceStat.isFile() && destinationStat.isFile() && sourceStat.mtimeMs > destinationStat.mtimeMs) {
+    await fs.promises.cp(source, destination, { force: true })
+  }
+}
 
 const migrateConfig = Effect.promise(async () => {
   if (await Bun.file(migrationMarker).exists()) return
   const entries = await fs.promises.readdir(legacyConfig).catch(() => undefined)
+  // No legacy directory (or an empty one): do nothing and write no marker, so a
+  // legacy directory created later can still be migrated on a later start.
   if (!entries?.length) return
-  // The config directory can already hold service or CLI state written during
-  // startup, so copy only the entries that are still missing.
   await fs.promises.mkdir(Path.config, { recursive: true })
   await Promise.all(
-    entries.map((entry) =>
-      fs.promises
-        .cp(path.join(legacyConfig, entry), path.join(Path.config, entry), {
-          recursive: true,
-          force: false,
-          errorOnExist: false,
-        })
-        .catch(() => undefined),
-    ),
+    entries
+      .filter((entry) => !migrationMarkers.has(entry))
+      .map((entry) => copyNewer(path.join(legacyConfig, entry), path.join(Path.config, entry)).catch(() => undefined)),
   )
   await Bun.write(migrationMarker, "")
 })

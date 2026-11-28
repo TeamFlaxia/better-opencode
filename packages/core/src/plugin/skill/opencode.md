@@ -19,7 +19,7 @@ say so instead of falling back to V1.
 
 Terminal and TUI preferences (`run`, `mini`, themes, input, sessions, tabs,
 diffs, alerts, keybindings, terminal plugins, debugging) live in global
-`~/.config/theiacode/cli.json` (or `$XDG_CONFIG_HOME/theiacode/cli.json`).
+`~/.config/opencode/cli.json` (or `$XDG_CONFIG_HOME/opencode/cli.json`).
 There is no project-local CLI config. `OPENCODE_CLI_CONFIG_CONTENT` merges
 inline JSON over it. Most settings are also under `Ctrl+P` → **Open settings**.
 
@@ -41,7 +41,7 @@ Server and project configuration uses JSON or JSONC with the published schema:
 }
 ```
 
-Global config lives at `~/.config/theiacode/opencode.json(c)`. Project config
+Global config lives at `~/.config/opencode/opencode.json(c)`. Project config
 lives in any directory as `opencode.json(c)` or `.opencode/opencode.json(c)`.
 Discovery walks from the filesystem root down to the current Location directory,
 merging direct `opencode.json(c)` files first, then `.opencode/opencode.json(c)`

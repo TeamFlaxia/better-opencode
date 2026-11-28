@@ -27,10 +27,10 @@ export function pluginName(spec: string) {
   return at > 0 ? value.slice(0, at) : value
 }
 
-// The server reads plugins from the global config. Keep this list in sync with
-// `resolveConfigPath` in the plugin add handler.
+// The server reads plugins from the canonical global config. Keep this list in
+// sync with `resolveConfigPath` in the plugin add handler.
 async function resolveConfigFile(home: string) {
-  const dir = path.join(home, ".config", "theiacode")
+  const dir = path.join(home, ".config", "opencode")
   const candidates = [
     path.join(dir, "opencode.json"),
     path.join(dir, "opencode.jsonc"),

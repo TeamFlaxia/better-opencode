@@ -339,6 +339,7 @@ export function resolve(
       "file-manager": true,
       "client-mcp": true,
       "new-designs": true,
+      "project-dashboard": true,
       ...input.experimental,
     },
     language: input.language ?? "ja",

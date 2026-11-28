@@ -55,6 +55,8 @@ export const Definitions = {
   "app.toggle.diffwrap": keybind("none", "Toggle diff wrapping"),
   "app.toggle.paste_summary": keybind("none", "Toggle paste summary"),
   "command.palette.show": keybind("ctrl+p", "List available commands"),
+  "view.chat": keybind("alt+1", "Switch to the Chat tab"),
+  "view.dashboard": keybind("alt+2", "Switch to the Project dashboard tab"),
   "help.show": keybind("none", "Open help dialog"),
   "docs.open": keybind("none", "Open documentation"),
   "opencode.settings": keybind("none", "Open settings"),

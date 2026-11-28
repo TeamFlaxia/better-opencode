@@ -27,7 +27,7 @@ describe("global", () => {
     })
 
     expect(result.exitCode, result.stderr.toString()).toBe(0)
-    const created = ["opencode", "opencode", "theiacode", "opencode", "opencode"]
+    const created = ["opencode", "opencode", "opencode", "opencode", "opencode"]
     directories.forEach((directory, index) =>
       expect(fs.existsSync(path.join(directory, created[index]))).toBe(false),
     )
@@ -65,7 +65,7 @@ describe("global", () => {
     const created = [
       path.join(root, "data", "opencode"),
       path.join(root, "cache", "opencode", "bin"),
-      path.join(root, "config", "theiacode"),
+      path.join(root, "config", "opencode"),
       path.join(root, "state", "opencode"),
       path.join(root, "data", "opencode", "log"),
       path.join(root, "data", "opencode", "repos"),
@@ -77,46 +77,64 @@ describe("global", () => {
 })
 
 describe("global config migration", () => {
-  test("seeds a missing theiacode directory from the legacy opencode directory", () => {
+  test("seeds a missing opencode directory from the legacy theiacode directory", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-migrate-"))
-    const legacy = path.join(root, "config", "opencode")
+    const legacy = path.join(root, "config", "theiacode")
     fs.mkdirSync(path.join(legacy, "project"), { recursive: true })
     fs.writeFileSync(path.join(legacy, "opencode.json"), '{"legacy":true}')
     fs.writeFileSync(path.join(legacy, "project", "project.json"), '{"legacy":true}')
+    fs.writeFileSync(path.join(legacy, ".migrated-from-opencode"), "")
 
     const result = acquire(root)
 
     expect(result.exitCode, result.stderr.toString()).toBe(0)
-    const migrated = path.join(root, "config", "theiacode")
+    const migrated = path.join(root, "config", "opencode")
     expect(fs.readFileSync(path.join(migrated, "opencode.json"), "utf8")).toBe('{"legacy":true}')
     expect(fs.readFileSync(path.join(migrated, "project", "project.json"), "utf8")).toBe('{"legacy":true}')
     // The legacy directory stays in place after the copy.
     expect(fs.readFileSync(path.join(legacy, "opencode.json"), "utf8")).toBe('{"legacy":true}')
+    // Markers are never copied; only the new marker is written at the destination.
+    expect(fs.existsSync(path.join(migrated, ".migrated-from-opencode"))).toBe(false)
+    expect(fs.existsSync(path.join(migrated, ".migrated-from-theiacode"))).toBe(true)
     fs.rmSync(root, { recursive: true, force: true })
   })
 
-  test("fills missing entries into an existing theiacode directory without overwriting", () => {
+  test("fills missing entries, copies newer source files, and keeps newer destinations", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-migrate-"))
-    const legacy = path.join(root, "config", "opencode")
-    const current = path.join(root, "config", "theiacode")
-    fs.mkdirSync(legacy, { recursive: true })
-    fs.mkdirSync(current, { recursive: true })
-    fs.writeFileSync(path.join(legacy, "opencode.json"), '{"source":"legacy"}')
+    const legacy = path.join(root, "config", "theiacode")
+    const current = path.join(root, "config", "opencode")
+    fs.mkdirSync(path.join(legacy, "project"), { recursive: true })
+    fs.mkdirSync(path.join(current, "project"), { recursive: true })
+    // Missing destination: copied verbatim, including nested directories.
     fs.writeFileSync(path.join(legacy, "only-legacy.json"), "{}")
+    fs.writeFileSync(path.join(legacy, "project", "project.json"), '{"source":"legacy"}')
+    fs.writeFileSync(path.join(current, "project", "current.json"), '{"source":"current"}')
+    // Existing destination with a newer mtime: left untouched.
+    fs.writeFileSync(path.join(legacy, "opencode.json"), '{"source":"legacy"}')
     fs.writeFileSync(path.join(current, "opencode.json"), '{"source":"current"}')
+    const future = new Date(Date.now() + 60_000)
+    fs.utimesSync(path.join(current, "opencode.json"), future, future)
+    // Existing destination with an older mtime: replaced by the newer source.
+    fs.writeFileSync(path.join(legacy, "newer.json"), '{"source":"legacy"}')
+    fs.writeFileSync(path.join(current, "newer.json"), '{"source":"current"}')
+    const past = new Date(Date.now() - 60_000)
+    fs.utimesSync(path.join(current, "newer.json"), past, past)
 
     const result = acquire(root)
 
     expect(result.exitCode, result.stderr.toString()).toBe(0)
-    expect(fs.readFileSync(path.join(current, "opencode.json"), "utf8")).toBe('{"source":"current"}')
     expect(fs.readFileSync(path.join(current, "only-legacy.json"), "utf8")).toBe("{}")
+    expect(fs.readFileSync(path.join(current, "project", "project.json"), "utf8")).toBe('{"source":"legacy"}')
+    expect(fs.readFileSync(path.join(current, "project", "current.json"), "utf8")).toBe('{"source":"current"}')
+    expect(fs.readFileSync(path.join(current, "opencode.json"), "utf8")).toBe('{"source":"current"}')
+    expect(fs.readFileSync(path.join(current, "newer.json"), "utf8")).toBe('{"source":"legacy"}')
     fs.rmSync(root, { recursive: true, force: true })
   })
 
   test("migrates only once", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-migrate-"))
-    const legacy = path.join(root, "config", "opencode")
-    const current = path.join(root, "config", "theiacode")
+    const legacy = path.join(root, "config", "theiacode")
+    const current = path.join(root, "config", "opencode")
     fs.mkdirSync(legacy, { recursive: true })
     fs.writeFileSync(path.join(legacy, "opencode.json"), "{}")
 
@@ -128,19 +146,22 @@ describe("global config migration", () => {
     fs.rmSync(root, { recursive: true, force: true })
   })
 
-  test("starts normally without a legacy opencode directory", () => {
+  test("starts normally without a legacy theiacode directory", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-migrate-"))
 
     const result = acquire(root)
 
     expect(result.exitCode, result.stderr.toString()).toBe(0)
-    expect(fs.statSync(path.join(root, "config", "theiacode")).isDirectory()).toBe(true)
+    expect(fs.statSync(path.join(root, "config", "opencode")).isDirectory()).toBe(true)
+    // No legacy source means no marker is left behind, so a legacy directory
+    // created later is still eligible for migration.
+    expect(fs.existsSync(path.join(root, "config", "opencode", ".migrated-from-theiacode"))).toBe(false)
     fs.rmSync(root, { recursive: true, force: true })
   })
 
   test("skips migration when OPENCODE_CONFIG_DIR is set", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-migrate-"))
-    const legacy = path.join(root, "config", "opencode")
+    const legacy = path.join(root, "config", "theiacode")
     const explicit = path.join(root, "explicit")
     fs.mkdirSync(legacy, { recursive: true })
     fs.writeFileSync(path.join(legacy, "opencode.json"), "{}")
@@ -150,19 +171,21 @@ describe("global config migration", () => {
     expect(result.exitCode, result.stderr.toString()).toBe(0)
     expect(fs.statSync(explicit).isDirectory()).toBe(true)
     expect(fs.existsSync(path.join(explicit, "opencode.json"))).toBe(false)
-    expect(fs.existsSync(path.join(root, "config", "theiacode"))).toBe(false)
+    expect(fs.existsSync(path.join(root, "config", "theiacode", ".migrated-from-theiacode"))).toBe(false)
+    expect(fs.existsSync(path.join(root, "config", "opencode"))).toBe(false)
     fs.rmSync(root, { recursive: true, force: true })
   })
+
   test("seeds through layerWith, which the CLI runtime uses", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-migrate-"))
-    const legacy = path.join(root, "config", "opencode")
+    const legacy = path.join(root, "config", "theiacode")
     fs.mkdirSync(legacy, { recursive: true })
     fs.writeFileSync(path.join(legacy, "opencode.json"), '{"legacy":true}')
 
     const result = acquire(root, {}, "Global.layerWith({})")
 
     expect(result.exitCode, result.stderr.toString()).toBe(0)
-    expect(fs.readFileSync(path.join(root, "config", "theiacode", "opencode.json"), "utf8")).toBe('{"legacy":true}')
+    expect(fs.readFileSync(path.join(root, "config", "opencode", "opencode.json"), "utf8")).toBe('{"legacy":true}')
     fs.rmSync(root, { recursive: true, force: true })
   })
 })

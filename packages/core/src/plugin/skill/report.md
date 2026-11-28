@@ -52,7 +52,7 @@ Collect these values when possible:
 - Install/channel context: include whether this appears to be local, dev, beta,
   or release if the version output or environment reveals it.
 - Active plugins: the snapshot lists plugins from opencode config only. Also
-  check `plugins` in `~/.config/theiacode/cli.json` for terminal plugins, and
+  check `plugins` in `~/.config/opencode/cli.json` for terminal plugins, and
   local plugin files under `.opencode/plugin/` or `.opencode/plugins/`. Record
   plugin names and versions, and note if plugin status could not be determined.
 
