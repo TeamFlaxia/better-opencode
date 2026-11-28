@@ -16,17 +16,29 @@ dashboard lives in
 
 ## Dashboard
 
-The dashboard reports usage across **all projects**, not just the current
-location. The default range is the last **30 days**; select 7d, 30d, 90d, or
-All with the range selector or `1`–`4`.
+By default the dashboard reports usage across **all projects**. A project
+selector in the header narrows it to one project. The default range is the last
+**30 days**; select 7d, 30d, 90d, or All with the range selector or `1`–`4`.
 
-| Card            | Contents                                                           |
-| --------------- | ------------------------------------------------------------------ |
-| Overview        | Tokens, cost, sessions, prompts, and steps for the selected range.  |
-| Activity        | Calendar of daily activity.                                        |
-| Metrics         | Subagents, prompts, steps, active days, streak, and tool calls.    |
-| Top models      | Most-used models.                                                  |
-| Recent sessions | Latest sessions; open one to return to chat in that session.       |
+### Project selector
+
+The header offers **All projects** (the default) followed by every known
+project. Selecting a project scopes both the statistics and the recent-session
+list to that project; selecting **All projects** restores the cross-project
+view. The list of projects comes from `project.list`.
+
+Long model names are rendered readably instead of being cut mid-name: the
+provider is shown in a muted style followed by the model id/variant on a
+separate line, or middle-truncated on narrow terminals.
+
+| Card            | Contents                                                                         |
+| --------------- | -------------------------------------------------------------------------------- |
+| Overview        | Tokens, cost, sessions, prompts, and steps for the selected range.                |
+| Activity        | Calendar of daily activity.                                                      |
+| Metrics         | Subagents, prompts, steps, active days, streak, and tool calls.                  |
+| Top models      | Most-used models, with readable provider / model names.                          |
+| Token usage     | One horizontal bar per model, sized by its share of total tokens, in theme categorical tokens (new). |
+| Recent sessions | Latest sessions; open one to return to chat in that session.                     |
 
 | Key       | Action                                                               |
 | --------- | -------------------------------------------------------------------- |
@@ -46,9 +58,12 @@ launcher and the opening commands are unavailable.
 
 ## Data sources
 
-- `experimental.session.stats` with `tools: "summary"` and no `project`
-  argument, so the totals cover all projects.
-- `session.list` without `directory`, for recent sessions across projects.
+- `project.list` supplies the project selector.
+- `experimental.session.stats` with `tools: "summary"` and an optional
+  `project` filter: omitted for **All projects** so totals cover everything,
+  set to the selected project otherwise. This needs no protocol change.
+- `session.list` for recent sessions, unfiltered for **All projects** and
+  scoped to the selected project's directory otherwise.
 
 ## Storybook
 
@@ -60,4 +75,5 @@ OPENCODE_STORY=project-dashboard bun run dev:live
 
 Story keys: `1`–`4` range, `l` loading, `e` empty, `x` error, `w` narrow/wide
 layout, `↑`/`↓` and `Enter` recent sessions, `r` refresh, `Shift+r` reset, and
-`esc` closes the dock.
+`esc` closes the dock. Use the header project selector to exercise the
+all-project and per-project scopes.

@@ -1,4 +1,5 @@
 import type { SessionInfo, SessionStatsInfo } from "@opencode/client"
+import type { Project } from "@opencode/schema/project"
 import { TokenUsage } from "@opencode/schema/token-usage"
 import type { ResolvedTheme } from "@opencode/theme/tui"
 import { TextAttributes } from "@opentui/core"
@@ -10,6 +11,7 @@ import { useTheme } from "../context/theme"
 import {
   dashboardCalendar,
   dashboardModelRows,
+  dashboardProjects,
   dashboardRanges,
   dashboardTotals,
   defaultDashboardRange,
@@ -21,6 +23,7 @@ import {
   type DashboardRange,
 } from "../feature-plugins/system/dashboard-data"
 import { tint } from "../theme/color"
+import { Locale } from "../util/locale"
 
 const digits: Record<string, string[]> = {
   "0": ["111", "101", "101", "101", "111"],
@@ -145,6 +148,66 @@ function formatUpdated(timestamp: number) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(timestamp)
 }
 
+type ModelRow = ReturnType<typeof dashboardModelRows>[number]
+
+/** Horizontal bar chart of token share, kept compact enough for narrow panes. */
+function TokenUsageChart(props: {
+  models: readonly ModelRow[]
+  total: number
+  width: number
+  theme: ResolvedTheme
+}) {
+  const barWidth = () => {
+    const reserved = 16 + 10 + 6 + 4
+    return Math.max(4, Math.min(24, props.width - 8 - reserved))
+  }
+  const shades = createMemo(() =>
+    props.theme.categorical.map((scale) => tint(props.theme.background.base, scale[200], 0.9)),
+  )
+  const rows = createMemo(() =>
+    props.models.slice(0, 5).map((model, index) => {
+      const share = props.total > 0 ? model.tokens / props.total : 0
+      const filled = Math.min(barWidth(), Math.max(0, Math.round(share * barWidth())))
+      return {
+        model,
+        filled,
+        color: shades()[index % shades().length],
+      }
+    }),
+  )
+
+  return (
+    <box flexDirection="column" gap={1}>
+      <Show
+        when={rows().length > 0 && props.total > 0}
+        fallback={<text fg={props.theme.text.muted}>No token usage in this range.</text>}
+      >
+        <For each={rows()}>
+          {(row) => (
+            <box flexDirection="row" gap={1}>
+              <text fg={props.theme.text.muted} wrapMode="none" truncate flexGrow={1} minWidth={0}>
+                {row.model.modelID}
+              </text>
+              <text fg={row.color} wrapMode="none" selectable={false}>
+                {"█".repeat(row.filled) + "░".repeat(barWidth() - row.filled)}
+              </text>
+              <text fg={props.theme.text.base} wrapMode="none">
+                {row.model.tokensLabel.padStart(8)}
+              </text>
+              <text fg={props.theme.text.action.primary.base} wrapMode="none">
+                {formatPercent(row.model.tokens, props.total).padStart(4)}
+              </text>
+            </box>
+          )}
+        </For>
+        <text fg={props.theme.text.faint}>
+          {`0 ${"─".repeat(Math.max(1, barWidth()))} 100% · ${formatTokens(props.total)} tokens`}
+        </text>
+      </Show>
+    </box>
+  )
+}
+
 export type ProjectDashboardViewProps = {
   theme: ResolvedTheme
   stats?: SessionStatsInfo
@@ -153,9 +216,13 @@ export type ProjectDashboardViewProps = {
   width: number
   loading: boolean
   error?: unknown
+  projects?: readonly Project.Info[]
+  project?: Project.ID
+  showChart?: boolean
   onRangeChange: (range: DashboardRange) => void
   onRefresh: () => void
   onOpenSession: (sessionID: string) => void
+  onProjectChange?: (project: Project.ID | undefined) => void
   onClose?: () => void
 }
 
@@ -165,6 +232,22 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   const wide = () => props.width >= 100
   const totals = createMemo(() => (props.stats ? dashboardTotals(props.stats) : undefined))
   const models = createMemo(() => (props.stats ? dashboardModelRows(props.stats).slice(0, 5) : []))
+  const projectOptions = createMemo<readonly (Project.Info | undefined)[]>(() => [
+    undefined,
+    ...(props.projects ?? []),
+  ])
+  const projectName = (value?: Project.Info) => (value ? (value.name ?? path.basename(value.canonical)) : "All projects")
+  const activeProjectIndex = createMemo(() => {
+    const index = projectOptions().findIndex((option) => option?.id === props.project)
+    return index < 0 ? 0 : index
+  })
+  const selectedProjectName = createMemo(() => projectName(projectOptions()[activeProjectIndex()]))
+  const cycleProject = (delta: number) => {
+    const options = projectOptions()
+    if (options.length <= 1) return
+    const next = options[(activeProjectIndex() + delta + options.length) % options.length]
+    props.onProjectChange?.(next?.id)
+  }
   const metrics = createMemo(() => {
     const value = totals()
     if (!value) return []
@@ -207,6 +290,16 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       props.onRangeChange(dashboardRanges[rangeIndex])
       return
     }
+    if (event.name === "[" || event.sequence === "[") {
+      handled()
+      cycleProject(-1)
+      return
+    }
+    if (event.name === "]" || event.sequence === "]") {
+      handled()
+      cycleProject(1)
+      return
+    }
     if (event.name === "r") {
       handled()
       props.onRefresh()
@@ -231,9 +324,39 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
 
   const header = () => (
     <box flexDirection="row" alignItems="center" gap={2} flexWrap="wrap">
-      <text fg={props.theme.text.base} attributes={TextAttributes.BOLD}>
-        All projects
-      </text>
+      <Show
+        when={wide() && projectOptions().length > 1}
+        fallback={
+          <box backgroundColor={props.theme.background.action.primary.selected} onMouseUp={() => cycleProject(1)}>
+            <text fg={props.theme.text.action.primary.selected} wrapMode="none">
+              {` ${selectedProjectName()} [ ] `}
+            </text>
+          </box>
+        }
+      >
+        <box flexDirection="row" gap={1} flexWrap="wrap">
+          <For each={projectOptions()}>
+            {(option, index) => {
+              const active = () => index() === activeProjectIndex()
+              return (
+                <box
+                  backgroundColor={
+                    active() ? props.theme.background.action.primary.selected : props.theme.background.raised.base
+                  }
+                  onMouseUp={() => props.onProjectChange?.(option?.id)}
+                >
+                  <text
+                    fg={active() ? props.theme.text.action.primary.selected : props.theme.text.muted}
+                    wrapMode="none"
+                  >
+                    {` ${projectName(option)} `}
+                  </text>
+                </box>
+              )
+            }}
+          </For>
+        </box>
+      </Show>
       <box flexGrow={1} />
       <For each={dashboardRanges}>
         {(range) => (
@@ -251,10 +374,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           </box>
         )}
       </For>
-      <text
-        fg={props.theme.text.action.secondary.base}
-        onMouseUp={props.onRefresh}
-      >
+      <text fg={props.theme.text.action.secondary.base} onMouseUp={props.onRefresh}>
         {props.loading ? " refreshing…" : " r refresh "}
       </text>
     </box>
@@ -328,20 +448,52 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                     when={models().length > 0}
                     fallback={<text fg={props.theme.text.muted}>No model usage in this range.</text>}
                   >
-                    <For each={models()}>
-                      {(model) => (
-                        <text fg={props.theme.text.muted} wrapMode="none">
-                          {model.label.padEnd(wide() ? 30 : 22).slice(0, wide() ? 30 : 22)}
-                          <span style={{ fg: props.theme.text.base }}>{model.tokensLabel.padStart(8)}</span>
-                          <span style={{ fg: props.theme.text.base }}>{model.costLabel.padStart(10)}</span>
-                          <span style={{ fg: props.theme.text.action.primary.base }}>
-                            {formatPercent(model.tokens, totals()!.tokens).padStart(5)}
-                          </span>
-                        </text>
-                      )}
-                    </For>
+                    <box flexDirection="column" gap={1}>
+                      <For each={models()}>
+                        {(model) => (
+                          <box flexDirection="column">
+                            <Show when={wide()}>
+                              <text fg={props.theme.text.muted} wrapMode="none">
+                                {model.providerID}
+                              </text>
+                            </Show>
+                            <box flexDirection="row" gap={1} alignItems="flex-start">
+                              <text fg={props.theme.text.base} wrapMode="none" truncate flexGrow={1} minWidth={0}>
+                                {wide()
+                                  ? model.variant
+                                    ? `${model.modelID} (${model.variant})`
+                                    : model.modelID
+                                  : Locale.truncateMiddle(
+                                      `${model.providerID}/${model.modelID}${model.variant ? ` (${model.variant})` : ""}`,
+                                      Math.max(14, Math.floor(props.width * 0.3)),
+                                    )}
+                              </text>
+                              <text fg={props.theme.text.base} wrapMode="none">
+                                {model.tokensLabel.padStart(8)}
+                              </text>
+                              <text fg={props.theme.text.base} wrapMode="none">
+                                {model.costLabel.padStart(10)}
+                              </text>
+                              <text fg={props.theme.text.action.primary.base} wrapMode="none">
+                                {formatPercent(model.tokens, totals()!.tokens).padStart(5)}
+                              </text>
+                            </box>
+                          </box>
+                        )}
+                      </For>
+                    </box>
                   </Show>
                 </Card>
+                <Show when={props.showChart !== false}>
+                  <Card title="Token usage" theme={props.theme}>
+                    <TokenUsageChart
+                      models={models()}
+                      total={totals()!.tokens}
+                      width={wide() ? Math.floor(props.width / 2) : props.width}
+                      theme={props.theme}
+                    />
+                  </Card>
+                </Show>
                 <Card title="Recent sessions" theme={props.theme}>
                   <Show
                     when={props.sessions.length > 0}
@@ -396,20 +548,22 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   )
 }
 
-/** Container: loads all-project stats and recent sessions for the selected range. */
+/** Container: loads projects, stats and recent sessions for the selected range and project. */
 export function ProjectDashboard(props: { onOpenSession?: (sessionID: string) => void; onClose?: () => void }) {
   const client = useClient()
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   const [range, setRange] = createSignal<DashboardRange>(defaultDashboardRange)
+  const [project, setProject] = createSignal<Project.ID | undefined>(undefined)
   const [refresh, setRefresh] = createSignal(0)
+  const [projects] = createResource(() => dashboardProjects(client.api))
   const [stats, { refetch: refetchStats }] = createResource(
-    () => ({ range: range(), refresh: refresh() }),
-    ({ range }) => loadDashboardStats(client.api, { range }),
+    () => ({ range: range(), project: project(), refresh: refresh() }),
+    ({ range, project }) => loadDashboardStats(client.api, { range, project }),
   )
   const [sessions, { refetch: refetchSessions }] = createResource(
-    () => refresh(),
-    () => loadRecentSessions(client.api, 8),
+    () => ({ project: project(), refresh: refresh() }),
+    ({ project }) => loadRecentSessions(client.api, 8, project),
   )
   const refreshAll = () => {
     setRefresh((value) => value + 1)
@@ -424,8 +578,11 @@ export function ProjectDashboard(props: { onOpenSession?: (sessionID: string) =>
       sessions={sessions() ?? []}
       range={range()}
       width={dimensions().width}
-      loading={stats.loading || sessions.loading}
+      loading={stats.loading || sessions.loading || projects.loading}
       error={stats.error ?? sessions.error}
+      projects={projects() ?? []}
+      project={project()}
+      onProjectChange={setProject}
       onRangeChange={setRange}
       onRefresh={refreshAll}
       onOpenSession={(sessionID) => props.onOpenSession?.(sessionID)}

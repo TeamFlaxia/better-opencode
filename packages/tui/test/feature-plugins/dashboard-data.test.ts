@@ -1,9 +1,12 @@
 import type { OpenCodeClient, SessionListInput, SessionStatsInfo } from "@opencode/client"
+import type { Project } from "@opencode/schema/project"
 import { expect, test } from "bun:test"
 import {
   dashboardActivity,
   dashboardCalendar,
+  dashboardChartRows,
   dashboardModelRows,
+  dashboardProjects,
   dashboardRangeWindow,
   dashboardRanges,
   dashboardToolRows,
@@ -41,6 +44,20 @@ function fixture(overrides: Partial<SessionStatsInfo> = {}): SessionStatsInfo {
       { model: { id: "gpt", providerID: "openai" }, steps: 8, tokens: tokens(20, 10, 10, 10, 5), cost: 0.25 },
     ],
     ...overrides,
+  }
+}
+
+function projectID(value: string): Project.ID {
+  return value as Project.ID
+}
+
+function projectFixture(id: string, name?: string): Project.Info {
+  return {
+    id: projectID(id),
+    canonical: `/projects/${id}` as Project.Info["canonical"],
+    ...(name !== undefined ? { name } : {}),
+    time: { created: 0, updated: 0, active: 0 },
+    sandboxes: [],
   }
 }
 
@@ -102,6 +119,15 @@ test("model rows sort by tokens by default and by cost on request", () => {
   })
   expect(dashboardModelRows(stats).map((row) => row.label)).toEqual(["p/a (fast)", "p/b"])
   expect(dashboardModelRows(stats, "cost").map((row) => row.label)).toEqual(["p/b", "p/a (fast)"])
+})
+
+test("chart rows reuse model rows and express each model's token share", () => {
+  expect(dashboardChartRows(fixture())).toEqual([
+    { label: "anthropic/sonnet", tokens: 130, share: 130 / 185 },
+    { label: "openai/gpt", tokens: 55, share: 55 / 185 },
+  ])
+  expect(dashboardChartRows(fixture({ models: [] }))).toEqual([])
+  expect(dashboardChartRows(fixture({ models: [], tokens: tokens(0, 0, 0, 0, 0) }))).toEqual([])
 })
 
 test("tool rows come from detail usage, sort by calls, and are empty without detail", () => {
@@ -183,6 +209,9 @@ test("stats loader requests the chosen range across all projects with summary to
   expect(request.timezone).toBe("UTC")
   expect(request.project).toBeUndefined()
   expect((request.to ?? 0) - (request.from ?? 0)).toBe(7 * DAY)
+
+  await loadDashboardStats(client, { range: "7d", project: "proj_123" })
+  expect(requests.at(1)?.project).toBe("proj_123")
 })
 
 test("recent sessions loader lists newest sessions without a project or directory filter", async () => {
@@ -198,4 +227,23 @@ test("recent sessions loader lists newest sessions without a project or director
 
   expect(await loadRecentSessions(client, 5)).toEqual([])
   expect(requests).toEqual([{ limit: 5, order: "desc" }])
+
+  expect(await loadRecentSessions(client, 5, "proj_123")).toEqual([])
+  expect(requests.at(1)).toEqual({ limit: 5, order: "desc", project: "proj_123" })
+})
+
+test("project loader returns the project list", async () => {
+  const projects = [projectFixture("proj_123", "Main"), projectFixture("proj_456")]
+  let calls = 0
+  const client = {
+    project: {
+      list: async () => {
+        calls += 1
+        return projects
+      },
+    },
+  } as unknown as OpenCodeClient
+
+  expect(await dashboardProjects(client)).toEqual(projects)
+  expect(calls).toBe(1)
 })

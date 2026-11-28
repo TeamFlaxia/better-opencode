@@ -1,6 +1,9 @@
 import type { Plugin } from "@opencode/plugin/tui"
 import type { SessionInfo, SessionStatsInfo } from "@opencode/client"
+import type { AbsolutePath } from "@opencode/schema"
+import type { Project } from "@opencode/schema/project"
 import { useTerminalDimensions } from "@opentui/solid"
+import path from "path"
 import { createSignal } from "solid-js"
 import { ProjectDashboardView } from "../../../component/dashboard"
 import { type DashboardRange } from "../dashboard-data"
@@ -90,6 +93,22 @@ const FIXTURE_SESSIONS: SessionInfo[] = [
   },
 ]
 
+function fixtureProject(id: string, canonical: string, name?: string): Project.Info {
+  return {
+    id: id as Project.ID,
+    canonical: canonical as AbsolutePath,
+    name,
+    time: { created: NOW - 90 * DAY, updated: NOW - DAY, active: NOW },
+    sandboxes: [],
+  }
+}
+
+const FIXTURE_PROJECTS: Project.Info[] = [
+  fixtureProject("theia-code", "/work/theia-code", "Theia Code"),
+  fixtureProject("opencode", "/work/opencode", "OpenCode"),
+  fixtureProject("unnamed-playground", "/work/unnamed-playground"),
+]
+
 type StoryMode = "normal" | "loading" | "empty" | "error"
 
 function ProjectDashboardStory(props: { context: Plugin.Context }) {
@@ -98,20 +117,50 @@ function ProjectDashboardStory(props: { context: Plugin.Context }) {
   const [range, setRange] = createSignal<DashboardRange>("30d")
   const [mode, setMode] = createSignal<StoryMode>("normal")
   const [wide, setWide] = createSignal(true)
+  const [project, setProject] = createSignal<Project.ID | undefined>(undefined)
+  const [chart, setChart] = createSignal(true)
   const [message, setMessage] = createSignal("fixture data · no network requests")
 
   const stats = () => (mode() === "empty" ? EMPTY_STATS : FIXTURE_STATS)
   const sessions = () => (mode() === "empty" ? [] : FIXTURE_SESSIONS)
+  const projectLabel = (id: Project.ID | undefined) => {
+    const found = FIXTURE_PROJECTS.find((item) => item.id === id)
+    return found ? (found.name ?? path.basename(found.canonical)) : "All projects"
+  }
 
   const reset = () => {
     setRange("30d")
     setMode("normal")
     setWide(true)
+    setProject(undefined)
+    setChart(true)
     setMessage("reset to the default 30-day view")
   }
 
   props.context.keymap.layer(() => ({
     commands: [
+      {
+        bind: "p",
+        title: "Cycle selected project",
+        group: "Storybook",
+        run() {
+          const options = [undefined, ...FIXTURE_PROJECTS]
+          const index = options.findIndex((item) => item?.id === project())
+          const next = options[(index + 1) % options.length]
+          setProject(next?.id)
+          setMessage(`project ${projectLabel(next?.id)}`)
+        },
+      },
+      {
+        bind: "c",
+        title: "Toggle token usage chart",
+        group: "Storybook",
+        run() {
+          const next = !chart()
+          setChart(next)
+          setMessage(`chart ${next ? "shown" : "hidden"}`)
+        },
+      },
       {
         bind: "l",
         title: "Toggle loading state",
@@ -175,21 +224,38 @@ function ProjectDashboardStory(props: { context: Plugin.Context }) {
         width={wide() ? 120 : 76}
         loading={mode() === "loading"}
         error={mode() === "error" ? "fixture: statistics unavailable" : undefined}
+        projects={FIXTURE_PROJECTS}
+        project={project()}
+        showChart={chart()}
         onRangeChange={(value) => {
           setRange(value)
           setMessage(`range ${value}`)
         }}
         onRefresh={() => setMessage("refreshed fixture data (no network)")}
         onOpenSession={(sessionID) => setMessage(`opened ${sessionID}`)}
+        onProjectChange={(value) => {
+          setProject(value)
+          setMessage(`project ${projectLabel(value)}`)
+        }}
         onClose={() => props.context.ui.router.navigate({ type: "plugin", name: "storybook" })}
       />
       <StoryFooter
         context={props.context}
         title="storybook / project dashboard"
-        details={[`range ${range()}`, mode(), wide() ? "wide" : "narrow", `width ${wide() ? 120 : 76}`]}
+        details={[
+          `range ${range()}`,
+          mode(),
+          `project ${projectLabel(project())}`,
+          `chart ${chart() ? "on" : "off"}`,
+          wide() ? "wide" : "narrow",
+          `width ${wide() ? 120 : 76}`,
+        ]}
         message={message()}
         controls={[
           { shortcut: "1-4", label: "range" },
+          { shortcut: "[ / ]", label: "project" },
+          { shortcut: "p", label: "cycle project" },
+          { shortcut: "c", label: "chart" },
           { shortcut: "l", label: "loading" },
           { shortcut: "e", label: "empty" },
           { shortcut: "x", label: "error" },

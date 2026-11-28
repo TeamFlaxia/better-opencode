@@ -1,5 +1,7 @@
-import type { OpenCodeClient, SessionStatsActivity, SessionStatsInfo } from "@opencode/client"
+import type { OpenCodeClient, ProjectID, SessionStatsActivity, SessionStatsInfo } from "@opencode/client"
+import { Project } from "@opencode/schema/project"
 import { TokenUsage } from "@opencode/schema/token-usage"
+import { Schema } from "effect"
 import { activityCalendar } from "@opencode/util/activity-calendar"
 import { statsNumber } from "./stats-data"
 
@@ -22,16 +24,29 @@ export function dashboardRangeWindow(range: DashboardRange = defaultDashboardRan
 
 export function loadDashboardStats(
   client: OpenCodeClient,
-  options: { range?: DashboardRange; timezone?: string } = {},
+  options: { range?: DashboardRange; timezone?: string; project?: ProjectID } = {},
 ) {
   const { from, to } = dashboardRangeWindow(options.range)
   const timezone = options.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
-  return client.experimental.session.stats({ from, to, timezone, tools: "summary" })
+  return client.experimental.session.stats({
+    from,
+    to,
+    timezone,
+    tools: "summary",
+    ...(options.project !== undefined ? { project: options.project } : {}),
+  })
 }
 
-export function loadRecentSessions(client: OpenCodeClient, limit: number) {
+export function loadRecentSessions(client: OpenCodeClient, limit: number, project?: ProjectID) {
   // Omitting both directory and project lists sessions across every project.
-  return client.session.list({ limit, order: "desc" }).then((response) => response.data)
+  return client.session
+    .list({ limit, order: "desc", ...(project !== undefined ? { project } : {}) })
+    .then((response) => response.data)
+}
+
+export function dashboardProjects(client: OpenCodeClient): Promise<Project.Info[]> {
+  // The generated client models IDs as plain strings; the schema brands them at this boundary.
+  return client.project.list().then((projects) => projects.map((project) => Schema.decodeSync(Project.Info)(project)))
 }
 
 export function formatTokens(value: number) {
@@ -84,6 +99,16 @@ export function dashboardModelRows(stats: SessionStatsInfo, sort: "tokens" | "co
       }
     })
     .sort((left, right) => right[sort] - left[sort])
+}
+
+export function dashboardChartRows(stats: SessionStatsInfo) {
+  const rows = dashboardModelRows(stats)
+  const total = rows.reduce((sum, row) => sum + row.tokens, 0)
+  return rows.map((row) => ({
+    label: row.label,
+    tokens: row.tokens,
+    share: total > 0 ? row.tokens / total : 0,
+  }))
 }
 
 export function dashboardToolRows(stats: SessionStatsInfo) {
