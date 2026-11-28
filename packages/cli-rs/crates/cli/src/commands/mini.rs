@@ -17,7 +17,7 @@ use crate::output::Exit;
 pub fn run(context: &Context, args: &MiniArgs) -> error::Result<()> {
     let start = Instant::now();
     if !std::io::stdout().is_terminal() {
-        return fail("opencode mini requires a TTY stdout");
+        return fail("theiacode mini requires a TTY stdout");
     }
     if let Some(limit) = args.replay_limit
         && limit <= 0

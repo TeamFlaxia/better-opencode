@@ -94,7 +94,7 @@ pub fn slash(catalog: &Catalog) -> Vec<Choice> {
         builtin("new", "start a new session", None),
         builtin("compact", "compact older session context to free space", None),
     ];
-    builtins.extend(EXIT_COMMANDS.iter().map(|name| builtin(name, "close OpenCode", None)));
+    builtins.extend(EXIT_COMMANDS.iter().map(|name| builtin(name, "close Theia Code", None)));
     let hidden =
         |name: &str| builtins.iter().any(|item| matches!(item, Choice::Slash { name: other, .. } if other == name));
     let mut all: Vec<Choice> = catalog

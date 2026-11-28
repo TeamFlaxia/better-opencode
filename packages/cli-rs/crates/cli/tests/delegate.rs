@@ -205,11 +205,11 @@ fn upgrade_runs_no_opencode() {
     };
     let bundled = std::fs::canonicalize(install.path().join("opencode")).unwrap();
     let beside = format!(
-        "This opencode-native is updated with the opencode installed beside it ({}): run `opencode upgrade`.\n",
+        "This opencode-native is updated with the opencode installed beside it ({}): run `theiacode upgrade`.\n",
         bundled.display()
     );
     let source = "This opencode-native is a source build; rebuild it to update it.\n\
-                  `opencode upgrade` updates a separate TypeScript install, not this one.\n";
+                  `theiacode upgrade` updates a separate TypeScript install, not this one.\n";
     let rows: [(&Path, &[&str], bool, bool, &str); 4] = [
         // Bundled, with a separate install in both lookups too.
         (&client, &["upgrade", "v1.2.3", "-m", "npm"], true, true, &beside),

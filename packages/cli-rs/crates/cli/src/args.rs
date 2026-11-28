@@ -301,7 +301,7 @@ const MCP_NAME: &str = "Name of the MCP server";
 const MACHINE_NAME: &str = "Name of the machine";
 const KEY: &str = "Service setting or env";
 
-pub static ROOT: Spec = Spec::new("opencode", "OpenCode command line interface")
+pub static ROOT: Spec = Spec::new("opencode", "Theia Code command line interface")
     .globals(&[PRINT_LOGS])
     .params(&[
         Param::Flag(STANDALONE),
@@ -309,18 +309,18 @@ pub static ROOT: Spec = Spec::new("opencode", "OpenCode command line interface")
         AUTO,
         YOLO,
         DANGEROUSLY,
-        Param::Arg(optional("directory", "Directory to start OpenCode in")),
+        Param::Arg(optional("directory", "Directory to start Theia Code in")),
         CONTINUE,
         SESSION,
         PROMPT,
         NO_PLUGINS,
     ])
     .commands(&[
-        Spec::new("upgrade", "Upgrade OpenCode to the latest or a specific version").alias("update").params(&[
+        Spec::new("upgrade", "Upgrade Theia Code to the latest or a specific version").alias("update").params(&[
             Param::Arg(optional("target", "Version to upgrade to (with or without a leading v)")),
             Param::Flag(choice("method", "Installation method to use", UPGRADE_METHODS).alias(&["m"])),
         ]),
-        Spec::new("uninstall", "Uninstall OpenCode, keeping session data, configuration, and state").params(&[
+        Spec::new("uninstall", "Uninstall Theia Code, keeping session data, configuration, and state").params(&[
             Param::Flag(boolean("dry-run", "Show what would be removed without removing")),
             Param::Flag(boolean("force", "Skip confirmation prompts").alias(&["f"])),
         ]),
@@ -430,7 +430,7 @@ pub static ROOT: Spec = Spec::new("opencode", "OpenCode command line interface")
             PROMPT,
             Param::Flag(boolean("demo", "").hidden()),
         ]),
-        Spec::new("run", "Run OpenCode with a message").globals(SERVER_FLAGS).params(&[
+        Spec::new("run", "Run Theia Code with a message").globals(SERVER_FLAGS).params(&[
             Param::Arg(variadic("message", "Message to send", 0, None)),
             CONTINUE,
             SESSION,
@@ -513,7 +513,7 @@ pub static ROOT: Spec = Spec::new("opencode", "OpenCode command line interface")
                 "Accept exposing the server to the internet when --remote enables remote access for the first time (required without an interactive terminal)",
             ).alias(&["y"])),
         ]),
-        Spec::new("serve", "Start the v2 API and web server").params(&[
+        Spec::new("serve", "Start the v2 API server").params(&[
             Param::Flag(string("hostname", "")),
             Param::Flag(int("port", "")),
             Param::Flag(

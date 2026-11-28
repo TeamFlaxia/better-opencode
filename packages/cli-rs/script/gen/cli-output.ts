@@ -100,9 +100,16 @@ const out = path.resolve(import.meta.dir, "../../crates/cli/tests/fixtures/cli")
 await rm(out, { recursive: true, force: true })
 await mkdir(path.join(out, "help"), { recursive: true })
 
+// The Rust tests render these pages for the `opencode` binary, so record the TypeScript CLI under that name: a
+// source run would otherwise print the product name the built package is given (`theiacode`).
+const ts = (args: string[]) => {
+  const [bun, ...rest] = command("ts", args)
+  return [bun, `--define=OPENCODE_CLI_NAME=${JSON.stringify("opencode")}`, ...rest]
+}
+
 const run = async (args: string[], env: Record<string, string> = { FORCE_COLOR: "1" }) => {
   const box = await sandbox(env)
-  const proc = Bun.spawn(command("ts", args), {
+  const proc = Bun.spawn(ts(args), {
     cwd: box.cwd,
     env: box.env,
     stdin: "ignore",

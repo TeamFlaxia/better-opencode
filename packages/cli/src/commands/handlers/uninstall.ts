@@ -156,6 +156,10 @@ function cleanShellConfig(content: string) {
   const entry = (line: string) =>
     /^(?:export PATH=|fish_add_path\s)/.test(line.trim()) && line.includes(".opencode/bin")
   return lines
-    .filter((line, index) => !entry(line) && !(line.trim() === "# opencode" && entry(lines[index + 1] ?? "")))
+    .filter(
+      (line, index) =>
+        !entry(line) &&
+        !([ "# opencode", "# theiacode" ].includes(line.trim()) && entry(lines[index + 1] ?? "")),
+    )
     .join("\n")
 }

@@ -1,8 +1,8 @@
-// Every OpenCode install command the site shows: the home install row, the Terminal, Mini and SDK
+// Every Theia Code install command the site shows: the home install row, the Terminal, Mini and SDK
 // pages, the docs, llms.txt, the view-source comment, voice answers and the console API.
 // Checked on 5 Nov 2026 against the release workflow on origin/dev (.github/release/publish-npm.sh,
 // publish-homebrew.sh, publish-aur.sh, the repo's install script) and the live registries, where each
-// one installed OpenCode 2.2.5:
+// one installed Theia Code 2.2.5:
 // - npm: @opencode/cli, dist-tag latest = 2.2.5. Its postinstall links the platform binary, so Bun
 //   needs --trust and pnpm needs --allow-build. mise resolves `opencode` to npm:@opencode/cli.
 // - https://opencode.ai/v2/install reads opencode.ai/update/api/latest/cli/npm (@opencode/cli 2.2.5).
@@ -20,7 +20,7 @@ export const installs = [
   { id: "paru", name: "AUR", command: "paru -S opencode-beta" },
 ] as const
 
-/** The docs intro's install tabs: every channel that installs OpenCode 2. */
+/** The docs intro's install tabs: every channel that installs Theia Code 2. */
 export const docsInstalls = [
   { label: "curl", code: installs[0].command },
   { label: "homebrew", code: installs[3].command },

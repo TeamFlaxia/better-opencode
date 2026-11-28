@@ -9,7 +9,7 @@ use regex::Regex;
 use super::focus::{self, Focus, Skip, When};
 use crate::app::Tui;
 
-const DEFAULT_TITLE: &str = "OpenCode";
+const DEFAULT_TITLE: &str = "Theia Code";
 const TITLE_LIMIT: usize = 80;
 const MESSAGE_LIMIT: usize = 240;
 
@@ -258,12 +258,12 @@ mod tests {
             ("one  \r\n\t two\nthree", "", 240, "one two three"),
             ("bell\x07 and\x7f\u{85} c1", "", 240, "bell and c1"),
             ("\x1b]8;;https://example.com\x1b\\link\x1b]8;;\x1b\\", "", 240, "link"),
-            ("   ", "OpenCode", 80, "OpenCode"),
+            ("   ", "Theia Code", 80, "Theia Code"),
             ("ééééé", "", 3, "ééé"),
         ];
         for (input, fallback, limit, expected) in table {
             assert_eq!(normalize_text(Some(input), fallback, limit), expected, "{input:?}");
         }
-        assert_eq!(normalize_text(None, "OpenCode", 80), "OpenCode");
+        assert_eq!(normalize_text(None, "Theia Code", 80), "Theia Code");
     }
 }

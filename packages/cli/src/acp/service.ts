@@ -121,13 +121,13 @@ export function make(input: {
       yield* Ref.set(input.capabilities, ACPCapabilities.parse(params.clientCapabilities))
       const authMethod: AuthMethod = {
         description: "Run `theiacode auth login` in the terminal",
-        name: "Login with opencode",
+        name: "Login with Theia Code",
         id: AuthMethodID,
         ...(params.clientCapabilities?.auth?.terminal ? { type: "terminal" as const, args: ["--login"] } : {}),
       }
       if (params.clientCapabilities?._meta?.["terminal-auth"] === true) {
         authMethod._meta = {
-          "terminal-auth": { command: "opencode", args: ["auth", "login"], label: "Theia Code Login" },
+          "terminal-auth": { command: "theiacode", args: ["auth", "login"], label: "Theia Code Login" },
         }
       }
       return {

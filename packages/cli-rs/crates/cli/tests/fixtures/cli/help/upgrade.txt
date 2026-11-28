@@ -1,5 +1,5 @@
 [1mDESCRIPTION[0m
-  Upgrade OpenCode to the latest or a specific version
+  Upgrade Theia Code to the latest or a specific version
 
 [1mUSAGE[0m
   [36mopencode upgrade [flags] [<target>][0m

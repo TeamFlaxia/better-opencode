@@ -143,7 +143,7 @@ fn draw(tui: &Tui, cx: &Rc<DialogCx>, root: &View, check: &Check) -> Option<Dial
     let theme = &cx.theme;
     let shown = shown(tui, check);
     let title = match &shown {
-        Shown::Update(UpdateState::Installing(_)) => "Updating OpenCode",
+        Shown::Update(UpdateState::Installing(_)) => "Updating Theia Code",
         Shown::Update(UpdateState::Available(_) | UpdateState::Failed(_)) => "Update available",
         _ => "Update",
     };
@@ -155,13 +155,13 @@ fn draw(tui: &Tui, cx: &Rc<DialogCx>, root: &View, check: &Check) -> Option<Dial
     let body = match &shown {
         Shown::Checking => spinner("Checking for updates…".to_owned()),
         Shown::Update(UpdateState::Available(_)) => {
-            muted("An update is available. After installing, you'll be prompted to restart OpenCode.")
+            muted("An update is available. After installing, you'll be prompted to restart Theia Code.")
         }
-        Shown::Update(UpdateState::Installing(version)) => spinner(format!("Installing OpenCode {version}…")),
+        Shown::Update(UpdateState::Installing(version)) => spinner(format!("Installing Theia Code {version}…")),
         Shown::Update(UpdateState::Installed(_)) => {
-            muted("Update successful! Restart closes OpenCode, then run opencode to use the new version.")
+            muted("Update successful! Restart closes Theia Code, then run theiacode to use the new version.")
         }
-        Shown::Current => muted("OpenCode is already up to date."),
+        Shown::Current => muted("Theia Code is already up to date."),
         Shown::Unavailable(message) => muted(message),
         Shown::Update(UpdateState::Failed(message)) | Shown::CheckFailed(message) => {
             Text::new(app, message.clone()).fg(theme.text.feedback.error.base).as_any()

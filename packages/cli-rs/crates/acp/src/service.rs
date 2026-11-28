@@ -65,7 +65,7 @@ impl Service {
             "type"?: terminal.then_some("terminal"),
             "args"?: terminal.then_some(["--login"]),
             "_meta"?: terminal_auth.then(|| json!({
-                "terminal-auth": { "command": "opencode", "args": ["auth", "login"], "label": "OpenCode Login" },
+                "terminal-auth": { "command": "opencode", "args": ["auth", "login"], "label": "Theia Code Login" },
             })),
         };
         json!({

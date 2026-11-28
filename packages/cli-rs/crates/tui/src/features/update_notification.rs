@@ -82,7 +82,7 @@ pub fn set_source(tui: &Rc<Tui>, source: Rc<dyn Source>) {
     *tui.updates.source.borrow_mut() = Some(source);
     let command = TuiCommand::new("opencode.update", bind!(tui, |tui, _, _| open(&tui, Origin::Manual)))
         .bind(Bind::Off)
-        .title("Update OpenCode")
+        .title("Update Theia Code")
         .group("System")
         .palette()
         .slash("update");

@@ -258,7 +258,7 @@ fn pair_remote_enables_remote_access_and_waits_for_the_tunnel() {
     assert!(pair.status.success(), "{}", text(&pair.stderr));
     let stdout = text(&pair.stdout);
     // `--yes` still shows the warning, then the tunnel link with its QR code.
-    assert!(stdout.contains("This will expose your OpenCode server to the internet."), "{stdout}");
+    assert!(stdout.contains("This will expose your Theia Code server to the internet."), "{stdout}");
     assert!(stdout.contains("expire in 5 minutes."), "{stdout}");
     assert!(stdout.contains("  https://r0ute.t1.tunnel.test/auth/connect/CODE7\n\n  ██"), "{stdout}");
     assert!(!stdout.contains("127.0.0.1"), "{stdout}");

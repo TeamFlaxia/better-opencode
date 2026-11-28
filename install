@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 
 usage() {
     cat <<EOF
-OpenCode Installer
+Theia Code Installer
 
 Usage: install.sh [options]
 
@@ -411,7 +411,7 @@ add_to_path() {
     if grep -Fxq "$command" "$config_file"; then
         print_message info "Command already exists in $config_file, skipping write."
     elif [[ -w $config_file ]]; then
-        echo -e "\n# opencode" >> "$config_file"
+        echo -e "\n# theiacode" >> "$config_file"
         echo "$command" >> "$config_file"
         path_added=true
         print_message info "${MUTED}Successfully added ${NC}opencode ${MUTED}to \$PATH in ${NC}$config_file"
@@ -502,13 +502,10 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
 fi
 
 echo -e ""
-echo -e "${MUTED}                    ${NC}             ▄     "
-echo -e "${MUTED}█▀▀█ █▀▀█ █▀▀█ █▀▀▄ ${NC}█▀▀▀ █▀▀█ █▀▀█ █▀▀█"
-echo -e "${MUTED}█░░█ █░░█ █▀▀▀ █░░█ ${NC}█░░░ █░░█ █░░█ █▀▀▀"
-echo -e "${MUTED}▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ${NC}▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"
+echo -e "${MUTED}Theia Code${NC}"
 echo -e ""
 echo -e ""
-echo -e "${MUTED}OpenCode includes free models, to start:${NC}"
+echo -e "${MUTED}Theia Code includes free models, to start:${NC}"
 echo -e ""
 if [[ $path_added == "true" ]]; then
     echo -e "exec \$SHELL   ${MUTED}# Reload PATH (or open a new terminal)${NC}"

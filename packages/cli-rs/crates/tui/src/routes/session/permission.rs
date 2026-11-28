@@ -569,7 +569,7 @@ impl Inner {
         let (mark, title, subtitle) = (
             Text::new(app, "△"),
             Text::new(app, "Reject permission"),
-            Text::new(app, "Tell OpenCode what to do differently"),
+            Text::new(app, "Tell Theia Code what to do differently"),
         );
         let heading = View::new(app)
             .column()

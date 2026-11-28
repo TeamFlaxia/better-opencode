@@ -514,7 +514,7 @@ async fn stop_refuses_a_registered_pid_that_another_process_reused() {
     file.set_modified(std::time::SystemTime::now() - Duration::from_secs(3600)).unwrap();
     let error = stop::stop(transport(), &fixture.registration, Pty::Clear, fast().stop).await.unwrap_err();
     assert!(other.try_wait().unwrap().is_none(), "the other process was signalled");
-    assert!(error.to_string().contains("is not the OpenCode server"), "{error}");
+    assert!(error.to_string().contains("is not the Theia Code server"), "{error}");
     assert!(fixture.registration.exists());
     other.kill().unwrap();
     other.wait().unwrap();

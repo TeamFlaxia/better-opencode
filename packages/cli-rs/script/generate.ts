@@ -4,7 +4,13 @@ const scripts = Array.from(new Bun.Glob("script/gen/*.ts").scanSync({ cwd: root 
 
 for (const script of scripts) {
   console.log(`generate: ${script}`)
-  const proc = Bun.spawnSync(["bun", "run", script], { cwd: root, stdout: "inherit", stderr: "inherit" })
+  // The recordings describe the `opencode` CLI, so a generate run names the TypeScript CLI that way even
+  // though a source run defaults to the built package's name (`theiacode`).
+  const proc = Bun.spawnSync(["bun", `--define=OPENCODE_CLI_NAME=${JSON.stringify("opencode")}`, "run", script], {
+    cwd: root,
+    stdout: "inherit",
+    stderr: "inherit",
+  })
   if (proc.exitCode !== 0) process.exit(proc.exitCode ?? 1)
 }
 if (scripts.length === 0) console.log("generate: no generators in script/gen")

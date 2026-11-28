@@ -92,7 +92,7 @@ pub fn exit(app: &App, width: u32, title: &str, session_id: &str, theme: &Splash
     let top = 1;
     let body = mark[0].chars().count() as u32 + 2;
     let (session, label) = ("Session  ", "Continue ");
-    let command = format!("opencode mini -s {session_id}");
+    let command = format!("theiacode mini -s {session_id}");
     let wide = body as usize + (label.to_owned() + &command).width() <= width as usize;
     let command_height = if wide { 1 } else { (command.width() as u32).div_ceil(width) };
     let height = top + if wide { (mark.len() as u32).max(2) } else { command_height };

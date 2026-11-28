@@ -1,5 +1,5 @@
 [1mDESCRIPTION[0m
-  Start the v2 API and web server
+  Start the v2 API server
 
 [1mUSAGE[0m
   [36mopencode serve [flags][0m

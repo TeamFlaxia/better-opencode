@@ -138,18 +138,18 @@ fn ids_in_table_cells_stay_as_written() {
 #[test]
 fn code_spans_link_only_when_they_are_exactly_an_id() {
     let known = id("known");
-    let text = format!("Run `opencode --session {known}` or open `{known}`.\n\n`` {known} ``\n\n`{known}.`");
+    let text = format!("Run `theiacode --session {known}` or open `{known}`.\n\n`` {known} ``\n\n`{known}.`");
     let (h, _) = open(180, 30, &text, Info::default());
     h.wait_for("@Fix the flaky");
     assert_eq!(linked(&h), ["@Fix the flaky reconnect test on Windows"; 2]);
-    assert!(h.app.text().contains(&format!("opencode --session {known}")));
+    assert!(h.app.text().contains(&format!("theiacode --session {known}")));
 
     let source =
         Info { session: Some(Session { markdown: Some(Markdown::Source), ..Session::default() }), ..Info::default() };
     let (h, _) = open(180, 30, &text, source);
     h.wait("the link", || !linked(&h).is_empty());
     assert_eq!(linked(&h), [known.as_str(); 2]);
-    assert!(h.app.text().contains(&format!("`opencode --session {known}`")));
+    assert!(h.app.text().contains(&format!("`theiacode --session {known}`")));
 }
 
 #[test]

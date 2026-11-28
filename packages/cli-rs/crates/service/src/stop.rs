@@ -38,7 +38,7 @@ pub enum Error {
     #[error("Server process {0} is still running")]
     StillRunning(u32),
     #[error(
-        "Process {pid} is not the OpenCode server registered in {}, so it was not stopped. Remove that file if the server is gone.",
+        "Process {pid} is not the Theia Code server registered in {}, so it was not stopped. Remove that file if the server is gone.",
         file.display()
     )]
     NotTheServer { pid: u32, file: PathBuf },

@@ -289,7 +289,7 @@ pub fn failure(state: &TurnState) -> Option<Failure> {
     Some(Failure::ServiceFailure {
         safe_message: Some(error.message.as_str())
             .filter(|message| !message.is_empty())
-            .unwrap_or("OpenCode prompt failed")
+            .unwrap_or("Theia Code prompt failed")
             .to_owned(),
         service: Some("session".to_owned()),
         error_name: Some(error.r#type.clone()),

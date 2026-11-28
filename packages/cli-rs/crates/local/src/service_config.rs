@@ -204,7 +204,7 @@ impl Edit {
     pub fn set(key: &str, value: &str, nested: Option<&str>) -> Result<Self, Error> {
         let key = Key::parse(key)?;
         if key != Key::Env && nested.is_some() {
-            return Err(invalid(format!("Usage: opencode service set {} <value>", key.name())));
+            return Err(invalid(format!("Usage: theiacode service set {} <value>", key.name())));
         }
         let flag = |name: &str| match value {
             "true" => Ok(true),
@@ -222,7 +222,7 @@ impl Edit {
             ),
             Key::Password => Edit::Password(value.to_string()),
             Key::Env => {
-                let nested = nested.ok_or_else(|| invalid("Usage: opencode service set env <key> <value>"))?;
+                let nested = nested.ok_or_else(|| invalid("Usage: theiacode service set env <key> <value>"))?;
                 Edit::Env(value.to_string(), nested.to_string())
             }
             Key::Cors => {
@@ -241,11 +241,11 @@ impl Edit {
     pub fn unset(key: &str, name: Option<&str>) -> Result<Self, Error> {
         let key = Key::parse(key)?;
         if key != Key::Env && name.is_some() {
-            return Err(invalid(format!("Usage: opencode service unset {}", key.name())));
+            return Err(invalid(format!("Usage: theiacode service unset {}", key.name())));
         }
         if key == Key::Env {
             return Ok(Edit::UnsetEnv(
-                name.ok_or_else(|| invalid("Usage: opencode service unset env <key>"))?.to_string(),
+                name.ok_or_else(|| invalid("Usage: theiacode service unset env <key>"))?.to_string(),
             ));
         }
         Ok(Edit::Unset(key))
@@ -395,7 +395,7 @@ impl ServiceConfig {
         };
         let key = Key::parse(key)?;
         if key != Key::Env && name.is_some() {
-            return Err(invalid(format!("Usage: opencode service get {}", key.name())));
+            return Err(invalid(format!("Usage: theiacode service get {}", key.name())));
         }
         if key == Key::Password {
             return Ok(self.password(None)?);

@@ -120,7 +120,7 @@ export function DialogUpdate(props: {
             </Match>
             <Match when={current.type === "installed"}>
               <text fg={theme.text.muted} wrapMode="word">
-                Update successful! Restart closes Theia Code, then run opencode to use the new version.
+                Update successful! Restart closes Theia Code, then run theiacode to use the new version.
               </text>
             </Match>
             <Match when={current.type === "current"}>

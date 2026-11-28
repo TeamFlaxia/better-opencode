@@ -240,7 +240,7 @@ pub fn paint(app: &App, root: &View, body: &Body<'_>) -> Painted {
                 .truncate(true),
         );
     if !compact && stage == Stage::Reject {
-        header.add(&Text::new(app, "Tell OpenCode what to do differently").fg(theme.muted));
+        header.add(&Text::new(app, "Tell Theia Code what to do differently").fg(theme.muted));
     }
     root.add(&header);
     let waiting = || {
@@ -259,7 +259,7 @@ pub fn paint(app: &App, root: &View, body: &Body<'_>) -> Painted {
             .width(Length::percent(100.0))
             .min_height(1)
             .max_height(3)
-            .placeholder("Tell OpenCode what to do differently")
+            .placeholder("Tell Theia Code what to do differently")
             .placeholder_color(theme.muted)
             .colors(theme.formfield_text, theme.surface)
             .focused_colors(theme.formfield_focused_text, theme.formfield_focused_bg)

@@ -15,16 +15,16 @@ pub fn run(_context: &Context, _args: &UpgradeArgs) -> error::Result<()> {
 
 /// What `upgrade` says in a build of `version`, with `bundled` the `opencode` installed beside it.
 fn message(version: &str, bundled: Option<&Path>) -> String {
-    const SEPARATE: &str = "`opencode upgrade` updates a separate TypeScript install, not this one.\n";
+    const SEPARATE: &str = "`theiacode upgrade` updates a separate TypeScript install, not this one.\n";
     if version.starts_with("0.0.0-native-") {
         return format!(
-            "This is an OpenCode native CLI preview build; re-run the install script to update it and its bundled \
+            "This is a Theia Code native CLI preview build; re-run the install script to update it and its bundled \
              server.\n{SEPARATE}"
         );
     }
     if let Some(bundled) = bundled {
         return format!(
-            "This opencode-native is updated with the opencode installed beside it ({}): run `opencode upgrade`.\n",
+            "This opencode-native is updated with the opencode installed beside it ({}): run `theiacode upgrade`.\n",
             bundled.display()
         );
     }
@@ -44,14 +44,14 @@ mod tests {
     // on `PATH` or in `OPENCODE_TS_BIN` is not an input.
     #[test]
     fn upgrade_says_how_this_install_is_updated() {
-        const SEPARATE: &str = "`opencode upgrade` updates a separate TypeScript install, not this one.\n";
+        const SEPARATE: &str = "`theiacode upgrade` updates a separate TypeScript install, not this one.\n";
         let preview = format!(
-            "This is an OpenCode native CLI preview build; re-run the install script to update it and its bundled \
+            "This is a Theia Code native CLI preview build; re-run the install script to update it and its bundled \
              server.\n{SEPARATE}"
         );
         let bundled = Path::new("/opt/opencode/opencode");
         let beside = "This opencode-native is updated with the opencode installed beside it (/opt/opencode/opencode): \
-                      run `opencode upgrade`.\n";
+                      run `theiacode upgrade`.\n";
         let source = format!("This opencode-native is a source build; rebuild it to update it.\n{SEPARATE}");
         let none = format!("This opencode-native has no updater; update it the way you installed it.\n{SEPARATE}");
         let rows: &[(&str, Option<&Path>, &str)] = &[

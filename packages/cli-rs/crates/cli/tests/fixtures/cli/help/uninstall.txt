@@ -1,5 +1,5 @@
 [1mDESCRIPTION[0m
-  Uninstall OpenCode, keeping session data, configuration, and state
+  Uninstall Theia Code, keeping session data, configuration, and state
 
 [1mUSAGE[0m
   [36mopencode uninstall [flags][0m

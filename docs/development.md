@@ -200,6 +200,8 @@ bun test --timeout 30000 test/cli/tui/dialog-select.test.tsx test/config.test.ts
 - `@opencode/*` のパッケージスコープ
 - 環境変数（`OPENCODE_*`）と `data` / `cache` / `state` / `log` などのルートディレクトリ
 - 上流のモデルプロバイダ名（`OpenCode` / `Anomaly / OpenCode`）
+- バイナリ名 `opencode` / `opencode2` / `opencode-native`（主コマンドは `theiacode`、これらは互換エイリアス）
+- リリース資産名 `opencode-<version>-<target>.tar.gz|.zip`（`packages/cli/src/services/updater-release.ts` と `.github/workflows/release-tag.yml` が同じ名前を参照するため）
 - `.github/workflows` の上流由来リリース設定（フォークのリリースは `release-tag.yml`）
 
 これらは上流とのマージコストと、モデルプロバイダ名との混同を避けるための判断。表示名や UI のブランディングは **Theia Code** に統一するが、これらの識別子の改名は行わない。全面改名は機能が固まった後に別ブランチで行う。

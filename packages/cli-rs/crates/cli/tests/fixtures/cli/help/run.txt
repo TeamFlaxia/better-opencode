@@ -1,5 +1,5 @@
 [1mDESCRIPTION[0m
-  Run OpenCode with a message
+  Run Theia Code with a message
 
 [1mUSAGE[0m
   [36mopencode run [flags] [<message...>][0m

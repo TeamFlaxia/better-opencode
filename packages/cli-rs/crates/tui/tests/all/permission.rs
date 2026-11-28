@@ -149,7 +149,7 @@ fn a_subagent_rejection_asks_what_to_do_differently() {
     // `h` wraps from "Allow once" to "Reject".
     harness.app.press("h");
     harness.app.press("enter");
-    harness.wait_for("Tell OpenCode what to do differently");
+    harness.wait_for("Tell Theia Code what to do differently");
     // Escape goes back to the question without replying.
     harness.app.press("escape");
     harness.wait_for("Grep \"TODO\"");
@@ -190,7 +190,7 @@ fn a_theme_switch_keeps_the_rejection_and_its_reason() {
             harness.wait_for("Reject permission");
             harness.app.type_text("use rg");
         },
-        |screen| screen.contains("use rg") && screen.contains("Tell OpenCode what to do differently"),
+        |screen| screen.contains("use rg") && screen.contains("Tell Theia Code what to do differently"),
     );
 }
 
@@ -665,7 +665,7 @@ mod model {
         };
         Observation {
             question: screen.contains("Permission required"),
-            rejecting: screen.contains("Tell OpenCode what to do differently"),
+            rejecting: screen.contains("Tell Theia Code what to do differently"),
             minimize: screen.contains("ctrl+f minimize"),
             always: screen.contains("This will always allow"),
             request: screen

@@ -42,7 +42,7 @@ async fn initialize_advertises_capabilities_and_offers_terminal_auth_only_when_a
     );
     assert_eq!(
         terminal["authMethods"][0]["_meta"],
-        json!({ "terminal-auth": { "command": "opencode", "args": ["auth", "login"], "label": "OpenCode Login" } })
+        json!({ "terminal-auth": { "command": "opencode", "args": ["auth", "login"], "label": "Theia Code Login" } })
     );
     assert_eq!(
         standard["authMethods"],

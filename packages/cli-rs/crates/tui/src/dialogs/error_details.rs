@@ -169,12 +169,12 @@ pub fn details(props: &Props) -> Details {
     lines.extend(props.diagnostic_ref.as_ref().map(|reference| format!("Reference: {reference}")));
     let text = lines.join("\n");
     let mut prompt =
-        vec!["Investigate why this OpenCode component failed in the current project.".to_owned(), text.clone()];
+        vec!["Investigate why this Theia Code component failed in the current project.".to_owned(), text.clone()];
     prompt.extend(props.diagnostic_ref.as_ref().map(|reference| {
         format!(
             "Find the server log entry matching reference {reference} and inspect its original cause. If the server logs are not accessible from this session, say so and ask for the matching log entry; do not infer the cause from the reference alone."
         )
     }));
-    prompt.push("Inspect the relevant project and global OpenCode configuration, startup or loading behavior, required environment variables or credentials, dependencies, and logs. Identify the root cause and recommend a fix. Do not expose credentials.".to_owned());
+    prompt.push("Inspect the relevant project and global Theia Code configuration, startup or loading behavior, required environment variables or credentials, dependencies, and logs. Identify the root cause and recommend a fix. Do not expose credentials.".to_owned());
     Details { text, prompt: prompt.join("\n\n") }
 }

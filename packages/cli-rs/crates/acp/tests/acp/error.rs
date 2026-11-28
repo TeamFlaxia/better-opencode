@@ -31,7 +31,7 @@ async fn unavailable(lose: fn(&Server)) {
     .await;
     let unavailable = json!({
         "code": -32603,
-        "message": "Internal error: OpenCode server is unavailable",
+        "message": "Internal error: Theia Code server is unavailable",
         "data": { "errorName": "ServerUnavailable" },
     });
 

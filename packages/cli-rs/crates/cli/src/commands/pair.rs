@@ -19,7 +19,7 @@ use crate::prompt;
 
 const NOT_ENABLED: &str = "Remote access was not enabled. To pair locally, run `opencode pair`.";
 
-pub const REMOTE_WARNING: &str = "This will expose your OpenCode server to the internet.\nTraffic is end-to-end encrypted, and access requires your server password.\nTo pair locally instead, run `opencode pair` without the --remote flag.";
+pub const REMOTE_WARNING: &str = "This will expose your Theia Code server to the internet.\nTraffic is end-to-end encrypted, and access requires your server password.\nTo pair locally instead, run `theiacode pair` without the --remote flag.";
 
 pub fn run(_context: &Context, args: &PairArgs) -> error::Result<()> {
     let local = Local::from_env()?;

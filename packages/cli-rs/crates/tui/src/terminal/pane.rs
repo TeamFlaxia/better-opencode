@@ -412,7 +412,7 @@ impl Pane {
             }
             Message::Attached { input_protocol, size, role } => {
                 if input_protocol != Some(1.0) {
-                    self.fail("Persistent terminal server is out of date; restart OpenCode");
+                    self.fail("Persistent terminal server is out of date; restart Theia Code");
                     self.socket.borrow_mut().take();
                     return false;
                 }

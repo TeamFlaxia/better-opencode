@@ -273,9 +273,9 @@ fn mcp_error_view_goes_back_copies_and_investigates() {
     assert_eq!(textarea.cursor_offset(), opencode_ui::prompt_input::end(&textarea));
     let text = textarea.text();
     for part in [
-        "Investigate why this OpenCode component failed in the current project.",
+        "Investigate why this Theia Code component failed in the current project.",
         "MCP server: linear\nStatus: failed\nConfiguration: mcp.servers.linear\nError: MCP error -32000: Connection closed",
-        "project and global OpenCode configuration",
+        "project and global Theia Code configuration",
     ] {
         assert!(text.contains(part), "{part:?} missing from {text:?}");
     }

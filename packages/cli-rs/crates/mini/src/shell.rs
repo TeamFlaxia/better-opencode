@@ -1974,13 +1974,13 @@ impl Mini {
         self.prompt.agent_name(agent).unwrap_or_else(|| capitalize(agent))
     }
 
-    /// The terminal title on Linux (`setTitle`): `OC | <title>`, or `OpenCode` without a real title.
+    /// The terminal title on Linux (`setTitle`): `OC | <title>`, or `Theia Code` without a real title.
     fn set_title(&self, title: Option<&str>) {
         if !cfg!(target_os = "linux") {
             return;
         }
         match title.filter(|title| !title.is_empty() && !is_fallback_title(title)) {
-            None => self.app.set_title("OpenCode"),
+            None => self.app.set_title("Theia Code"),
             Some(title) => {
                 let short = if title.encode_utf16().count() > 40 {
                     format!("{}…", title.chars().take(37).collect::<String>())

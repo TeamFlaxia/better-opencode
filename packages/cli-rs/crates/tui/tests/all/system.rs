@@ -720,8 +720,8 @@ fn update_dialog_matches_typescript_through_an_install() {
     assert!(updater.checks.borrow().is_empty());
 
     app.press("enter");
-    wait_for(&app, "Installing OpenCode 2.0.28");
-    assert_dialog(&app, "E.18b/update-installing", "Updating OpenCode");
+    wait_for(&app, "Installing Theia Code 2.0.28");
+    assert_dialog(&app, "E.18b/update-installing", "Updating Theia Code");
     assert_eq!(updater.finish_apply(Ok(())), "2.0.28");
     wait_for(&app, "Update successful");
     assert_dialog(&app, "E.18b/update-installed", "Update");
