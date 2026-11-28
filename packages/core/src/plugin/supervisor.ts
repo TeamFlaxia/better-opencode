@@ -30,6 +30,8 @@ const resolve = Effect.fn("PluginSupervisor.resolve")(function* (
   const pending = new Set<string>()
   const failures = new Map<string, Plugin.Failure>()
   const plugins = () => [...definitions, ...packages.values()]
+  // Targets this resolve touched; older entries stay for cache reuse but must not join the update set.
+  const current = new Set<string>()
 
   for (const operation of operations) {
     if (operation.type === "remove") {
@@ -81,6 +83,8 @@ const resolve = Effect.fn("PluginSupervisor.resolve")(function* (
       const retained = packages.get(operation.target) ?? running.get(operation.target)
       if (!retained) continue
       packages.set(operation.target, retained)
+      current.add(operation.target)
+      if (operation.options.enabled === false) continue
       enabled.add(retained.id)
       continue
     }
@@ -88,6 +92,8 @@ const resolve = Effect.fn("PluginSupervisor.resolve")(function* (
     const previous = packages.get(operation.target)
     if (previous) enabled.delete(previous.id)
     packages.set(operation.target, plugin)
+    current.add(operation.target)
+    if (operation.options.enabled === false) continue
     enabled.add(plugin.id)
   }
 
@@ -102,7 +108,8 @@ const resolve = Effect.fn("PluginSupervisor.resolve")(function* (
     ordered.findIndex((other) => other.id === plugin.id) !== index
   return {
     plugins: ordered.filter((plugin, index) => !duplicate(plugin, index)),
-    packages: new Map([...packages].filter(([, plugin]) => enabled.has(plugin.id))),
+    // Installed packages stay known even when they are inactive, so a later opt-in reuses them.
+    packages: new Map([...packages].filter(([target]) => current.has(target))),
     failures: [
       ...failures.values(),
       ...ordered.filter(duplicate).map((plugin) => ({
@@ -192,11 +199,15 @@ export const layer = Layer.effectDiscard(
           }).pipe(Effect.catchCause((cause) => Effect.logWarning("failed to reject plugin version", { cause }))),
         { discard: true },
       )
-      const targets = new Set(
-        [...resolved.plugins, ...resolved.failures].flatMap((plugin) =>
+      // Installed packages are followed and updated whether or not they are active.
+      const targets = new Set([
+        ...[...resolved.packages.values()].flatMap((plugin) =>
           plugin.source?.type === "package" ? [plugin.source.target] : [],
         ),
-      )
+        ...resolved.failures.flatMap((failure) =>
+          failure.source.type === "package" ? [failure.source.target] : [],
+        ),
+      ])
       packages = targets
       yield* Effect.forEach(
         targets,

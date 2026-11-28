@@ -1,6 +1,7 @@
 import { Database } from "@opencode/core/database/database"
 import { ModelsDev } from "@opencode/core/models-dev"
 import { PersistentPty } from "@opencode/core/persistent-pty"
+import { ConfigPlugin } from "@opencode/schema/config/plugin"
 import { Schema } from "effect"
 import type { LayerNodePlatform } from "@opencode/util/effect/app-node-platform"
 
@@ -39,7 +40,7 @@ export const ServerOptions = Schema.Struct({
       file: Schema.optional(Schema.String),
       content: Schema.optional(Schema.String),
       // Packages loaded below all config documents; the CLI supplies the fork defaults.
-      defaultPlugins: Schema.optional(Schema.Array(Schema.String)),
+      defaultPlugins: Schema.optional(ConfigPlugin.Plugins),
     }),
   ),
   instructions: Schema.optional(

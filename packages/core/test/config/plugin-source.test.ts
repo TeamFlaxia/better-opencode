@@ -35,7 +35,7 @@ describe("ConfigPluginSource defaults", () => {
   it.live("installs the default package when config leaves it alone", () =>
     Effect.gen(function* () {
       expect(yield* operations([document(defaults)])).toEqual([
-        { type: "add", target: "opencode-model-router@latest", options: {} },
+        { type: "add", target: "opencode-model-router@latest", options: { enabled: false } },
       ])
     }),
   )

@@ -1,4 +1,5 @@
 import { describe, expect } from "bun:test"
+import { rm } from "node:fs/promises"
 import { Clock, Deferred, Duration, Effect, Layer, LayerMap, Stream } from "effect"
 import { TestClock } from "effect/testing"
 import type { LanguageModelV3 } from "@ai-sdk/provider"
@@ -52,8 +53,15 @@ const sourceLayer = Layer.succeed(
 )
 
 // Package checks report `available` after `delay`, and packages in `stays` don't follow updates; updates are recorded
-// instead of installed.
-const packages = { available: false, delay: Duration.zero, checks: 0, stays: [] as string[], updated: [] as string[] }
+// instead of installed. `installs` maps package targets to real directories that `add` succeeds with.
+const packages = {
+  available: false,
+  delay: Duration.zero,
+  checks: 0,
+  stays: [] as string[],
+  updated: [] as string[],
+  installs: new Map<string, string>(),
+}
 
 const instances = Layer.effect(
   LocationServiceMap.Service,
@@ -71,14 +79,18 @@ const instances = Layer.effect(
         Layer.succeed(
           Npm.Service,
           Npm.Service.of({
-            add: (pkg) =>
-              Effect.fail(
-                new Npm.InstallFailedError({
-                  add: [pkg],
-                  dir: "",
-                  cause: new Error(`Unexpected Npm.add(${pkg})`),
-                }),
-              ),
+            add: (pkg) => {
+              const directory = packages.installs.get(pkg)
+              return directory
+                ? Effect.succeed({ directory, name: "" })
+                : Effect.fail(
+                    new Npm.InstallFailedError({
+                      add: [pkg],
+                      dir: "",
+                      cause: new Error(`Unexpected Npm.add(${pkg})`),
+                    }),
+                  )
+            },
             resolve: (name) => Effect.succeed({ directory: "", name }),
             check: () =>
               Effect.sleep(packages.delay).pipe(
@@ -243,6 +255,66 @@ describe("PluginSupervisor", () => {
         ),
       )
       expect(packages.updated.toSorted()).toEqual([...follows, ...follows].toSorted())
+    }),
+  )
+
+  it.effect("installs packages with enabled: false without activating them", () =>
+    Effect.gen(function* () {
+      const directory = yield* tmpdirScoped()
+      const pluginSource = (id: string) => `import { define } from "@opencode/plugin/effect/plugin"
+import { Effect } from "effect"
+
+export default define({ id: ${JSON.stringify(id)}, effect: () => Effect.void })
+`
+      // Bare imports inside the generated plugin resolve against this package, unlike a system temp directory.
+      const root = `${import.meta.dir}/.tmp-supervisor-${crypto.randomUUID()}`
+      const inactive = `${root}/inactive-plugin`
+      const active = `${root}/active-plugin`
+      yield* Effect.promise(() =>
+        Promise.all([
+          Bun.write(`${inactive}/index.ts`, pluginSource("inactive-plugin")),
+          Bun.write(`${active}/index.ts`, pluginSource("active-plugin")),
+        ]),
+      )
+      packages.installs.set("inactive-plugin@latest", inactive)
+      packages.installs.set("active-plugin@latest", active)
+      source.operations = [
+        { type: "add", target: "inactive-plugin@latest", options: { enabled: false } },
+        { type: "add", target: "active-plugin@latest", options: {} },
+      ]
+      packages.available = true
+      packages.updated = []
+      const locations = yield* LocationServiceMap.Service
+      const state = yield* Effect.gen(function* () {
+        const plugins = yield* Plugin.Service
+        // Driving the clock first lets boot's pending update check and its debounced reload settle.
+        yield* advance(() =>
+          ["active-plugin@latest", "inactive-plugin@latest"].every((target) => packages.updated.includes(target)),
+        )
+        yield* drain
+        yield* plugins.awaitActivation
+        return {
+          inventory: yield* plugins.list(),
+          updated: packages.updated.toSorted(),
+        }
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory.path) }))),
+        Effect.ensuring(
+          Effect.all([
+            Effect.sync(() => {
+              source.operations = []
+              packages.installs.clear()
+              packages.available = false
+              packages.updated = []
+            }),
+            Effect.promise(() => rm(root, { recursive: true, force: true })),
+          ]),
+        ),
+      )
+      expect(state.inventory.find((plugin) => plugin.id === "active-plugin")?.state.status).toBe("active")
+      expect(state.inventory.some((plugin) => plugin.id === "inactive-plugin")).toBe(false)
+      expect(state.updated).toEqual(["active-plugin@latest", "inactive-plugin@latest"])
     }),
   )
 

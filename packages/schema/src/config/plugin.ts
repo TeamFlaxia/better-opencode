@@ -14,10 +14,15 @@ export type Plugin = typeof Plugin.Type
 export const Plugins = Plugin.pipe(Schema.Array)
 
 /**
- * Packages theia-code's CLI server loads when no config mentions them.
+ * Packages theia-code's CLI server installs when no config mentions them.
  *
  * They stay ordinary external packages: the repository and release artifacts do
  * not bundle their code. npm installs them from their publisher, and `@latest`
  * makes the plugin supervisor follow and update them automatically.
+ *
+ * The default package is installed and kept current but carries `enabled: false`,
+ * so it is not activated unless the user adds it to `plugins` themselves.
  */
-export const defaultPackages = ["opencode-model-router@latest"] as const
+export const defaultPackages = [
+  new Entry({ package: "opencode-model-router@latest", options: { enabled: false } }),
+] as const

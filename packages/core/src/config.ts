@@ -23,6 +23,7 @@ import { ConfigIntegration } from "./config/integration.js"
 import { ConfigManaged } from "./config/managed.js"
 import { ManagedPolicy } from "./managed-policy.js"
 import { Connection } from "@opencode/schema/connection"
+import { ConfigPlugin } from "@opencode/schema/config/plugin"
 import { WellKnown } from "./wellknown.js"
 import { AppProcess } from "@opencode/util/process"
 import { ChildProcess } from "effect/process"
@@ -71,7 +72,7 @@ export const Options = Schema.Struct({
   content: Schema.optional(Schema.String),
   // Packages the CLI installs unless config disables or replaces them. They load
   // below every config document, so a project or global removal still wins.
-  defaultPlugins: Schema.optional(Schema.Array(Schema.String)),
+  defaultPlugins: Schema.optional(ConfigPlugin.Plugins),
 })
 export type Options = typeof Options.Type
 
