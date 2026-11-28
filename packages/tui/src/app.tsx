@@ -69,6 +69,7 @@ import { DialogMcp } from "./component/dialog-mcp"
 import { DialogUsage } from "./component/usage"
 import { DialogStatus } from "./component/dialog-status"
 import { DialogConfig } from "./component/dialog-config"
+import { DialogModelRouter } from "./component/dialog-model-router"
 import { DialogDebug } from "./component/dialog-debug"
 import { DialogPair } from "./component/dialog-pair"
 import { DialogHighlights } from "./component/dialog-highlights"
@@ -1178,6 +1179,16 @@ function App() {
           dialog.replace(() => <DialogConfig />)
         },
         category: "System",
+      },
+      {
+        name: "opencode.model_router",
+        title: "Model router",
+        suggested: true,
+        category: "Agent",
+        slash: { name: "model-router", aliases: ["router"] },
+        run: () => {
+          dialog.replace(() => <DialogModelRouter />)
+        },
       },
       {
         name: "opencode.status",
