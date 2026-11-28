@@ -1,5 +1,6 @@
 import type { PluginInfo } from "@opencode/client"
 import { Plugin } from "@opencode/plugin/tui"
+import { ConfigPlugin } from "@opencode/schema/config/plugin"
 import path from "path"
 import { createEffect, createMemo, createResource, createSignal, onCleanup, onMount, Show } from "solid-js"
 import { DialogErrorDetails } from "../../component/dialog-error-details"
@@ -8,6 +9,7 @@ import { usePlugin } from "../../plugin/context"
 import { DialogSelect, type DialogSelectOption } from "../../ui/dialog-select"
 import { useDialog } from "../../ui/dialog"
 import { errorMessage } from "../../util/error"
+import { pluginName, readPluginEnabled, setPluginEnabled } from "../../util/plugin-config"
 
 const id = "opencode.plugins"
 
@@ -22,6 +24,14 @@ type Entry =
       readonly status: "active" | "inactive" | "failed"
       readonly error?: string
     }
+  | {
+      readonly key: string
+      readonly runtime: "package"
+      readonly internal: false
+      readonly target: string
+      readonly name: string
+      readonly enabled: boolean
+    }
 
 export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnType<typeof usePlugin> }) {
   const dialog = useDialog()
@@ -35,6 +45,17 @@ export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnT
     () => props.context.location ?? props.context.data.location.default(),
     (location) => props.context.client.plugin.list({ location }).then((result) => result.data),
   )
+  // Default packages are installed on the server but inactive until the user
+  // opts in, so the server inventory does not list them. Read the local
+  // server config to show them and to toggle them.
+  const [configured, { refetch: refetchConfigured, mutate: mutateConfigured }] = createResource(async () => {
+    const result: Record<string, boolean> = {}
+    for (const entry of ConfigPlugin.defaultPackages) {
+      const name = pluginName(typeof entry === "string" ? entry : entry.package)
+      result[name] = await readPluginEnabled(name)
+    }
+    return result
+  })
   onMount(() => dialog.setSize("large"))
   onCleanup(props.context.data.on("plugin.updated", () => void refetch()))
   const updating = (entry: Entry) =>
@@ -74,9 +95,29 @@ export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnT
         internal: plugin.source.type === "builtin",
         plugin,
       }))
+    const activePackages = new Set(
+      serverEntries.flatMap((entry) =>
+        entry.runtime === "server" && entry.plugin.source.type === "package"
+          ? [pluginName(entry.plugin.source.target)]
+          : [],
+      ),
+    )
+    const packageEntries: Entry[] = ConfigPlugin.defaultPackages
+      .map((entry) => (typeof entry === "string" ? entry : entry.package))
+      .map((spec) => ({ spec, name: pluginName(spec) }))
+      .filter(({ name }) => !activePackages.has(name))
+      .map(({ spec, name }) => ({
+        key: `package:${name}`,
+        runtime: "package" as const,
+        internal: false as const,
+        target: spec,
+        name,
+        enabled: configured()?.[name] ?? false,
+      }))
     return [
       ...[...builtins, ...external].sort((a, b) => label(a, props.context).localeCompare(label(b, props.context))),
       ...serverEntries.sort((a, b) => label(a, props.context).localeCompare(label(b, props.context))),
+      ...packageEntries.sort((a, b) => label(a, props.context).localeCompare(label(b, props.context))),
     ]
   })
   const visibleEntries = createMemo(() =>
@@ -94,7 +135,7 @@ export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnT
         title: label(entry, props.context),
         value: entry.key,
         category: entry.runtime === "tui" ? "TUI" : "Server",
-        searchText: entry.runtime === "tui" ? entry.target : source(entry.plugin, props.context),
+        searchText: pluginSource(entry, props.context),
         footer: updating(entry) ? "updating" : footer(entry),
         footerColor:
           status(entry) === "failed"
@@ -111,6 +152,10 @@ export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnT
     ),
   )
   const focusedEntry = createMemo(() => entries().find((entry) => entry.key === focused()))
+  const focusedPackage = createMemo(() => {
+    const entry = focusedEntry()
+    return entry?.runtime === "package" ? entry : undefined
+  })
   const focusedTui = createMemo(() => {
     const entry = focusedEntry()
     if (entry?.runtime !== "tui" || !entry.id) return
@@ -121,8 +166,7 @@ export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnT
     if (!entry) return "toggle"
     return props.plugins.registered().find((plugin) => plugin.id === entry.id)?.active ? "disable" : "enable"
   })
-  const toggle = (entry: Entry | undefined) => {
-    if (locked() || entry?.runtime !== "tui" || !entry.id) return
+  const toggle = (entry: Entry | undefined) => {    if (locked() || entry?.runtime !== "tui" || !entry.id) return
     const current = props.plugins.registered().find((plugin) => plugin.id === entry.id)
     if (!current) return
     setLocked(true)
@@ -130,6 +174,27 @@ export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnT
       .then((ok) => {
         if (ok) return
         props.context.ui.toast.show({ variant: "error", message: `Failed to update plugin ${current.id}` })
+      })
+      .catch((cause) => {
+        props.context.ui.toast.show({
+          variant: "error",
+          message: errorMessage(cause),
+        })
+      })
+      .finally(() => setLocked(false))
+  }
+  const togglePackage = (entry: Entry | undefined) => {
+    if (locked() || entry?.runtime !== "package") return
+    const enabled = !entry.enabled
+    setLocked(true)
+    void setPluginEnabled(entry.name, enabled)
+      .then(() => {
+        props.context.ui.toast.show({
+          message: `${enabled ? "Enabled" : "Disabled"} ${entry.name}`,
+          variant: "success",
+        })
+        mutateConfigured({ ...(configured() ?? {}), [entry.name]: enabled })
+        return Promise.all([refetch(), refetchConfigured()])
       })
       .catch((cause) => {
         props.context.ui.toast.show({
@@ -200,6 +265,15 @@ export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnT
               },
             ]}
             footerHints={[
+              ...(focusedPackage()
+                ? [
+                    {
+                      title: focusedPackage()?.enabled ? "disable" : "enable",
+                      label: "enter",
+                      group: "primary" as const,
+                    },
+                  ]
+                : []),
               ...(pluginError(focusedEntry()) && !focusedTui()
                 ? [{ title: "view error", label: "enter", group: "primary" as const }]
                 : []),
@@ -208,6 +282,7 @@ export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnT
             onMove={(option) => setFocused(option.value)}
             onSelect={(option) => {
               const entry = entries().find((entry) => entry.key === option.value)
+              if (entry?.runtime === "package") return togglePackage(entry)
               if (
                 entry?.runtime === "tui" &&
                 entry.id &&
@@ -273,11 +348,13 @@ export function PluginsDialog(props: { context: Plugin.Context; plugins: ReturnT
 }
 
 function label(entry: Entry, context: Plugin.Context) {
+  if (entry.runtime === "package") return entry.name
   if (entry.runtime === "tui") return entry.id ?? entry.target
   return entry.plugin.id ?? source(entry.plugin, context)
 }
 
 function pluginSource(entry: Entry, context: Plugin.Context) {
+  if (entry.runtime === "package") return entry.target
   if (entry.runtime === "tui") return entry.target
   return source(entry.plugin, context)
 }
@@ -289,12 +366,14 @@ function source(plugin: PluginInfo, context: Plugin.Context) {
 }
 
 function isLocal(entry: Entry) {
+  if (entry.runtime === "package") return false
   if (entry.runtime === "server") return entry.plugin.source.type === "local"
   const target = entry.target
   return target.startsWith("file://") || target.startsWith("./") || target.startsWith("../") || path.isAbsolute(target)
 }
 
 function status(entry: Entry) {
+  if (entry.runtime === "package") return entry.enabled ? "active" : "inactive"
   if (entry.runtime === "server") return entry.plugin.state.status
   return entry.status
 }
@@ -304,6 +383,7 @@ function outdated(entry: Entry) {
 }
 
 function footer(entry: Entry) {
+  if (entry.runtime === "package") return entry.enabled ? "enabled" : "disabled"
   const details = [
     ...(status(entry) === "active" ? [] : [status(entry)]),
     ...(isLocal(entry) ? ["local"] : []),
@@ -321,7 +401,8 @@ function displayVersion(version: string) {
 
 function pluginError(entry: Entry | undefined) {
   if (entry?.runtime === "server") return entry.plugin.state.status === "failed" ? entry.plugin.state.error : undefined
-  return entry?.error
+  if (entry?.runtime === "tui") return entry.error
+  return undefined
 }
 
 function pluginErrorRef(entry: Entry) {
