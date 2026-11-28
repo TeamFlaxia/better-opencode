@@ -1,11 +1,13 @@
 import { DialogSelect, type DialogSelectRef } from "../ui/dialog-select"
 import { useThemes } from "../context/theme"
+import { useI18n } from "../i18n"
 import { useDialog } from "../ui/dialog"
 import { onCleanup } from "solid-js"
 
 /** `onClose` returns to the caller, e.g. Settings, instead of closing every dialog. */
 export function DialogThemeList(props: { onClose?: () => void }) {
   const themes = useThemes()
+  const { t } = useI18n()
   const options = Object.keys(themes.all())
     .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
     .map((value) => ({
@@ -23,9 +25,9 @@ export function DialogThemeList(props: { onClose?: () => void }) {
 
   return (
     <DialogSelect
-      title="Themes"
+      title={t("Themes")}
       searchInTitle
-      titlePlaceholder="Search themes"
+      titlePlaceholder={t("Search themes")}
       options={options}
       current={initial}
       onCancel={props.onClose}

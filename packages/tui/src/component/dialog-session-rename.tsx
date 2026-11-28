@@ -1,6 +1,7 @@
 import { DialogPrompt } from "../ui/dialog-prompt"
 import { type DialogContext, useDialog } from "../ui/dialog"
 import { useClient } from "../context/client"
+import { useI18n } from "../i18n"
 import { useToast } from "../ui/toast"
 import { errorMessage } from "../util/error"
 
@@ -8,11 +9,12 @@ export function DialogSessionRename(props: { sessionID: string; currentTitle?: s
   const dialog = useDialog()
   const client = useClient()
   const toast = useToast()
+  const { t } = useI18n()
 
   return (
     <DialogPrompt
-      title="Rename session"
-      placeholder="Session title"
+      title={t("Rename session")}
+      placeholder={t("Session title")}
       value={props.currentTitle}
       onConfirm={(value) => {
         const title = value.trim()
@@ -22,7 +24,7 @@ export function DialogSessionRename(props: { sessionID: string; currentTitle?: s
           .then(() => dialog.clear())
           .catch((error) =>
             toast.show({
-              message: `Failed to rename session: ${errorMessage(error)}`,
+              message: t("Failed to rename session: {{error}}", { error: errorMessage(error) }),
               variant: "error",
               duration: 5000,
             }),

@@ -1,11 +1,13 @@
 import { useTheme } from "../context/theme"
 import { DialogHeader, DialogLayout } from "../ui/dialog"
 import { useData } from "../context/data"
+import { useI18n } from "../i18n"
 import { For, Match, Switch, Show, createMemo } from "solid-js"
 
 export function DialogStatus() {
   const data = useData()
   const theme = useTheme().surface("dialog")
+  const { t } = useI18n()
 
   const mcp = createMemo(() => data.location.mcp.server.list() ?? [])
   const color = (status: string) => {
@@ -15,11 +17,13 @@ export function DialogStatus() {
     return theme.text.muted
   }
   return (
-    <DialogLayout header={<DialogHeader title="Status" />}>
-      <Show when={mcp().length > 0} fallback={<text fg={theme.text.base}>No MCP servers</text>}>
+    <DialogLayout header={<DialogHeader title={t("Status")} />}>
+      <Show when={mcp().length > 0} fallback={<text fg={theme.text.base}>{t("No MCP servers")}</text>}>
         <box>
           <text fg={theme.text.base}>
-            {mcp().length} MCP server{mcp().length === 1 ? "" : "s"}
+            {mcp().length === 1
+              ? t("{{count}} MCP server", { count: mcp().length })
+              : t("{{count}} MCP servers", { count: mcp().length })}
           </text>
           <For each={mcp()}>
             {(item) => (
@@ -31,11 +35,11 @@ export function DialogStatus() {
                   <b>{item.name}</b>{" "}
                   <span style={{ fg: theme.text.muted }}>
                     <Switch fallback={item.status.status}>
-                      <Match when={item.status.status === "connected"}>Connected</Match>
+                      <Match when={item.status.status === "connected"}>{t("Connected")}</Match>
                       <Match when={item.status.status === "failed" && item.status}>{(val) => val().error}</Match>
-                      <Match when={item.status.status === "disabled"}>Disabled in configuration</Match>
+                      <Match when={item.status.status === "disabled"}>{t("Disabled in configuration")}</Match>
                       <Match when={item.status.status === "needs_auth" && item.status}>
-                        {(val) => `Needs authentication: ${val().error}`}
+                        {(val) => t("Needs authentication: {{error}}", { error: val().error })}
                       </Match>
                     </Switch>
                   </span>

@@ -1,12 +1,13 @@
 import { useDialog } from "../ui/dialog"
 import { DialogSelect } from "../ui/dialog-select"
 import { createMemo, createSignal } from "solid-js"
+import { useI18n, type TuiI18n } from "../i18n"
 import { Locale } from "../util/locale"
 import { Keymap } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { usePromptStash, type StashEntry } from "../prompt/stash"
 
-function getRelativeTime(timestamp: number): string {
+function getRelativeTime(timestamp: number, t: TuiI18n["t"]): string {
   const now = Date.now()
   const diff = now - timestamp
   const seconds = Math.floor(diff / 1000)
@@ -14,10 +15,10 @@ function getRelativeTime(timestamp: number): string {
   const hours = Math.floor(minutes / 60)
   const days = Math.floor(hours / 24)
 
-  if (seconds < 60) return "just now"
-  if (minutes < 60) return `${minutes}m ago`
-  if (hours < 24) return `${hours}h ago`
-  if (days < 7) return `${days}d ago`
+  if (seconds < 60) return t("just now")
+  if (minutes < 60) return t("{{count}}m ago", { count: minutes })
+  if (hours < 24) return t("{{count}}h ago", { count: hours })
+  if (days < 7) return t("{{count}}d ago", { count: days })
   return Locale.datetime(timestamp)
 }
 
@@ -29,6 +30,7 @@ function getStashPreview(input: string, maxLength: number = 50): string {
 export function DialogStash(props: { onSelect: (entry: StashEntry) => void }) {
   const dialog = useDialog()
   const stash = usePromptStash()
+  const { t } = useI18n()
   const theme = useTheme().surface("dialog")
   const shortcuts = Keymap.useShortcuts()
 
@@ -43,13 +45,13 @@ export function DialogStash(props: { onSelect: (entry: StashEntry) => void }) {
         const lineCount = (entry.prompt.text.match(/\n/g)?.length ?? 0) + 1
         return {
           title: isDeleting
-            ? `Press ${shortcuts.get("stash.delete")} again to confirm`
+            ? t("Press {{key}} again to confirm", { key: shortcuts.get("stash.delete") ?? "" })
             : getStashPreview(entry.prompt.text),
           bg: isDeleting ? theme.background.action.destructive.focused : undefined,
           fg: isDeleting ? theme.text.action.destructive.focused : undefined,
           value: index,
-          description: getRelativeTime(entry.timestamp),
-          footer: lineCount > 1 ? `~${lineCount} lines` : undefined,
+          description: getRelativeTime(entry.timestamp, t),
+          footer: lineCount > 1 ? t("~{{count}} lines", { count: lineCount }) : undefined,
         }
       })
       .toReversed()
@@ -57,7 +59,7 @@ export function DialogStash(props: { onSelect: (entry: StashEntry) => void }) {
 
   return (
     <DialogSelect
-      title="Stash"
+      title={t("Stash")}
       options={options()}
       onMove={() => {
         setToDelete(undefined)
@@ -74,7 +76,7 @@ export function DialogStash(props: { onSelect: (entry: StashEntry) => void }) {
       actions={[
         {
           command: "stash.delete",
-          title: "delete",
+          title: t("delete"),
           onTrigger: (option) => {
             if (toDelete() === option.value) {
               stash.remove(option.value)

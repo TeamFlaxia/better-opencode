@@ -1,6 +1,7 @@
 import { createMemo, createSignal, For } from "solid-js"
 import { Keymap } from "../context/keymap"
 import { useTheme } from "../context/theme"
+import { useI18n } from "../i18n"
 import { DialogHeader, DialogLayout, useDialog } from "../ui/dialog"
 import { useRoute } from "../context/route"
 import { useLocal } from "../context/local"
@@ -19,6 +20,7 @@ export function DialogDebug() {
   const toast = useToast()
   const app = useTuiApp()
   const newDesigns = useNewDesigns()
+  const { t } = useI18n()
   const [copied, setCopied] = createSignal(false)
 
   dialog.setSize("large")
@@ -26,12 +28,12 @@ export function DialogDebug() {
   const entries = createMemo(() => {
     const model = local.model.current()
     return [
-      { label: "Version", value: `${app.version} (${app.channel})` },
-      { label: "Date", value: new Date().toISOString() },
-      { label: "OS", value: describeOS() },
-      { label: "Terminal", value: describeTerminal() },
-      { label: "Session ID", value: route.data.type === "session" ? route.data.sessionID : "n/a" },
-      { label: "Model", value: model ? `${model.providerID}/${model.modelID}` : "n/a" },
+      { label: t("Version"), value: `${app.version} (${app.channel})` },
+      { label: t("Date"), value: new Date().toISOString() },
+      { label: t("OS"), value: describeOS() },
+      { label: t("Terminal"), value: describeTerminal() },
+      { label: t("Session ID"), value: route.data.type === "session" ? route.data.sessionID : "n/a" },
+      { label: t("Model"), value: model ? `${model.providerID}/${model.modelID}` : "n/a" },
     ]
   })
 
@@ -43,18 +45,18 @@ export function DialogDebug() {
       .write(text)
       .then(() => {
         setCopied(true)
-        toast.show({ message: "Debug info copied to clipboard", variant: "info" })
+        toast.show({ message: t("Debug info copied to clipboard"), variant: "info" })
       })
       .catch(toast.error)
   }
 
   Keymap.createLayer(() => ({
     mode: "modal",
-    commands: [{ bind: newDesigns() ? "c" : "return", title: "Copy debug info", group: "Dialog", run: copy }],
+    commands: [{ bind: newDesigns() ? "c" : "return", title: t("Copy debug info"), group: "Dialog", run: copy }],
   }))
 
   const copyAction = () => ({
-    title: copied() ? "✓ copied" : "copy",
+    title: copied() ? t("✓ copied") : t("copy"),
     key: newDesigns() ? "c" : "enter",
     color: copied() ? theme.text.feedback.success.base : undefined,
     onTrigger: copy,
@@ -62,12 +64,12 @@ export function DialogDebug() {
 
   return (
     <DialogLayout
-      header={<DialogHeader title="Debug" description="Share this when reporting an issue" />}
+      header={<DialogHeader title={t("Debug")} description={t("Share this when reporting an issue")} />}
       footer={{
         actions: { primary: [copyAction()] },
         get children() {
           if (newDesigns()) return undefined
-          return <text fg={theme.text.muted}>Share this when reporting an issue.</text>
+          return <text fg={theme.text.muted}>{t("Share this when reporting an issue.")}</text>
         },
       }}
     >

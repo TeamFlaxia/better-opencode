@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createResource, createSignal, Match, onCleanup, Show, Switch } from "solid-js"
 import { Keymap } from "../context/keymap"
 import { useTheme } from "../context/theme"
+import { useI18n } from "../i18n"
 import type { UpdateState } from "../context/update-notification"
 import { DialogButtons, DialogHeader, DialogLayout, useDialog } from "../ui/dialog"
 import { errorMessage } from "../util/error"
@@ -15,6 +16,7 @@ export function DialogUpdate(props: {
 }) {
   const dialog = useDialog()
   const theme = useTheme().surface("dialog")
+  const { t } = useI18n()
   const [error, setError] = createSignal<string>()
   const [active, setActive] = createSignal(0)
   const controller = new AbortController()
@@ -45,13 +47,13 @@ export function DialogUpdate(props: {
     if (type === "installing") return []
     const confirm =
       type === "available"
-        ? { label: "Update", run: props.install }
+        ? { label: t("Update"), run: props.install }
         : type === "installed"
-          ? { label: "Restart", run: props.restart }
+          ? { label: t("Restart"), run: props.restart }
           : undefined
     return [
       {
-        label: "Skip",
+        label: t("Skip"),
         run: () => {
           props.skip()
           dialog.clear()
@@ -71,11 +73,16 @@ export function DialogUpdate(props: {
   Keymap.createLayer(() => ({
     mode: "modal",
     commands: [
-      { bind: "return", title: "Confirm update action", group: "Dialog", run: () => void buttons()[active()]?.run() },
-      { bind: "left", title: "Previous update action", group: "Dialog", run: () => move(-1) },
-      { bind: "shift+tab", title: "Previous update action", group: "Dialog", run: () => move(-1) },
-      { bind: "right", title: "Next update action", group: "Dialog", run: () => move(1) },
-      { bind: "tab", title: "Next update action", group: "Dialog", run: () => move(1) },
+      {
+        bind: "return",
+        title: t("Confirm update action"),
+        group: "Dialog",
+        run: () => void buttons()[active()]?.run(),
+      },
+      { bind: "left", title: t("Previous update action"), group: "Dialog", run: () => move(-1) },
+      { bind: "shift+tab", title: t("Previous update action"), group: "Dialog", run: () => move(-1) },
+      { bind: "right", title: t("Next update action"), group: "Dialog", run: () => move(1) },
+      { bind: "tab", title: t("Next update action"), group: "Dialog", run: () => move(1) },
     ],
   }))
 
@@ -85,10 +92,10 @@ export function DialogUpdate(props: {
         <DialogHeader
           title={
             state().type === "installing"
-              ? "Updating Theia Code"
+              ? t("Updating Theia Code")
               : state().type === "available" || state().type === "failed"
-                ? "Update available"
-                : "Update"
+                ? t("Update available")
+                : t("Update")
           }
         />
       }
@@ -106,25 +113,27 @@ export function DialogUpdate(props: {
         {(current) => (
           <Switch>
             <Match when={current.type === "checking"}>
-              <Spinner shimmer={theme.text.base}>Checking for updates…</Spinner>
+              <Spinner shimmer={theme.text.base}>{t("Checking for updates…")}</Spinner>
             </Match>
             <Match when={current.type === "available"}>
               <text fg={theme.text.muted}>
-                An update is available. After installing, you'll be prompted to restart Theia Code.
+                {t("An update is available. After installing, you'll be prompted to restart Theia Code.")}
               </text>
             </Match>
             <Match when={current.type === "installing"}>
               <Spinner shimmer={theme.text.base}>
-                {current.type === "installing" ? `Installing Theia Code ${current.version}…` : ""}
+                {current.type === "installing"
+                  ? t("Installing Theia Code {{version}}…", { version: current.version })
+                  : ""}
               </Spinner>
             </Match>
             <Match when={current.type === "installed"}>
               <text fg={theme.text.muted} wrapMode="word">
-                Update successful! Restart closes Theia Code, then run theiacode to use the new version.
+                {t("Update successful! Restart closes Theia Code, then run theiacode to use the new version.")}
               </text>
             </Match>
             <Match when={current.type === "current"}>
-              <text fg={theme.text.muted}>Theia Code is already up to date.</text>
+              <text fg={theme.text.muted}>{t("Theia Code is already up to date.")}</text>
             </Match>
             <Match when={current.type === "unavailable"}>
               <text fg={theme.text.muted} wrapMode="word">

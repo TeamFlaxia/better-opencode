@@ -1,6 +1,7 @@
 import { createSignal, Show } from "solid-js"
 import { useFileManager } from "../context/file-manager"
 import { useTheme } from "../context/theme"
+import { useI18n } from "../i18n"
 import { Locale } from "../util/locale"
 
 export const FILE_MANAGER_DOCK_WIDTH = 24
@@ -20,6 +21,7 @@ export function FileManagerDock(props: {
 }) {
   const fileManager = props.controller ?? useFileManager()
   const theme = useTheme()
+  const { t } = useI18n()
   const [hovered, setHovered] = createSignal(false)
   const dockWidth = () => props.width ?? FILE_MANAGER_DOCK_WIDTH
   const compact = () => props.orientation !== "below" && dockWidth() < 12
@@ -30,8 +32,8 @@ export function FileManagerDock(props: {
     const index = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"))
     return trimmed.slice(index + 1) || value
   }
-  const label = () => rootName() || "root"
-  const detail = () => fileManager.path() || "root"
+  const label = () => rootName() || t("root")
+  const detail = () => fileManager.path() || t("root")
   const count = () => (fileManager.loading() ? "…" : String(fileManager.entries().length))
   const labelWidth = () => Math.max(1, dockWidth() - 10)
   const background = () =>

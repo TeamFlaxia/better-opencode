@@ -1,6 +1,7 @@
 import { createEffect, createMemo, createSignal, Show } from "solid-js"
 import { useData } from "../context/data"
 import { useClient } from "../context/client"
+import { useI18n } from "../i18n"
 import { pipe, sortBy } from "remeda"
 import { DialogSelect } from "../ui/dialog-select"
 import { useDialog } from "../ui/dialog"
@@ -18,19 +19,20 @@ function statusError(status: McpServer["status"]) {
 }
 
 function Status(props: { status: McpServer["status"]; loading: boolean }) {
+  const { t } = useI18n()
   if (props.loading || props.status.status === "pending") {
-    return <>Connecting …</>
+    return <>{t("Connecting …")}</>
   }
   if (props.status.status === "connected") {
-    return <span style={{ attributes: TextAttributes.BOLD }}>Connected ✓</span>
+    return <span style={{ attributes: TextAttributes.BOLD }}>{t("Connected ✓")}</span>
   }
   if (props.status.status === "failed") {
-    return <>Failed !</>
+    return <>{t("Failed !")}</>
   }
   if (props.status.status === "needs_auth") {
-    return <>Sign in required →</>
+    return <>{t("Sign in required →")}</>
   }
-  return <>Disabled ○</>
+  return <>{t("Disabled ○")}</>
 }
 
 export function DialogMcp(props: { initialServer?: string; details?: boolean } = {}) {
@@ -40,6 +42,7 @@ export function DialogMcp(props: { initialServer?: string; details?: boolean } =
   const location = useLocation()
   const toast = useToast()
   const theme = useTheme().surface("dialog")
+  const { t } = useI18n()
   const current = () => location.ref ?? data.location.default()
   const servers = createMemo(() =>
     pipe(
@@ -84,10 +87,10 @@ export function DialogMcp(props: { initialServer?: string; details?: boolean } =
 
   const toggleTitle = createMemo(() => {
     const status = focusedServer()?.status.status
-    if (status === "connected") return "disconnect"
-    if (status === "failed") return "retry"
-    if (status === "needs_auth") return "sign in"
-    return "connect"
+    if (status === "connected") return t("disconnect")
+    if (status === "failed") return t("retry")
+    if (status === "needs_auth") return t("sign in")
+    return t("connect")
   })
 
   const focusedError = createMemo(() => {
@@ -143,9 +146,9 @@ export function DialogMcp(props: { initialServer?: string; details?: boolean } =
         when={detail()}
         fallback={
           <DialogSelect
-            title="MCP servers"
+            title={t("MCP servers")}
             searchInTitle
-            titlePlaceholder="Search MCP servers"
+            titlePlaceholder={t("Search MCP servers")}
             options={options()}
             preserveSelection
             focusTarget={props.initialServer}
@@ -161,14 +164,14 @@ export function DialogMcp(props: { initialServer?: string; details?: boolean } =
                 },
               },
             ]}
-            footerHints={focusedError() ? [{ title: "view error", label: "enter", group: "primary" }] : []}
+            footerHints={focusedError() ? [{ title: t("view error"), label: "enter", group: "primary" }] : []}
           />
         }
       >
         {(server) => (
           <DialogErrorDetails
-            title={`MCP server: ${server().name}`}
-            error={statusError(server().status) ?? "Unknown MCP connection error"}
+            title={t("MCP server: {{name}}", { name: server().name })}
+            error={statusError(server().status) ?? t("Unknown MCP connection error")}
             context={`Status: ${server().status.status}\nConfiguration: mcp.servers.${server().name}${
               server().integrationID ? `\nIntegration: ${server().integrationID}` : ""
             }`}

@@ -8,6 +8,7 @@ import { useRoute } from "../context/route"
 import { useTaskGraph, type TaskGraphController } from "../context/task-graph"
 import { useTheme } from "../context/theme"
 import { useVcs } from "../context/vcs"
+import { useI18n } from "../i18n"
 import { Locale } from "../util/locale"
 import { layoutTaskChart, type TaskChartCell, type TaskChartRow } from "../util/task-graph-chart"
 import {
@@ -49,6 +50,7 @@ export function TaskGraphView(props: {
 }) {
   const task = props.controller ?? useTaskGraph()
   const theme = useTheme()
+  const { t } = useI18n()
   const vcs = props.vcs ?? useVcs()
   const clipboard = useClipboard()
   const dialog = useDialog()
@@ -92,7 +94,8 @@ export function TaskGraphView(props: {
   const detailsWidth = () => detailsSize.size()
   const sidebarWidth = () => Math.max(24, bounds().width - detailsWidth() - 3)
   const listHeight = () => Math.max(5, Math.min(12, Math.floor(bounds().height * 0.3)))
-  const layerLabel = (index: number) => (index === 0 ? "Ready to start" : `Depends on layer ${index}`)
+  const layerLabel = (index: number) =>
+    index === 0 ? t("Ready to start") : t("Depends on layer {{n}}", { n: index })
   const chartWidth = () => Math.max(10, sidebarWidth() - 3)
 
   const color = (status: TaskNodeStatus | undefined, selected: boolean) => {
@@ -191,7 +194,15 @@ export function TaskGraphView(props: {
     const short = ref.length > 8 ? `${ref.slice(0, 7)}…` : ref
     return `${vcsBadge(node)} ${short}`
   }
-  const chart = createMemo(() => layoutTaskChart({ tasks: model().tasks, width: chartWidth(), layerLabel, vcsLabel }))
+  const chart = createMemo(() =>
+    layoutTaskChart({
+      tasks: model().tasks,
+      width: chartWidth(),
+      layerLabel,
+      statusLabel: (status) => t(statusLabel(status)),
+      vcsLabel,
+    }),
+  )
   const chartRow = (index: number) => {
     const id = model().tasks[index]?.id
     return id === undefined ? 0 : (chart().top[id] ?? 0)
@@ -203,7 +214,7 @@ export function TaskGraphView(props: {
     const node = selectedTask()
     if (!node) return
     if (!vcsAvailable()) {
-      toast.show({ variant: "warning", message: "VCS linking is available in a jj repository." })
+      toast.show({ variant: "warning", message: t("VCS linking is available in a jj repository.") })
       return
     }
     return node
@@ -214,7 +225,7 @@ export function TaskGraphView(props: {
     const bookmark = node.vcs?.bookmarks[0] ?? `task/${node.id}`
     dialog.replace(() => (
       <DialogPrompt
-        title="New jj change for task"
+        title={t("New jj change for task")}
         value={`task(${node.id}): ${node.title}`}
         onConfirm={(value) => {
           const message = value.trim()
@@ -237,7 +248,7 @@ export function TaskGraphView(props: {
     if (!node || !ref) return
     dialog.replace(() => (
       <DialogPrompt
-        title="Describe jj change"
+        title={t("Describe jj change")}
         value={`task(${node.id}): ${node.title}`}
         onConfirm={(value) => {
           const message = value.trim()
@@ -255,7 +266,7 @@ export function TaskGraphView(props: {
     if (!node || !ref) return
     dialog.replace(() => (
       <DialogPrompt
-        title="Set jj bookmark"
+        title={t("Set jj bookmark")}
         value={node.vcs?.bookmarks[0] ?? `task/${node.id}`}
         onConfirm={(value) => {
           const bookmark = value.trim()
@@ -287,29 +298,35 @@ export function TaskGraphView(props: {
     const node = requireJjTask()
     const ref = node && vcsRef(node)
     if (!node || !ref) return
-    confirmAction("Edit jj change", `Switch the working copy to ${ref}?`, () => vcs.editTask(ref))
+    confirmAction(t("Edit jj change"), t("Switch the working copy to {{ref}}?", { ref }), () => vcs.editTask(ref))
   }
   const squashChange = () => {
     const node = requireJjTask()
     const ref = node && vcsRef(node)
     if (!node || !ref) return
-    confirmAction("Squash jj change", `Squash ${ref} into its parent? The change may disappear.`, () => vcs.squashTask(ref), () =>
-      updateLink(node, { change: undefined }),
+    confirmAction(
+      t("Squash jj change"),
+      t("Squash {{ref}} into its parent? The change may disappear.", { ref }),
+      () => vcs.squashTask(ref),
+      () => updateLink(node, { change: undefined }),
     )
   }
   const abandonChange = () => {
     const node = requireJjTask()
     const ref = node && vcsRef(node)
     if (!node || !ref) return
-    confirmAction("Abandon jj change", `Abandon ${ref}? This removes the change and its content.`, () => vcs.abandonTask(ref), () =>
-      task.removeLink(node.id),
+    confirmAction(
+      t("Abandon jj change"),
+      t("Abandon {{ref}}? This removes the change and its content.", { ref }),
+      () => vcs.abandonTask(ref),
+      () => task.removeLink(node.id),
     )
   }
   const validateDependencies = () => {
     const node = requireJjTask()
     const target = node?.vcs?.change
     if (!node || !target) {
-      if (node) toast.show({ variant: "warning", message: "Link a jj change to this task first." })
+      if (node) toast.show({ variant: "warning", message: t("Link a jj change to this task first.") })
       return
     }
     const dependencies = node.dependsOn.flatMap((id) => {
@@ -317,7 +334,7 @@ export function TaskGraphView(props: {
       return dependency?.vcs?.change ? [{ id, change: dependency.vcs.change }] : []
     })
     if (dependencies.length === 0) {
-      toast.show({ variant: "info", message: "No linked dependency changes to validate." })
+      toast.show({ variant: "info", message: t("No linked dependency changes to validate.") })
       return
     }
     void (async () => {
@@ -327,7 +344,10 @@ export function TaskGraphView(props: {
       const missing = Object.entries(result).filter(([, ok]) => !ok).map(([id]) => id)
       toast.show({
         variant: missing.length > 0 ? "warning" : "success",
-        message: missing.length > 0 ? `Not an ancestor: ${missing.join(", ")}` : "Dependency changes are ancestors.",
+        message:
+          missing.length > 0
+            ? t("Not an ancestor: {{list}}", { list: missing.join(", ") })
+            : t("Dependency changes are ancestors."),
       })
     })()
   }
@@ -337,7 +357,7 @@ export function TaskGraphView(props: {
     if (!value) return
     void clipboard
       .write(value)
-      .then(() => toast.show({ variant: "info", message: `Copied ${value}` }))
+      .then(() => toast.show({ variant: "info", message: t("Copied {{value}}", { value }) }))
       .catch(toast.error)
   }
   const taskActions = () => {
@@ -345,19 +365,23 @@ export function TaskGraphView(props: {
     if (!node) return
     const ref = vcsRef(node)
     const actions = [
-      { title: "New change", value: "new" as const, description: "Create a change and bookmark for this task" },
+      { title: t("New change"), value: "new" as const, description: t("Create a change and bookmark for this task") },
       ...(ref
         ? [
-            { title: "Describe change", value: "describe" as const, description: ref },
-            { title: "Set bookmark", value: "bookmark" as const, description: node.vcs?.bookmarks[0] ?? `task/${node.id}` },
-            { title: "Edit change", value: "edit" as const, description: `Switch the working copy to ${ref}` },
-            { title: "Squash into parent", value: "squash" as const, description: `Squash ${ref}` },
-            { title: "Abandon change", value: "abandon" as const, description: `Abandon ${ref}` },
-            { title: "Validate dependencies", value: "validate" as const, description: "Check jj ancestry" },
+            { title: t("Describe change"), value: "describe" as const, description: ref },
+            { title: t("Set bookmark"), value: "bookmark" as const, description: node.vcs?.bookmarks[0] ?? `task/${node.id}` },
+            {
+              title: t("Edit change"),
+              value: "edit" as const,
+              description: t("Switch the working copy to {{ref}}", { ref }),
+            },
+            { title: t("Squash into parent"), value: "squash" as const, description: t("Squash {{ref}}", { ref }) },
+            { title: t("Abandon change"), value: "abandon" as const, description: t("Abandon {{ref}}", { ref }) },
+            { title: t("Validate dependencies"), value: "validate" as const, description: t("Check jj ancestry") },
           ]
         : []),
-      { title: "Copy change or bookmark", value: "copy" as const, description: ref },
-      { title: "Open version control", value: "vcs" as const, description: "Open the VCS view" },
+      { title: t("Copy change or bookmark"), value: "copy" as const, description: ref },
+      { title: t("Open version control"), value: "vcs" as const, description: t("Open the VCS view") },
     ]
     const run = (value: (typeof actions)[number]["value"]) => {
       if (value === "new") return newChange()
@@ -372,7 +396,7 @@ export function TaskGraphView(props: {
     }
     dialog.replace(() => (
       <DialogSelect
-        title="Task actions"
+        title={t("Task actions")}
         options={actions}
         onSelect={(option) => {
           dialog.clear()
@@ -567,7 +591,7 @@ export function TaskGraphView(props: {
           wrapMode="none"
           selectable={false}
         >
-          {statusLabel(current().status)}
+          {t(statusLabel(current().status))}
         </text>
       </box>
     )
@@ -645,20 +669,25 @@ export function TaskGraphView(props: {
       <box height={3} flexShrink={0} flexDirection="column" paddingLeft={1} paddingRight={1}>
         <box height={1} flexDirection="row" gap={1}>
           <text fg={theme.text.base} selectable={false}>
-            <b>Task graph</b>
+            <b>{t("Task graph")}</b>
           </text>
           <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
-            {model().goal ? `◎ ${model().goal!.objective}` : "no goal"}
+            {model().goal ? `◎ ${model().goal!.objective}` : t("no goal")}
           </text>
           <box flexGrow={1} minWidth={0} />
           <text fg={theme.text.muted} selectable={false}>
-            {summarizeGraph(model())}
+            {summarizeGraph(model(), t)}
           </text>
         </box>
         <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
           {model().goal
-            ? `goal ${model().goal!.status}${model().goal!.reason ? ` · ${model().goal!.reason}` : ""} · round ${model().goal!.rounds}/${model().goal!.maxRounds}`
-            : "Ask the agent to split work, or start a goal with /goal <objective>."}
+            ? t("goal {{status}}{{reason}} · round {{round}}/{{max}}", {
+                status: t(model().goal!.status),
+                reason: model().goal!.reason ? ` · ${model().goal!.reason}` : "",
+                round: model().goal!.rounds,
+                max: model().goal!.maxRounds,
+              })
+            : t("Ask the agent to split work, or start a goal with /goal <objective>.")}
         </text>
       </box>
 
@@ -667,7 +696,7 @@ export function TaskGraphView(props: {
         fallback={
           <box flexGrow={1} paddingLeft={1} paddingTop={1}>
             <text fg={theme.text.muted} selectable={false}>
-              No tasks yet. Start a goal with /goal &lt;objective&gt; or ask the agent to split the work.
+              {t("No tasks yet. Start a goal with /goal <objective> or ask the agent to split the work.")}
             </text>
           </box>
         }
@@ -688,7 +717,7 @@ export function TaskGraphView(props: {
               flexDirection="column"
               border
               borderColor={focus() === "graph" ? theme.background.action.primary.focused : theme.border.base}
-              title="Tasks"
+              title={t("Tasks")}
               titleColor={focus() === "graph" ? theme.text.base : theme.text.muted}
               backgroundColor={theme.background.raised.base}
               onMouseDown={() => setFocus("graph")}
@@ -698,7 +727,7 @@ export function TaskGraphView(props: {
                 fallback={
                   <box height={1} paddingLeft={1}>
                     <text fg={theme.text.muted} selectable={false}>
-                      No declared tasks; execution is shown below.
+                      {t("No declared tasks; execution is shown below.")}
                     </text>
                   </box>
                 }
@@ -745,7 +774,7 @@ export function TaskGraphView(props: {
               flexDirection="column"
               border
               borderColor={focus() === "execution" ? theme.background.action.primary.focused : theme.border.base}
-              title="Execution"
+              title={t("Execution")}
               titleColor={focus() === "execution" ? theme.text.base : theme.text.muted}
               backgroundColor={theme.background.raised.base}
               onMouseDown={() => setFocus("execution")}
@@ -755,7 +784,7 @@ export function TaskGraphView(props: {
                 fallback={
                   <box height={1} paddingLeft={1}>
                     <text fg={theme.text.muted} selectable={false}>
-                      No execution yet.
+                      {t("No execution yet.")}
                     </text>
                   </box>
                 }
@@ -780,7 +809,7 @@ export function TaskGraphView(props: {
               flexDirection="column"
               border
               borderColor={theme.border.base}
-              title="Details"
+              title={t("Details")}
               titleColor={theme.text.muted}
               backgroundColor={theme.background.raised.base}
             >
@@ -789,7 +818,7 @@ export function TaskGraphView(props: {
                 fallback={
                   <box paddingLeft={1} paddingTop={1}>
                     <text fg={theme.text.muted} selectable={false}>
-                      Select a task or execution node.
+                      {t("Select a task or execution node.")}
                     </text>
                   </box>
                 }
@@ -802,49 +831,49 @@ export function TaskGraphView(props: {
                       </text>
                       <box flexDirection="row" gap={1}>
                         <text fg={theme.text.muted} selectable={false}>
-                          {current().node.kind}
+                          {t(current().node.kind)}
                         </text>
                         <text fg={color(current().node.status, false)} selectable={false}>
-                          {statusLabel(current().node.status)}
+                          {t(statusLabel(current().node.status))}
                         </text>
                       </box>
-                      {detailRow("Reason", current().node.reason, theme.text.feedback.warning.base)}
-                      {detailRow("Detail", current().node.detail)}
+                      {detailRow(t("Reason"), current().node.reason, theme.text.feedback.warning.base)}
+                      {detailRow(t("Detail"), current().node.detail)}
                       {current().node.vcs && (
                         <box flexDirection="column" gap={1}>
                           <text fg={theme.text.muted} selectable={false}>
                             VCS
                           </text>
                           <text fg={vcsColor(current().node)} selectable={false}>
-                            {vcsState(current().node) ?? "linked"}
-                            {current().node.vcs!.broken ? " · link not found" : ""}
+                            {t(vcsState(current().node) ?? "linked")}
+                            {current().node.vcs!.broken ? t(" · link not found") : ""}
                           </text>
-                          {detailRow("Change", current().node.vcs!.change || current().node.vcs!.ref)}
-                          {detailRow("Commit", current().node.vcs!.commit || undefined)}
-                          {detailRow("Bookmarks", current().node.vcs!.bookmarks.join(", ") || undefined)}
-                          {detailRow("Parent", current().node.vcs!.parents.join(", ") || undefined)}
+                          {detailRow(t("Change"), current().node.vcs!.change || current().node.vcs!.ref)}
+                          {detailRow(t("Commit"), current().node.vcs!.commit || undefined)}
+                          {detailRow(t("Bookmarks"), current().node.vcs!.bookmarks.join(", ") || undefined)}
+                          {detailRow(t("Parent"), current().node.vcs!.parents.join(", ") || undefined)}
                         </box>
                       )}
-                      {detailRow("Depends on", current().node.dependsOn.join(", ") || undefined)}
+                      {detailRow(t("Depends on"), current().node.dependsOn.join(", ") || undefined)}
                       {detailRow(
-                        "Ancestry",
+                        t("Ancestry"),
                         current()
                           .node.dependsOn.flatMap((id) =>
                             ancestry()[id] === undefined
                               ? []
-                              : [`${id}: ${ancestry()[id] ? "ancestor" : "not ancestor"}`],
+                              : [`${id}: ${ancestry()[id] ? t("ancestor") : t("not ancestor")}`],
                           )
                           .join(" · ") || undefined,
                       )}
-                      {detailRow("Dependents", current().dependents.join(", ") || undefined)}
-                      {detailRow("Tokens", current().node.tokens?.toLocaleString())}
-                      {detailRow("Cost", current().node.cost?.toFixed(4))}
-                      {detailRow("Started", current().started)}
-                      {detailRow("Completed", current().completed)}
-                      {detailRow("Session", current().node.sessionID)}
+                      {detailRow(t("Dependents"), current().dependents.join(", ") || undefined)}
+                      {detailRow(t("Tokens"), current().node.tokens?.toLocaleString())}
+                      {detailRow(t("Cost"), current().node.cost?.toFixed(4))}
+                      {detailRow(t("Started"), current().started)}
+                      {detailRow(t("Completed"), current().completed)}
+                      {detailRow(t("Session"), current().node.sessionID)}
                       <Show when={current().node.sessionID}>
                         <text fg={theme.text.muted} selectable={false}>
-                          enter opens the session
+                          {t("enter opens the session")}
                         </text>
                       </Show>
                     </box>
@@ -862,12 +891,12 @@ export function TaskGraphView(props: {
       <box height={1} flexShrink={0} flexDirection="row" gap={2} paddingLeft={1} paddingRight={1}>
         <For
           each={[
-            { key: "↑/↓", label: "select" },
-            { key: "tab", label: "pane" },
-            { key: "space", label: "actions" },
-            { key: "o", label: "vcs" },
-            { key: "r", label: "refresh" },
-            { key: "q", label: "close" },
+            { key: "↑/↓", label: t("select") },
+            { key: "tab", label: t("pane") },
+            { key: "space", label: t("actions") },
+            { key: "o", label: t("vcs") },
+            { key: "r", label: t("refresh") },
+            { key: "q", label: t("close") },
           ]}
         >
           {(item) => (

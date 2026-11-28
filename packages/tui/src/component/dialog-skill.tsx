@@ -5,6 +5,7 @@ import { DIALOG_LIST_INSET, useDialog } from "../ui/dialog"
 import { useTheme } from "../context/theme"
 import { errorMessage } from "../util/error"
 import { useData } from "../context/data"
+import { useI18n } from "../i18n"
 import type { LocationRef } from "@opencode/client"
 
 export type DialogSkillProps = {
@@ -16,6 +17,7 @@ export function DialogSkill(props: DialogSkillProps) {
   const dialog = useDialog()
   const data = useData()
   const theme = useTheme()
+  const { t } = useI18n()
   dialog.setSize("large")
 
   const [loadError, setLoadError] = createSignal<unknown>()
@@ -55,7 +57,7 @@ export function DialogSkill(props: DialogSkillProps) {
 
   return (
     <DialogSelect
-      title="Skills"
+      title={t("Skills")}
       options={options()}
       renderFilter={!showError() && !skills.loading}
       locked={showError() || skills.loading}
@@ -63,29 +65,29 @@ export function DialogSkill(props: DialogSkillProps) {
         <Switch
           fallback={
             <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-              <text fg={theme.text.muted}>No skills available</text>
+              <text fg={theme.text.muted}>{t("No skills available")}</text>
             </box>
           }
         >
           <Match when={showError()}>
             <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
               <text fg={theme.text.feedback.error.base} attributes={TextAttributes.BOLD}>
-                Could not load skills
+                {t("Could not load skills")}
               </text>
               <text fg={theme.text.muted}>{errorMessage(loadError())}</text>
-              <text fg={theme.text.muted}>Close and reopen Skills to try again.</text>
+              <text fg={theme.text.muted}>{t("Close and reopen Skills to try again.")}</text>
             </box>
           </Match>
           <Match when={skills.loading}>
             <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-              <text fg={theme.text.muted}>Loading skills…</text>
+              <text fg={theme.text.muted}>{t("Loading skills…")}</text>
             </box>
           </Match>
         </Switch>
       }
       noMatchView={
         <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-          <text fg={theme.text.muted}>No skills found</text>
+          <text fg={theme.text.muted}>{t("No skills found")}</text>
         </box>
       }
     />

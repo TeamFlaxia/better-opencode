@@ -62,6 +62,7 @@ export function layoutTaskChart(input: {
   readonly tasks: ReadonlyArray<TaskNode>
   readonly width: number
   readonly layerLabel: (layer: number) => string
+  readonly statusLabel?: (status: TaskNodeStatus) => string
   readonly vcsLabel?: (node: TaskNode) => string
 }): TaskChart {
   const width = Math.max(10, Math.floor(input.width))
@@ -103,7 +104,7 @@ export function layoutTaskChart(input: {
       const start = Math.max(0, Math.floor((width - (band.length * nodeWidth + (band.length - 1) * gap)) / 2))
       band.forEach((task, nodeIndex) => {
         const x = start + nodeIndex * (nodeWidth + gap)
-        drawNode(canvas, row, x, nodeWidth, task, input.vcsLabel)
+        drawNode(canvas, row, x, nodeWidth, task, input.statusLabel, input.vcsLabel)
         boxes.push({ id: task.id, row, x, width: nodeWidth })
         centers[task.id] = x + Math.floor(nodeWidth / 2)
         top[task.id] = row
@@ -232,6 +233,7 @@ function drawNode(
   column: number,
   width: number,
   node: TaskNode,
+  statusText?: (status: TaskNodeStatus) => string,
   vcsLabel?: (node: TaskNode) => string,
 ) {
   const style = { status: node.status, nodeID: node.id }
@@ -253,7 +255,7 @@ function drawNode(
   canvas.set(row + 1, column + width - 2, " ", "border", style)
   canvas.set(row + 1, column + width - 1, "│", "border", style)
 
-  const status = truncateWidth(statusLabel(node.status), inner)
+  const status = truncateWidth(statusText ? statusText(node.status) : statusLabel(node.status), inner)
   const vcsText = vcsLabel?.(node)
   const vcsWidth = inner - stringWidth(status) - 3
   const vcs = vcsText && vcsWidth > 0 ? truncateWidth(vcsText, vcsWidth) : undefined

@@ -127,15 +127,20 @@ export function buildTaskGraph(input: {
 }
 
 /** A one-line summary for the dock and the view header. */
-export function summarizeGraph(model: TaskGraphModel) {
+export function summarizeGraph(
+  model: TaskGraphModel,
+  t: (source: string, params?: Record<string, string | number | boolean>) => string,
+) {
   const parts = [
-    model.counts.total > 0 ? `${model.counts.done}/${model.counts.total} done` : "no tasks",
-    ...(model.counts.active ? [`${model.counts.active} running`] : []),
-    ...(model.counts.waiting ? [`${model.counts.waiting} waiting`] : []),
-    ...(model.counts.blocked ? [`${model.counts.blocked} blocked`] : []),
-    ...(model.counts.stalled ? [`${model.counts.stalled} stalled`] : []),
-    ...(model.counts.pending ? [`${model.counts.pending} pending`] : []),
-    ...(model.counts.skipped ? [`${model.counts.skipped} skipped`] : []),
+    model.counts.total > 0
+      ? t("{{done}}/{{total}} done", { done: model.counts.done, total: model.counts.total })
+      : t("no tasks"),
+    ...(model.counts.active ? [t("{{count}} running", { count: model.counts.active })] : []),
+    ...(model.counts.waiting ? [t("{{count}} waiting", { count: model.counts.waiting })] : []),
+    ...(model.counts.blocked ? [t("{{count}} blocked", { count: model.counts.blocked })] : []),
+    ...(model.counts.stalled ? [t("{{count}} stalled", { count: model.counts.stalled })] : []),
+    ...(model.counts.pending ? [t("{{count}} pending", { count: model.counts.pending })] : []),
+    ...(model.counts.skipped ? [t("{{count}} skipped", { count: model.counts.skipped })] : []),
   ]
   return parts.join(" · ")
 }

@@ -8,9 +8,11 @@ import {
   summarizeGraph,
   taskGraphDeclaredAt,
 } from "../../src/util/task-graph"
+import { translate } from "../../src/i18n"
 import { jjLinkRevset, matchJjLinks, parseJjLinks } from "../../src/util/vcs"
 
 const model = { id: "model", providerID: "provider" }
+const t = (source: string, params?: Record<string, string | number | boolean>) => translate("en", source, params)
 
 function assistant(
   id: string,
@@ -203,8 +205,8 @@ test("summarizes the graph and picks an unambiguous marker", () => {
     running: true,
   })
 
-  expect(summarizeGraph(graph)).toContain("1/2 done")
-  expect(summarizeGraph(graph)).toContain("1 running")
+  expect(summarizeGraph(graph, t)).toContain("1/2 done")
+  expect(summarizeGraph(graph, t)).toContain("1 running")
   expect(statusMarker("done")).toBe("[✓]")
   expect(statusMarker("blocked")).toBe("[!]")
 })

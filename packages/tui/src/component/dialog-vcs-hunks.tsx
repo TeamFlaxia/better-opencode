@@ -4,6 +4,7 @@ import { createMemo, For } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useConfig } from "../config"
 import { useTheme } from "../context/theme"
+import { useI18n } from "../i18n"
 import { buildHunkPatch, type VcsHunkPatch } from "../util/vcs"
 import {
   DIALOG_INSET,
@@ -27,6 +28,7 @@ export function DialogVcsHunks(props: {
   const dialog = useDialog()
   const theme = useTheme().surface("dialog")
   const overlay = useTheme()
+  const { t } = useI18n()
   const config = useConfig().data
   const scrollAcceleration = createMemo(() => getScrollAcceleration(config))
   const [store, setStore] = createStore({
@@ -98,21 +100,21 @@ export function DialogVcsHunks(props: {
       footer={{
         actions: {
           primary: [
-            { title: "toggle", key: "space", onTrigger: () => toggle(store.index) },
-            { title: props.confirmLabel ?? "confirm", key: "enter", onTrigger: confirm },
+            { title: t("toggle"), key: "space", onTrigger: () => toggle(store.index) },
+            { title: props.confirmLabel ?? t("confirm"), key: "enter", onTrigger: confirm },
           ],
-          secondary: [{ title: "cancel", key: "esc", onTrigger: props.onCancel }],
+          secondary: [{ title: t("cancel"), key: "esc", onTrigger: props.onCancel }],
         },
       }}
       legacyFooter={
         <box flexDirection="row" justifyContent="flex-end" gap={1}>
-          <text fg={theme.text.muted}>space toggle · a all · enter confirm · esc cancel</text>
+          <text fg={theme.text.muted}>{t("space toggle · a all · enter confirm · esc cancel")}</text>
         </box>
       }
     >
       <box gap={1}>
         <text fg={theme.text.muted} wrapMode="word">
-          {props.description ?? "Select hunks with space, then confirm."}
+          {props.description ?? t("Select hunks with space, then confirm.")}
         </text>
         <DialogBleed>
           <scrollbox

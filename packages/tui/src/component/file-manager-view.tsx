@@ -19,6 +19,7 @@ import {
 import { useClipboard } from "../context/clipboard"
 import { useFileManager } from "../context/file-manager"
 import { useTheme } from "../context/theme"
+import { useI18n } from "../i18n"
 import { errorMessage } from "../util/error"
 import { formatFileSize, type FileManagerEntry, type FileManagerPreview } from "../util/file-manager"
 import { Locale } from "../util/locale"
@@ -53,6 +54,7 @@ export type FileManagerController = Pick<
 export function FileManagerView(props: { onClose: () => void; controller?: FileManagerController }) {
   const fileManager = props.controller ?? useFileManager()
   const theme = useTheme()
+  const { t } = useI18n()
   const dimensions = useTerminalDimensions()
   const dialog = useDialog()
   const toast = useToast()
@@ -131,12 +133,12 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
   }
   const sidebarWidth = () => Math.max(24, Math.min(44, Math.floor(dimensions().width * 0.36)))
   const previewLabelWidth = () => Math.max(8, dimensions().width - sidebarWidth() - 34)
-  const previewLabel = () => selectedEntry()?.path ?? "Select a file to preview"
+  const previewLabel = () => selectedEntry()?.path ?? t("Select a file to preview")
   const previewDetail = () => {
     const state = previewState()
     if (state.type === "binary" || state.type === "text")
-      return `${formatFileSize(state.preview.bytes)}${state.preview.truncated ? " · truncated" : ""}`
-    if (state.type === "directory") return "directory"
+      return `${formatFileSize(state.preview.bytes)}${state.preview.truncated ? t(" · truncated") : ""}`
+    if (state.type === "directory") return t("directory")
     return ""
   }
   const previewDetailColor = () => {
@@ -242,7 +244,7 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
     if (!entry || !root) return
     void clipboard
       .write(path.resolve(root, entry.path))
-      .then(() => toast.show({ variant: "info", message: "Path copied" }))
+      .then(() => toast.show({ variant: "info", message: t("Path copied") }))
       .catch(toast.error)
   }
 
@@ -339,9 +341,9 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
     row.kind === "parent" || row.entry.type === "directory" ? theme.text.feedback.info.base : theme.text.muted
   const rowEntry = (row: FileManagerRow) => (row.kind === "entry" ? row.entry : undefined)
   const emptyList = () => {
-    if (fileManager.loading()) return "Loading…"
-    if (fileManager.error()) return "Could not read this directory"
-    return "Empty directory"
+    if (fileManager.loading()) return t("Loading…")
+    if (fileManager.error()) return t("Could not read this directory")
+    return t("Empty directory")
   }
   const emptyRow = (message: string) => (
     <box height={1} paddingLeft={1}>
@@ -354,19 +356,19 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
   const contextHints = (): Hint[] => {
     if (focus() === "preview")
       return [
-        { key: "up", label: "scroll" },
-        { key: "y", label: "copy path" },
+        { key: "up", label: t("scroll") },
+        { key: "y", label: t("copy path") },
       ]
     return [
-      { key: "enter", label: selectedEntry()?.type === "directory" ? "open" : "preview" },
-      ...(fileManager.path() ? [{ key: "backspace", label: "up" }] : []),
-      { key: "y", label: "copy path" },
+      { key: "enter", label: selectedEntry()?.type === "directory" ? t("open") : t("preview") },
+      ...(fileManager.path() ? [{ key: "backspace", label: t("up") }] : []),
+      { key: "y", label: t("copy path") },
     ]
   }
   const globalHints = (): Hint[] => [
-    { key: "tab", label: "pane" },
-    { key: "r", label: "refresh" },
-    { key: "q", label: "close" },
+    { key: "tab", label: t("pane") },
+    { key: "r", label: t("refresh") },
+    { key: "q", label: t("close") },
   ]
   const hintRow = (items: readonly Hint[]) => (
     <box height={1} flexDirection="row" gap={2}>
@@ -398,14 +400,16 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
       <box height={3} flexShrink={0} flexDirection="column" paddingLeft={1} paddingRight={1}>
         <box height={1} flexDirection="row" gap={1}>
           <text fg={theme.text.base} selectable={false}>
-            <b>File manager</b>
+            <b>{t("File manager")}</b>
           </text>
           <text fg={theme.text.feedback.info.base} selectable={false}>
             {rootName()}
           </text>
           <box flexGrow={1} minWidth={0} />
           <text fg={theme.text.muted} selectable={false}>
-            {fileManager.loading() ? "loading…" : `${fileManager.entries().length} entries`}
+            {fileManager.loading()
+              ? t("loading…")
+              : t("{{count}} entries", { count: fileManager.entries().length })}
           </text>
         </box>
         <box height={1} flexDirection="row" gap={1}>
@@ -428,7 +432,7 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
           minHeight={0}
           border
           borderColor={focus() === "list" ? theme.background.action.primary.focused : theme.border.base}
-          title={`Directory · ${fileManager.entries().length}`}
+          title={t("Directory · {{count}}", { count: fileManager.entries().length })}
           titleColor={focus() === "list" ? theme.text.base : theme.text.muted}
           backgroundColor={theme.background.raised.base}
           onMouseDown={() => setFocus("list")}
@@ -465,7 +469,7 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
                       when={rowEntry(row()) !== undefined}
                       fallback={
                         <text fg={rowColor(index, theme.text.muted)} selectable={false}>
-                          parent
+                          {t("parent")}
                         </text>
                       }
                     >
@@ -507,7 +511,7 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
           minHeight={0}
           border
           borderColor={focus() === "preview" ? theme.background.action.primary.focused : theme.border.base}
-          title="Preview"
+          title={t("Preview")}
           titleColor={focus() === "preview" ? theme.text.base : theme.text.muted}
           backgroundColor={theme.background.raised.base}
           onMouseDown={() => setFocus("preview")}
@@ -550,7 +554,7 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
             <Match when={previewState().type === "binary"}>
               <box paddingLeft={1} paddingTop={1} flexDirection="column">
                 <text fg={theme.text.muted} selectable={false}>
-                  Binary file
+                  {t("Binary file")}
                 </text>
                 <text fg={theme.text.muted} selectable={false}>
                   {formatFileSize(previewBytes())}
@@ -566,13 +570,15 @@ export function FileManagerView(props: { onClose: () => void; controller?: FileM
             </Match>
             <Match when={previewState().type === "loading"}>
               <box paddingLeft={1} paddingTop={1}>
-                <text fg={theme.text.muted}>Loading…</text>
+                <text fg={theme.text.muted}>{t("Loading…")}</text>
               </box>
             </Match>
             <Match when={previewState().type !== "text"}>
               <box paddingLeft={1} paddingTop={1} flexDirection="column">
                 <text fg={theme.text.muted} selectable={false}>
-                  {previewState().type === "directory" ? "Directory selected · enter to open" : "Select a file to preview"}
+                  {previewState().type === "directory"
+                    ? t("Directory selected · enter to open")
+                    : t("Select a file to preview")}
                 </text>
               </box>
             </Match>

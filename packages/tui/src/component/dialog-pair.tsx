@@ -4,6 +4,7 @@ import { createMemo, createResource, createSignal, For, Show } from "solid-js"
 import { renderUnicodeCompact } from "@opencode/util/qr"
 import { useClient } from "../context/client"
 import { useTheme } from "../context/theme"
+import { useI18n } from "../i18n"
 import { DialogHeader, DialogLayout, useDialog } from "../ui/dialog"
 import { Link } from "../ui/link"
 import { errorMessage } from "../util/error"
@@ -11,6 +12,7 @@ import { errorMessage } from "../util/error"
 export function DialogPair() {
   const client = useClient()
   const dialog = useDialog()
+  const { t } = useI18n()
   const dimensions = useTerminalDimensions()
   const theme = useTheme().surface("dialog")
   const [loadError, setLoadError] = createSignal<unknown>()
@@ -44,12 +46,12 @@ export function DialogPair() {
       <box flexDirection={horizontal() ? "row" : "column"} alignItems={horizontal() ? "flex-start" : "center"} gap={2}>
         <box width={horizontal() ? 29 : "100%"} flexShrink={0} gap={1}>
           <text fg={theme.text.muted} wrapMode="word">
-            Open a link to connect. Links work once and expire in {value.minutes} minutes.
+            {t("Open a link to connect. Links work once and expire in")} {value.minutes} {t("minutes.")}
           </text>
           <Show when={value.localhost}>
             {(url) => (
               <box>
-                <text fg={theme.text.muted}>This device</text>
+                <text fg={theme.text.muted}>{t("This device")}</text>
                 <Link href={url()} fg={theme.text.base}>
                   {url()}
                 </Link>
@@ -57,7 +59,7 @@ export function DialogPair() {
             )}
           </Show>
           <box>
-            <text fg={theme.text.muted}>Links</text>
+            <text fg={theme.text.muted}>{t("Links")}</text>
             <For each={value.links}>
               {(url) => (
                 <Link href={url} fg={theme.text.base}>
@@ -68,7 +70,7 @@ export function DialogPair() {
           </box>
           <Show when={value.loopback}>
             <text fg={theme.text.muted} wrapMode="word">
-              Run `opencode service set hostname 0.0.0.0` to access the service remotely.
+              {t("Run `opencode service set hostname 0.0.0.0` to access the service remotely.")}
             </text>
           </Show>
         </box>
@@ -87,11 +89,11 @@ export function DialogPair() {
   }
 
   return (
-    <DialogLayout header={<DialogHeader title="Pair" />}>
+    <DialogLayout header={<DialogHeader title={t("Pair")} />}>
       <Show
         when={loadError()}
         fallback={
-          <Show when={info()} fallback={<text fg={theme.text.muted}>Loading server information…</text>}>
+          <Show when={info()} fallback={<text fg={theme.text.muted}>{t("Loading server information…")}</text>}>
             <Show
               when={dimensions().height >= 36}
               fallback={
@@ -111,10 +113,10 @@ export function DialogPair() {
         {(error) => (
           <box>
             <text fg={theme.text.feedback.error.base} attributes={TextAttributes.BOLD}>
-              Could not load server information
+              {t("Could not load server information")}
             </text>
             <text fg={theme.text.muted}>{errorMessage(error())}</text>
-            <text fg={theme.text.muted}>Close and reopen Pair to try again.</text>
+            <text fg={theme.text.muted}>{t("Close and reopen Pair to try again.")}</text>
           </box>
         )}
       </Show>

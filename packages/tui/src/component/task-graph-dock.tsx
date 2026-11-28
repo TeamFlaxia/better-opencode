@@ -1,6 +1,7 @@
 import { createSignal, Show } from "solid-js"
 import { useTaskGraph, type TaskGraphController } from "../context/task-graph"
 import { useTheme } from "../context/theme"
+import { useI18n } from "../i18n"
 import { Locale } from "../util/locale"
 import { graphColor, statusLabel, statusMarker, summarizeGraph, type TaskNodeStatus } from "../util/task-graph"
 
@@ -16,6 +17,7 @@ export function TaskGraphDock(props: {
 }) {
   const graph = props.controller ?? useTaskGraph()
   const theme = useTheme()
+  const { t } = useI18n()
   const [hovered, setHovered] = createSignal(false)
   const dockWidth = () => props.width ?? TASK_GRAPH_DOCK_WIDTH
   const compact = () => props.orientation !== "below" && dockWidth() < 12
@@ -38,13 +40,13 @@ export function TaskGraphDock(props: {
   const title = () => {
     if (current()) return current()!.title
     if (model().goal) return model().goal!.objective
-    return "No tasks yet"
+    return t("No tasks yet")
   }
   const detail = () => {
-    if (current()) return statusLabel(current()!.status)
-    if (model().goal?.status === "paused") return "paused"
-    if (model().goal?.status === "complete") return "complete"
-    return summarizeGraph(model())
+    if (current()) return t(statusLabel(current()!.status))
+    if (model().goal?.status === "paused") return t("paused")
+    if (model().goal?.status === "complete") return t("complete")
+    return summarizeGraph(model(), t)
   }
   const pointer = {
     onMouseOver: () => setHovered(true),
@@ -78,7 +80,7 @@ export function TaskGraphDock(props: {
                   </text>
                   <box flexGrow={1} minWidth={0} />
                   <text fg={color(status())} flexShrink={0} selectable={false}>
-                    {current() ? statusMarker(current()!.status) : summarizeGraph(model())}
+                    {current() ? statusMarker(current()!.status) : summarizeGraph(model(), t)}
                   </text>
                 </box>
                 <box height={1} flexDirection="row" paddingLeft={1} paddingRight={1} gap={1}>
@@ -131,12 +133,14 @@ export function TaskGraphDock(props: {
               <b>TASKS</b>
             </text>
             <text fg={color(status())} selectable={false}>
-              {summarizeGraph(model())}
+              {summarizeGraph(model(), t)}
             </text>
             <box flexGrow={1} minWidth={0} />
             <Show when={model().goal}>
               <text fg={theme.text.muted} selectable={false}>
-                {model().goal!.status === "active" ? "◎ goal" : `◎ ${model().goal!.status}`}
+                {model().goal!.status === "active"
+                  ? t("◎ goal")
+                  : t("◎ {{status}}", { status: t(model().goal!.status) })}
               </text>
             </Show>
           </box>

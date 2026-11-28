@@ -13,6 +13,7 @@ import { useTuiPaths } from "../context/runtime"
 import { Locale } from "../util/locale"
 import { errorMessage } from "../util/error"
 import { isRecord } from "../util/record"
+import { useI18n } from "../i18n"
 import { useToast } from "../ui/toast"
 import { Spinner } from "./spinner"
 import { DialogWorkspaceFileChanges } from "./dialog-workspace-file-changes"
@@ -44,6 +45,7 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
   const sessionData = useData()
   const route = useRoute()
   const toast = useToast()
+  const { t } = useI18n()
   const paths = useTuiPaths()
   const shortcuts = Keymap.useShortcuts()
   const location = createMemo(() => sessionData.location.info(props.location))
@@ -175,10 +177,12 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
       return {
         title,
         titleView: isRemoving ? (
-          <span style={{ fg: theme.text.feedback.error.base }}>Deleting {item.location}</span>
+          <span style={{ fg: theme.text.feedback.error.base }}>
+            {t("Deleting {{path}}", { path: item.location })}
+          </span>
         ) : deleting ? (
           <span style={{ fg: theme.text.action.destructive.base }}>
-            Press {shortcuts.get("dialog.move_session.delete")} again to confirm
+            {t("Press {{key}} again to confirm", { key: shortcuts.get("dialog.move_session.delete") ?? "" })}
           </span>
         ) : suffix ? (
           <>
@@ -192,7 +196,7 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
           directory: item.location,
           subdirectory: item.location !== item.root.directory,
         } as const,
-        category: item.root.directory === current ? "Current" : "Other",
+        category: item.root.directory === current ? t("Current") : t("Other"),
         titleWidth,
         truncateTitle: "left" as const,
       }
@@ -258,9 +262,9 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
           .status({ location: { directory: selected.directory } })
           .catch(() => undefined)
         const choice = await DialogWorkspaceFileChanges.show(dialog, status?.data ?? [], {
-          title: "Delete worktree?",
-          message: "This worktree has file changes. Do you want to delete it anyway?",
-          confirm: { title: "delete", key: "d" },
+          title: t("Delete worktree?"),
+          message: t("This worktree has file changes. Do you want to delete it anyway?"),
+          confirm: { title: t("delete"), key: "d" },
         })
         if (choice !== "yes") {
           reopen()
@@ -279,7 +283,7 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
         if (forcedError) {
           toast.show({
             variant: "error",
-            title: "Failed to delete worktree",
+            title: t("Failed to delete worktree"),
             message: errorMessage(forcedError),
           })
           reopen()
@@ -293,7 +297,7 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
       }
       toast.show({
         variant: "error",
-        title: "Failed to delete worktree",
+        title: t("Failed to delete worktree"),
         message: errorMessage(error),
       })
       return
@@ -326,11 +330,11 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
     <box minHeight={showError() ? 5 : fullHeight()}>
       <DialogSelect
         grow
-        title="Worktrees"
+        title={t("Worktrees")}
         titleView={
           <box flexDirection="row" gap={1}>
             <text fg={theme.text.base} attributes={TextAttributes.BOLD}>
-              Worktrees
+              {t("Worktrees")}
             </text>
             <Show when={working() || directories.loading || loadedProject.loading}>
               <Spinner />
@@ -344,24 +348,24 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
           showError() ? (
             <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
               <text fg={theme.text.feedback.error.base} attributes={TextAttributes.BOLD}>
-                Could not load worktrees
+                {t("Could not load worktrees")}
               </text>
               <text fg={theme.text.muted}>{errorMessage(loadError())}</text>
-              <text fg={theme.text.muted}>Close and reopen Worktrees to try again.</text>
+              <text fg={theme.text.muted}>{t("Close and reopen Worktrees to try again.")}</text>
             </box>
           ) : directories.loading || loadedProject.loading ? (
             <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-              <text fg={theme.text.muted}>Loading worktrees…</text>
+              <text fg={theme.text.muted}>{t("Loading worktrees…")}</text>
             </box>
           ) : (
             <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-              <text fg={theme.text.muted}>No worktrees available</text>
+              <text fg={theme.text.muted}>{t("No worktrees available")}</text>
             </box>
           )
         }
         noMatchView={
           <box paddingLeft={DIALOG_LIST_INSET} paddingRight={DIALOG_LIST_INSET}>
-            <text fg={theme.text.muted}>No worktrees found</text>
+            <text fg={theme.text.muted}>{t("No worktrees found")}</text>
           </box>
         }
         locked={showError() || directories.loading || loadedProject.loading || Boolean(removing())}
@@ -375,17 +379,17 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
             ? []
             : [
                 ...(route.data.type === "session"
-                  ? [{ command: "dialog.move_session.move", title: "move", onTrigger: move }]
+                  ? [{ command: "dialog.move_session.move", title: t("move"), onTrigger: move }]
                   : []),
                 {
                   command: "dialog.move_session.new",
-                  title: "new",
+                  title: t("new"),
                   selection: "none",
                   onTrigger: () => void create(),
                 },
                 {
                   command: "dialog.move_session.delete",
-                  title: "delete",
+                  title: t("delete"),
                   disabled: (option) => {
                     const value = option?.value
                     if (!value || value.type !== "directory" || value.subdirectory) return true
@@ -395,7 +399,7 @@ export function DialogWorkspaces(props: DialogWorkspacesProps) {
                 },
                 {
                   command: "dialog.move_session.refresh",
-                  title: "refresh",
+                  title: t("refresh"),
                   selection: "none",
                   onTrigger: () => void refresh().catch(toast.error),
                 },

@@ -6,6 +6,7 @@ import { useDialog } from "../ui/dialog"
 import { DialogSelect } from "../ui/dialog-select"
 import { useToast } from "../ui/toast"
 import { Keymap } from "../context/keymap"
+import { useI18n } from "../i18n"
 import { Locale } from "../util/locale"
 
 export const VCS_DOCK_WIDTH = 24
@@ -26,6 +27,7 @@ export function VcsDock(props: {
 }) {
   const vcs = props.controller ?? useVcs()
   const theme = useTheme()
+  const { t } = useI18n()
   const clipboard = useClipboard()
   const dialog = useDialog()
   const toast = useToast()
@@ -42,7 +44,11 @@ export function VcsDock(props: {
     return value === "jj" ? "jj" : value === "hg" ? "hg" : "git"
   }
   const label = () => summary()?.label || "detached"
-  const detail = () => (summary()?.conflict ? "conflict" : summary()?.detail || "clean")
+  const detail = () => {
+    const value = summary()?.conflict ? "conflict" : summary()?.detail || "clean"
+    const match = value.match(/^(\d+) changed files?$/)
+    return match ? t("{{count}} changed file(s)", { count: match[1] ?? "" }) : value
+  }
   const status = () => {
     const current = summary()
     if (!current) return ""
@@ -65,22 +71,28 @@ export function VcsDock(props: {
     const current = summary()
     const selected = tool()
     return [
-      { title: "Version control actions", value: "actions" as const, description: "Manage the repository" },
+      { title: t("Version control actions"), value: "actions" as const, description: t("Manage the repository") },
       ...(selected
-        ? [{ title: `Open ${selected.label}`, value: "open" as const, description: "Launch the external TUI" }]
+        ? [
+            {
+              title: t("Open {{label}}", { label: selected.label }),
+              value: "open" as const,
+              description: t("Launch the external TUI"),
+            },
+          ]
         : []),
-      { title: "Open diff viewer", value: "diff" as const, description: "Review changes inside Theia Code" },
+      { title: t("Open diff viewer"), value: "diff" as const, description: t("Review changes inside Theia Code") },
       ...(current?.change
         ? [
-            { title: "Copy change ID", value: "copy_change" as const, description: current.change },
+            { title: t("Copy change ID"), value: "copy_change" as const, description: current.change },
             ...(current.commit
-              ? [{ title: "Copy commit ID", value: "copy_commit" as const, description: current.commit }]
+              ? [{ title: t("Copy commit ID"), value: "copy_commit" as const, description: current.commit }]
               : []),
           ]
         : current
-          ? [{ title: "Copy branch", value: "copy" as const, description: current.label }]
+          ? [{ title: t("Copy branch"), value: "copy" as const, description: current.label }]
           : []),
-      { title: "Refresh status", value: "refresh" as const, description: "Reload version control state" },
+      { title: t("Refresh status"), value: "refresh" as const, description: t("Reload version control state") },
     ]
   })
   const run = (action: VcsAction) => {
@@ -95,12 +107,12 @@ export function VcsDock(props: {
     if (!value) return
     void clipboard
       .write(value)
-      .then(() => toast.show({ message: "Version control identifier copied", variant: "info" }))
+      .then(() => toast.show({ message: t("Version control identifier copied"), variant: "info" }))
       .catch(toast.error)
   }
   const menu = () => {
     dialog.replace(() => (
-      <DialogSelect title="Version control" options={actions()} onSelect={(option) => run(option.value)} />
+      <DialogSelect title={t("Version control")} options={actions()} onSelect={(option) => run(option.value)} />
     ))
   }
   let menuPressed = false
@@ -164,7 +176,7 @@ export function VcsDock(props: {
                     truncate
                     selectable={false}
                   >
-                    {Locale.truncateWidth(label(), labelWidth())}
+                    {Locale.truncateWidth(t(label()), labelWidth())}
                   </text>
                   <box flexGrow={1} minWidth={0} />
                   <text
@@ -174,7 +186,7 @@ export function VcsDock(props: {
                     truncate
                     selectable={false}
                   >
-                    {Locale.truncateWidth(detail(), detailWidth())}
+                    {Locale.truncateWidth(t(detail()), detailWidth())}
                   </text>
                 </box>
               </box>
@@ -222,13 +234,13 @@ export function VcsDock(props: {
             ·
           </text>
           <text fg={theme.text.base} wrapMode="none" truncate selectable={false}>
-            {label()}
+            {t(label())}
           </text>
           <text fg={statusColor()} selectable={false}>
             {status()}
           </text>
           <text fg={detailColor()} wrapMode="none" truncate selectable={false}>
-            {detail()}
+            {t(detail())}
           </text>
           <box flexGrow={1} />
           <text fg={theme.text.muted} wrapMode="none" selectable={false}>

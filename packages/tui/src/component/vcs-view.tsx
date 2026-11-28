@@ -16,6 +16,7 @@ import {
 import { Keymap } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { useVcs } from "../context/vcs"
+import { useI18n } from "../i18n"
 import { errorMessage } from "../util/error"
 import { Locale } from "../util/locale"
 import {
@@ -72,6 +73,7 @@ const panels = ["status", "files", "branches", "history"] as const
 export function VcsView(props: { onClose: () => void; controller?: VcsViewController }) {
   const vcs = props.controller ?? useVcs()
   const theme = useTheme()
+  const { t } = useI18n()
   const dimensions = useTerminalDimensions()
   const dialog = useDialog()
   const toast = useToast()
@@ -232,35 +234,36 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (focus() === "files") {
       const item = file()
       if (kind() !== "git" || !item) return ""
-      return item.staged && !item.unstaged ? "staged" : "unstaged"
+      return item.staged && !item.unstaged ? t("staged") : t("unstaged")
     }
     const item = focusedEntry()
     return Locale.truncateWidth(
       item?.detail ??
         (focus() === "branches"
           ? refsAreGit()
-            ? "branch"
+            ? t("branch")
             : kind() === "jj"
-              ? "bookmark"
-              : "branch"
+              ? t("bookmark")
+              : t("branch")
           : refsAreGit()
-            ? "commit"
+            ? t("commit")
             : kind() === "jj"
-              ? "change"
-              : "commit"),
+              ? t("change")
+              : t("commit")),
       24,
     )
   }
   const previewTitle = () => {
-    if (focus() === "status") return "Repository"
-    if (focus() === "files") return "Diff"
-    if (focus() === "branches") return refsAreGit() ? "Branch" : kind() === "jj" ? "Bookmark" : "Branch"
-    return refsAreGit() ? "Commit" : kind() === "jj" ? "Change" : "Commit"
+    if (focus() === "status") return t("Repository")
+    if (focus() === "files") return t("Diff")
+    if (focus() === "branches") return refsAreGit() ? t("Branch") : kind() === "jj" ? t("Bookmark") : t("Branch")
+    return refsAreGit() ? t("Commit") : kind() === "jj" ? t("Change") : t("Commit")
   }
   const emptyPreview = () => {
-    if (focus() === "files") return "No changed files"
-    if (focus() === "branches") return refsAreGit() ? "No branches" : kind() === "jj" ? "No bookmarks" : "No branches"
-    return refsAreGit() ? "No commits" : kind() === "jj" ? "No changes" : "No commits"
+    if (focus() === "files") return t("No changed files")
+    if (focus() === "branches")
+      return refsAreGit() ? t("No branches") : kind() === "jj" ? t("No bookmarks") : t("No branches")
+    return refsAreGit() ? t("No commits") : kind() === "jj" ? t("No changes") : t("No commits")
   }
   const source = createMemo(() => {
     const prefix = currentKey()
@@ -295,7 +298,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const lines = createMemo(() => (diffText() ?? "").split("\n").slice(0, 2_000))
 
   const status = (summary: VcsSummary) =>
-    summary.conflict ? "conflict" : summary.dirty === 0 ? "clean" : `${summary.dirty} changed`
+    summary.conflict
+      ? t("conflict")
+      : summary.dirty === 0
+        ? t("clean")
+        : t("{{count}} changed", { count: summary.dirty })
   const statusColor = (summary: VcsSummary) =>
     summary.conflict
       ? theme.text.feedback.error.base
@@ -305,15 +312,18 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const statusDetail = () => {
     const summary = current()
     if (!summary) return ""
-    if (summary.kind !== "jj") return summary.detail
+    if (summary.kind !== "jj") {
+      const match = summary.detail.match(/^(\d+) changed files?$/)
+      return match ? t("{{count}} changed file(s)", { count: match[1] ?? "" }) : summary.detail
+    }
     return summary.description || summary.detail
   }
   const bookmarkNames = createMemo(() => current()?.bookmarks?.split(" ").filter(Boolean) ?? [])
   const branchDetail = (item: VcsListEntry) =>
     item.remote && !refsAreGit() && kind() === "jj"
       ? item.tracked
-        ? "tracked"
-        : "untracked"
+        ? t("tracked")
+        : t("untracked")
       : (item.detail?.split(" · ")[0] ?? "")
   const branchDetailColor = (item: VcsListEntry) =>
     item.remote && !refsAreGit() && kind() === "jj"
@@ -426,12 +436,12 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const promptBranch = (action: VcsBranchAction, input: { previous?: string; target?: string } = {}, value = "") => {
     const repository = kind()
     if (!repository) return
-    const noun = repository === "jj" ? "bookmark" : "branch"
-    const title = action === "rename" ? `Rename ${noun}` : action === "create" ? `Create ${noun}` : `Delete ${noun}`
+    const noun = repository === "jj" ? t("bookmark") : t("branch")
+    const title = action === "rename" ? t("Rename {{noun}}", { noun }) : action === "create" ? t("Create {{noun}}", { noun }) : t("Delete {{noun}}", { noun })
     dialog.replace(() => (
       <DialogPrompt
         title={title}
-        placeholder={`${noun[0]!.toUpperCase()}${noun.slice(1)} name`}
+        placeholder={repository === "jj" ? t("Bookmark name") : t("Branch name")}
         value={value}
         onConfirm={(text) => {
           const name = text.trim()
@@ -452,16 +462,16 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (!item) return
     const start = !refsAreGit() && kind() === "jj" && item.immutable
     if (focus() === "history") {
-      const noun = refsAreGit() ? "commit" : kind() === "jj" ? "change" : "commit"
+      const noun = refsAreGit() ? t("commit") : kind() === "jj" ? t("change") : t("commit")
       dialog.replace(() => (
         <DialogConfirm
-          title={start ? `Start a new change from ${item.id}?` : `Switch to ${item.id}?`}
+          title={start ? t("Start a new change from {{id}}?", { id: item.id }) : t("Switch to {{id}}?", { id: item.id })}
           message={
             start
-              ? "This creates a new empty change on top of the selected change."
-              : `This moves the working copy to the selected ${noun}.`
+              ? t("This creates a new empty change on top of the selected change.")
+              : t("This moves the working copy to the selected {{noun}}.", { noun })
           }
-          label={start ? { confirm: "new" } : undefined}
+          label={start ? { confirm: t("new") } : undefined}
           onConfirm={() => {
             dialog.clear()
             if (start) void vcs.startChange(item.id)
@@ -487,16 +497,16 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         variant: "info",
         message:
           repository === "jj"
-            ? "Remote bookmarks are managed by jj git."
-            : "Remote branches are deleted from the command line with git push --delete.",
+            ? t("Remote bookmarks are managed by jj git.")
+            : t("Remote branches are deleted from the command line with git push --delete."),
       })
       return
     }
-    const noun = repository === "jj" ? "bookmark" : "branch"
+    const noun = repository === "jj" ? t("bookmark") : t("branch")
     dialog.replace(() => (
       <DialogConfirm
-        title={`Delete ${noun} ${item.label}?`}
-        message={`This deletes the ${noun}.`}
+        title={t("Delete {{noun}} {{name}}?", { noun, name: item.label })}
+        message={t("This deletes the {{noun}}.", { noun })}
         onConfirm={() => {
           dialog.clear()
           void vcs.branchAction("delete", { previous: item.label })
@@ -521,8 +531,8 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         variant: "info",
         message:
           kind() === "jj"
-            ? "Remote bookmarks are managed by jj git."
-            : "Remote branches are renamed from the command line.",
+            ? t("Remote bookmarks are managed by jj git.")
+            : t("Remote branches are renamed from the command line."),
       })
       return
     }
@@ -539,32 +549,38 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     try {
       const patch = await vcs.hunks(item.file, staged)
       if (patch.hunks.length === 0) {
-        toast.show({ variant: "info", message: `No hunks available for ${item.file}` })
+        toast.show({ variant: "info", message: t("No hunks available for {{file}}", { file: item.file }) })
         return
       }
       const selectedPatch = await DialogVcsHunks.show(dialog, {
-        title: staged ? `Unstage hunks · ${item.file}` : `Stage hunks · ${item.file}`,
-        description: "Select hunks with space, then confirm.",
-        confirmLabel: staged ? "unstage" : "stage",
+        title: staged ? t("Unstage hunks · {{file}}", { file: item.file }) : t("Stage hunks · {{file}}", { file: item.file }),
+        description: t("Select hunks with space, then confirm."),
+        confirmLabel: staged ? t("unstage") : t("stage"),
         patch,
       })
       if (!selectedPatch) return
       await vcs.applyHunks(selectedPatch, staged)
     } catch (error) {
-      toast.show({ variant: "error", title: "Failed to read hunks", message: errorMessage(error) })
+      toast.show({ variant: "error", title: t("Failed to read hunks"), message: errorMessage(error) })
     }
   }
   const splitFiles = async (parallel: boolean) => {
     const repository = current()
     if (repository?.kind !== "jj" || repository.files.length === 0) return
     const paths = await DialogVcsFiles.show(dialog, {
-      title: parallel ? "Split files into parallel change" : "Split files into new change",
-      description: "Select the files that move into the new change.",
-      confirmLabel: "split",
+      title: parallel ? t("Split files into parallel change") : t("Split files into new change"),
+      description: t("Select the files that move into the new change."),
+      confirmLabel: t("split"),
       files: repository.files,
     })
     if (!paths?.length) return
-    prompt("Split description", "Description for the new change", "", parallel ? "split_parallel" : "split", paths)
+    prompt(
+      t("Split description"),
+      t("Description for the new change"),
+      "",
+      parallel ? "split_parallel" : "split",
+      paths,
+    )
   }
   const openExternal = () => {
     if (!vcs.tool()) return
@@ -610,22 +626,24 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   }
   const bookmarkTracking = (item: VcsListEntry) => {
     const remotes = branchEntries().filter((entry) => entry.remote && entry.name === item.name)
-    if (remotes.length === 0) return refsAreGit() ? "no remote branch" : "not tracked"
+    if (remotes.length === 0) return refsAreGit() ? t("no remote branch") : t("not tracked")
     return remotes
       .map((entry) =>
-        refsAreGit() ? entry.label : `${entry.label} ${entry.tracked ? "tracked" : "untracked"}`,
+        refsAreGit() ? entry.label : `${entry.label} ${entry.tracked ? t("tracked") : t("untracked")}`,
       )
       .join(", ")
   }
   const pushToRemote = async (bookmark: string) => {
     await chooseRemote(
-      "Push remote",
+      t("Push remote"),
       (remote) => void vcs.execute("push", bookmark, [], remote),
       (remote) => {
         const target = branchEntries().find(
           (entry) => entry.remote && entry.name === bookmark && entry.remoteName === remote,
         )
-        return target ? `${target.label} ${target.tracked ? "tracked" : "untracked"}` : `new ${bookmark}@${remote}`
+        return target
+          ? `${target.label} ${target.tracked ? t("tracked") : t("untracked")}`
+          : t("new {{bookmark}}@{{remote}}", { bookmark, remote })
       },
     )
   }
@@ -641,13 +659,13 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       return
     }
     await chooseRemote(
-      "Push remote",
+      t("Push remote"),
       (name) => void push(name),
       (name) => {
         const target = branchEntries().find(
           (entry) => entry.remote && entry.remoteName === name && entry.name === branch,
         )
-        return target ? target.label : `new ${name}/${branch}`
+        return target ? target.label : t("new {{remote}}/{{branch}}", { remote: name, branch })
       },
     )
   }
@@ -661,7 +679,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         if (!name || !hasLocalBranch(name)) {
           toast.show({
             variant: "warning",
-            message: `No local branch named ${name ?? selected.label} to push.`,
+            message: t("No local branch named {{name}} to push.", { name: name ?? selected.label }),
           })
           return
         }
@@ -675,7 +693,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       }
       const local = localBranchEntries()
       if (local.length === 0) {
-        await chooseRemote("Push remote", (remote) => void (vcs.gitPush?.(undefined, remote) ?? vcs.execute("push", undefined, [], remote)))
+        await chooseRemote(t("Push remote"), (remote) => void (vcs.gitPush?.(undefined, remote) ?? vcs.execute("push", undefined, [], remote)))
         return
       }
       if (local.length === 1) {
@@ -684,11 +702,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
       }
       dialog.replace(() => (
         <DialogSelect
-          title="Push branch"
+          title={t("Push branch")}
           options={local.map((item) => ({
             title: item.label,
             value: item.label,
-            description: [item.current ? "current" : undefined, bookmarkTracking(item)].filter(Boolean).join(" · "),
+            description: [item.current ? t("current") : undefined, bookmarkTracking(item)].filter(Boolean).join(" · "),
           }))}
           current={local.find((item) => item.current)?.label}
           onSelect={(option) => void pushBranchToRemote(option.value)}
@@ -699,7 +717,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     const local = localBranchEntries()
     if (local.length === 0) {
-      toast.show({ variant: "warning", message: "No local bookmarks to push." })
+      toast.show({ variant: "warning", message: t("No local bookmarks to push.") })
       return
     }
     const selected = focus() === "branches" ? branch() : undefined
@@ -713,11 +731,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     dialog.replace(() => (
       <DialogSelect
-        title="Push bookmark"
+        title={t("Push bookmark")}
         options={local.map((item) => ({
           title: item.label,
           value: item.label,
-          description: [item.current ? "at @" : undefined, bookmarkTracking(item)].filter(Boolean).join(" · "),
+          description: [item.current ? t("at @") : undefined, bookmarkTracking(item)].filter(Boolean).join(" · "),
         }))}
         current={local.find((item) => item.current)?.label}
         onSelect={(option) => void pushToRemote(option.value)}
@@ -730,17 +748,17 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     const available = await (vcs.tags?.() ?? Promise.resolve([])).catch(() => [])
     const choose = (tag: string) => {
       void chooseRemote(
-        "Push tag remote",
+        t("Push tag remote"),
         (remote) => void (vcs.pushTag?.(tag, remote) ?? Promise.resolve()),
-        (remote) => (tag === "*" ? `all tags to ${remote}` : `${tag} to ${remote}`),
+        (remote) => (tag === "*" ? t("all tags to {{remote}}", { remote }) : t("{{tag}} to {{remote}}", { tag, remote })),
       )
     }
     if (available.length > 0) {
       dialog.replace(() => (
         <DialogSelect
-          title="Push tag"
+          title={t("Push tag")}
           options={[
-            { title: "All tags", value: "*", description: "Push every tag" },
+            { title: t("All tags"), value: "*", description: t("Push every tag") },
             ...available.map((item) => ({ title: item.label, value: item.id, description: item.detail })),
           ]}
           onSelect={(option) => {
@@ -754,8 +772,8 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     dialog.replace(() => (
       <DialogPrompt
-        title="Push tag"
-        placeholder="Tag name, or * for all tags"
+        title={t("Push tag")}
+        placeholder={t("Tag name, or * for all tags")}
         value=""
         onConfirm={(input) => {
           const tag = input.trim()
@@ -770,12 +788,12 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   const fetchScope = (remote?: string) => {
     dialog.replace(() => (
       <DialogSelect
-        title={remote ? `Fetch from ${remote}` : "Fetch"}
+        title={remote ? t("Fetch from {{remote}}", { remote }) : t("Fetch")}
         options={[
-          { title: "All refs", value: "all", description: "Bookmarks and tags" },
-          { title: "Tracked only", value: "tracked", description: "Tracked bookmarks and tags" },
-          { title: "Bookmarks only", value: "bookmarks", description: "Skip tags" },
-          { title: "Tags only", value: "tags", description: "Skip bookmarks" },
+          { title: t("All refs"), value: "all", description: t("Bookmarks and tags") },
+          { title: t("Tracked only"), value: "tracked", description: t("Tracked bookmarks and tags") },
+          { title: t("Bookmarks only"), value: "bookmarks", description: t("Skip tags") },
+          { title: t("Tags only"), value: "tags", description: t("Skip bookmarks") },
         ]}
         current="all"
         onSelect={(option) => {
@@ -790,10 +808,10 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     const repository = kind()
     if (!repository) return
     if (repository !== "jj") {
-      await chooseRemote("Fetch remote", (remote) => void vcs.execute("fetch", undefined, [], remote))
+      await chooseRemote(t("Fetch remote"), (remote) => void vcs.execute("fetch", undefined, [], remote))
       return
     }
-    await chooseRemote("Fetch remote", (remote) => fetchScope(remote))
+    await chooseRemote(t("Fetch remote"), (remote) => fetchScope(remote))
   }
   const trackAllBookmarks = () => {
     if (kind() !== "jj" || focus() !== "branches") return
@@ -803,8 +821,8 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (kind() !== "jj" || focus() !== "branches") return
     dialog.replace(() => (
       <DialogConfirm
-        title="Untrack all remote bookmarks?"
-        message="They will no longer be imported as local bookmarks."
+        title={t("Untrack all remote bookmarks?")}
+        message={t("They will no longer be imported as local bookmarks.")}
         onConfirm={() => {
           dialog.clear()
           void vcs.execute("untrack", "*")
@@ -823,8 +841,8 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (kind() !== "jj" || focus() !== "branches" || !item || item.remote) return
     dialog.replace(() => (
       <DialogPrompt
-        title={`Move bookmark ${item.label}`}
-        placeholder="Target revset"
+        title={t("Move bookmark {{name}}", { name: item.label })}
+        placeholder={t("Target revset")}
         value="@"
         onConfirm={(value) => {
           const target = value.trim()
@@ -841,7 +859,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (focus() !== "history" || !target || kind() !== "jj") return
     const local = localBranchEntries()
     if (local.length === 0) {
-      toast.show({ variant: "warning", message: "No local bookmarks to move." })
+      toast.show({ variant: "warning", message: t("No local bookmarks to move.") })
       return
     }
     if (local.length === 1) {
@@ -850,11 +868,11 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     dialog.replace(() => (
       <DialogSelect
-        title={`Move bookmark to ${target.id}`}
+        title={t("Move bookmark to {{id}}", { id: target.id })}
         options={local.map((item) => ({
           title: item.label,
           value: item.label,
-          description: item.current ? "at @" : item.detail,
+          description: item.current ? t("at @") : item.detail,
         }))}
         current={local.find((item) => item.current)?.label}
         onSelect={(option) => {
@@ -1038,18 +1056,23 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     if (focus() !== "files") return
     if (key === "c" && repository === "git") {
       handled()
-      prompt("Commit staged changes", "Commit message", "", "commit")
+      prompt(t("Commit staged changes"), t("Commit message"), "", "commit")
       return
     }
     if (key === "a" && (repository === "git" || repository === "jj")) {
       handled()
-      if (repository === "git") prompt("Commit all changes", "Commit message", "", "commit_all")
-      else confirm("Abandon change?", "The current change and its description will be abandoned.", "abandon")
+      if (repository === "git") prompt(t("Commit all changes"), t("Commit message"), "", "commit_all")
+      else
+        confirm(
+          t("Abandon change?"),
+          t("The current change and its description will be abandoned."),
+          "abandon",
+        )
       return
     }
     if (key === "d" && repository === "jj") {
       handled()
-      prompt("Describe change", "Change description", current()?.description ?? "", "describe")
+      prompt(t("Describe change"), t("Change description"), current()?.description ?? "", "describe")
       return
     }
     if (key === "s" && repository === "jj") {
@@ -1059,12 +1082,12 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
     }
     if (key === "b" && repository === "jj") {
       handled()
-      prompt("Set bookmark", "Bookmark name", "", "bookmark")
+      prompt(t("Set bookmark"), t("Bookmark name"), "", "bookmark")
       return
     }
     if (key === "e" && repository === "jj") {
       handled()
-      prompt("Edit change", "Revset", "@-", "edit")
+      prompt(t("Edit change"), t("Revset"), "@-", "edit")
       return
     }
     if (key === "v" && repository === "jj") {
@@ -1120,127 +1143,133 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
   }
   type Hint = { readonly key: string; readonly label: string }
   const panelLabel = (panel: VcsPanel) => {
-    if (panel === "status") return "status"
-    if (panel === "files") return "files"
-    if (panel === "branches") return refsAreGit() ? "branches" : kind() === "jj" ? "bookmarks" : "branches"
-    return refsAreGit() ? "commits" : kind() === "jj" ? "changes" : "commits"
+    if (panel === "status") return t("status")
+    if (panel === "files") return t("files")
+    if (panel === "branches") return refsAreGit() ? t("branches") : kind() === "jj" ? t("bookmarks") : t("branches")
+    return refsAreGit() ? t("commits") : kind() === "jj" ? t("changes") : t("commits")
   }
   const panelTitle = (panel: VcsPanel) => {
-    if (panel === "status") return "Status"
-    if (panel === "files") return `Files · ${files().length}`
+    if (panel === "status") return t("Status")
+    if (panel === "files") return t("Files · {{count}}", { count: files().length })
     if (panel === "branches")
-      return `${refsAreGit() ? "Branches" : kind() === "jj" ? "Bookmarks" : "Branches"} · ${branchEntries().length}`
-    return `${refsAreGit() ? "Commits" : kind() === "jj" ? "Changes" : "Commits"} · ${historyEntries().length}`
+      return t(
+        refsAreGit() ? "Branches · {{count}}" : kind() === "jj" ? "Bookmarks · {{count}}" : "Branches · {{count}}",
+        { count: branchEntries().length },
+      )
+    return t(
+      refsAreGit() ? "Commits · {{count}}" : kind() === "jj" ? "Changes · {{count}}" : "Commits · {{count}}",
+      { count: historyEntries().length },
+    )
   }
   const referenceAction = () =>
-    refsAreGit() ? "switch" : focusedEntry()?.immutable ? "new" : kind() === "jj" ? "edit" : "switch"
+    refsAreGit() ? t("switch") : focusedEntry()?.immutable ? t("new") : kind() === "jj" ? t("edit") : t("switch")
   const branchMutationsAllowed = () => kind() === "git" || !refsAreGit()
   const contextHints = (): Hint[] => {
     const repository = kind()
     const toggleHint = canToggleRefs() ? [{ key: "g", label: refsAreGit() ? "jj" : "git" }] : []
     if (focus() === "status")
       return [
-        { key: "f", label: "fetch" },
-        { key: "p", label: "push" },
-        { key: "t", label: "push tag" },
+        { key: "f", label: t("fetch") },
+        { key: "p", label: t("push") },
+        { key: "t", label: t("push tag") },
         ...toggleHint,
       ]
     if (focus() === "branches") {
       if (refsAreGit())
         return [
-          { key: "enter", label: "switch" },
+          { key: "enter", label: t("switch") },
           ...(repository === "git"
             ? [
-                { key: "n", label: "create" },
-                { key: "m", label: "rename" },
-                { key: "x", label: "delete" },
+                { key: "n", label: t("create") },
+                { key: "m", label: t("rename") },
+                { key: "x", label: t("delete") },
               ]
             : []),
-          { key: "f", label: "fetch" },
-          { key: "p", label: "push" },
-          { key: "t", label: "push tag" },
+          { key: "f", label: t("fetch") },
+          { key: "p", label: t("push") },
+          { key: "t", label: t("push tag") },
           ...toggleHint,
         ]
       const item = branch()
       const local = !item?.remote
       return [
         { key: "enter", label: referenceAction() },
-        { key: "n", label: "create" },
+        { key: "n", label: t("create") },
         ...(local
           ? [
-              ...(repository === "jj" ? [{ key: "b", label: "move" }] : []),
-              { key: "m", label: "rename" },
-              { key: "x", label: "delete" },
+              ...(repository === "jj" ? [{ key: "b", label: t("move") }] : []),
+              { key: "m", label: t("rename") },
+              { key: "x", label: t("delete") },
             ]
           : repository === "jj"
-            ? [{ key: "t", label: item?.tracked ? "untrack" : "track" }]
+            ? [{ key: "t", label: item?.tracked ? t("untrack") : t("track") }]
             : []),
         ...(repository === "jj" && remoteBranchEntries().length > 0
           ? [
-              { key: "s", label: "track all" },
-              { key: "u", label: "untrack all" },
+              { key: "s", label: t("track all") },
+              { key: "u", label: t("untrack all") },
             ]
           : []),
-        { key: "f", label: "fetch" },
-        { key: "p", label: "push" },
+        { key: "f", label: t("fetch") },
+        { key: "p", label: t("push") },
         ...toggleHint,
       ]
     }
     if (focus() === "history") {
       if (refsAreGit())
         return [
-          { key: "enter", label: "switch" },
-          { key: "f", label: "fetch" },
-          { key: "p", label: "push" },
-          { key: "t", label: "push tag" },
+          { key: "enter", label: t("switch") },
+          { key: "f", label: t("fetch") },
+          { key: "p", label: t("push") },
+          { key: "t", label: t("push tag") },
           ...toggleHint,
         ]
       return [
         { key: "enter", label: referenceAction() },
-        { key: "n", label: repository === "jj" ? "bookmark at change" : "branch at commit" },
-        ...(repository === "jj" ? [{ key: "b", label: "move bookmark here" }] : []),
-        { key: "f", label: "fetch" },
-        { key: "p", label: "push" },
+        { key: "n", label: repository === "jj" ? t("bookmark at change") : t("branch at commit") },
+        ...(repository === "jj" ? [{ key: "b", label: t("move bookmark here") }] : []),
+        { key: "f", label: t("fetch") },
+        { key: "p", label: t("push") },
         ...toggleHint,
       ]
     }
     if (repository === "git")
       return [
-        { key: "enter", label: "diff" },
-        { key: "space", label: "stage" },
-        { key: "c", label: "commit" },
-        { key: "a", label: "commit all" },
-        { key: "h", label: "stage hunks" },
-        { key: "u", label: "unstage hunks" },
-        { key: "f", label: "fetch" },
-        { key: "p", label: "push" },
-        { key: "l", label: "pull" },
+        { key: "enter", label: t("diff") },
+        { key: "space", label: t("stage") },
+        { key: "c", label: t("commit") },
+        { key: "a", label: t("commit all") },
+        { key: "h", label: t("stage hunks") },
+        { key: "u", label: t("unstage hunks") },
+        { key: "f", label: t("fetch") },
+        { key: "p", label: t("push") },
+        { key: "l", label: t("pull") },
       ]
     if (repository === "jj")
       return [
-        { key: "enter", label: "diff" },
-        { key: "d", label: "describe" },
-        { key: "n", label: "new" },
-        { key: "s", label: "squash" },
-        { key: "b", label: "bookmark" },
-        { key: "a", label: "abandon" },
-        { key: "e", label: "edit" },
-        { key: "v", label: "split" },
-        { key: "w", label: "parallel" },
-        { key: "f", label: "fetch" },
-        { key: "p", label: "push" },
+        { key: "enter", label: t("diff") },
+        { key: "d", label: t("describe") },
+        { key: "n", label: t("new") },
+        { key: "s", label: t("squash") },
+        { key: "b", label: t("bookmark") },
+        { key: "a", label: t("abandon") },
+        { key: "e", label: t("edit") },
+        { key: "v", label: t("split") },
+        { key: "w", label: t("parallel") },
+        { key: "f", label: t("fetch") },
+        { key: "p", label: t("push") },
       ]
     return []
   }
   const globalHints = (): Hint[] => [
-    { key: "1", label: "status" },
-    { key: "2", label: "files" },
+    { key: "1", label: t("status") },
+    { key: "2", label: t("files") },
     { key: "3", label: panelLabel("branches") },
     { key: "4", label: panelLabel("history") },
-    { key: "tab", label: "panel" },
-    ...(vcs.tool() ? [{ key: "o", label: "external" }] : []),
-    { key: "r", label: "refresh" },
-    { key: "q", label: "close" },
+    { key: "tab", label: t("panel") },
+    ...(vcs.tool() ? [{ key: "o", label: t("external") }] : []),
+    { key: "r", label: t("refresh") },
+    { key: "q", label: t("close") },
   ]
   const hintRow = (items: readonly Hint[]) => (
     <box height={1} flexDirection="row" gap={2}>
@@ -1335,7 +1364,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
         when={current()}
         fallback={
           <box flexGrow={1} paddingLeft={1} paddingTop={1}>
-            <text fg={theme.text.muted}>No Git, jj, or Mercurial repository in this project.</text>
+            <text fg={theme.text.muted}>{t("No Git, jj, or Mercurial repository in this project.")}</text>
           </box>
         }
       >
@@ -1369,7 +1398,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
             </box>
             <box flexGrow={1} />
             <text fg={theme.text.muted} selectable={false}>
-              g switch
+              {t("g switch")}
             </text>
           </box>
         </Show>
@@ -1383,7 +1412,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
               borderColor={
                 focus() === "status" ? theme.background.action.primary.focused : theme.border.base
               }
-              title="Status"
+              title={t("Status")}
               titleColor={focus() === "status" ? theme.text.base : theme.text.muted}
               backgroundColor={theme.background.raised.base}
               onMouseDown={() => setFocus("status")}
@@ -1403,7 +1432,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                       when={kind() === "jj" && current()!.change}
                       fallback={
                         <text fg={theme.text.base} wrapMode="none" truncate selectable={false}>
-                          {` ${current()!.label}`}
+                          {` ${t(current()!.label)}`}
                         </text>
                       }
                     >
@@ -1419,7 +1448,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                 </box>
                 <box height={1}>
                   <text fg={theme.text.muted} wrapMode="none" truncate selectable={false}>
-                    {statusDetail()}
+                    {t(statusDetail())}
                   </text>
                 </box>
               </box>
@@ -1428,7 +1457,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
               "files",
               panelTitle("files"),
               <scrollbox ref={(node) => (scrolls.files = node)} flexGrow={1} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
-                <Show when={files().length > 0} fallback={emptyRow("No changed files")}>
+                <Show when={files().length > 0} fallback={emptyRow(t("No changed files"))}>
                   <Index each={files()}>
                     {(item, index) => {
                       return (
@@ -1473,19 +1502,19 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
               "branches",
               panelTitle("branches"),
               <scrollbox ref={(node) => (scrolls.branches = node)} flexGrow={1} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
-                <Show when={!branchesLoading()} fallback={emptyRow("Loading…")}>
+                <Show when={!branchesLoading()} fallback={emptyRow(t("Loading…"))}>
                   <Show
                     when={branchEntries().length > 0}
-                    fallback={emptyRow(refsAreGit() ? "No branches" : kind() === "jj" ? "No bookmarks" : "No branches")}
+                    fallback={emptyRow(refsAreGit() ? t("No branches") : kind() === "jj" ? t("No bookmarks") : t("No branches"))}
                   >
                     <Show when={localBranchEntries().length > 0}>
-                      {groupHeader(`Local · ${localBranchEntries().length}`)}
+                      {groupHeader(t("Local · {{count}}", { count: localBranchEntries().length }))}
                       <Index each={localBranchEntries()}>
                         {(item, index) => branchRow(item, index)}
                       </Index>
                     </Show>
                     <Show when={remoteBranchEntries().length > 0}>
-                      {groupHeader(`Remote · ${remoteBranchEntries().length}`)}
+                      {groupHeader(t("Remote · {{count}}", { count: remoteBranchEntries().length }))}
                       <Index each={remoteBranchEntries()}>
                         {(item, index) => branchRow(item, localBranchEntries().length + index)}
                       </Index>
@@ -1498,10 +1527,10 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
               "history",
               panelTitle("history"),
               <scrollbox ref={(node) => (scrolls.history = node)} flexGrow={1} scrollX={false} verticalScrollbarOptions={{ visible: true }}>
-                <Show when={!historyLoading()} fallback={emptyRow("Loading…")}>
+                <Show when={!historyLoading()} fallback={emptyRow(t("Loading…"))}>
                   <Show
                     when={historyEntries().length > 0}
-                    fallback={emptyRow(refsAreGit() ? "No commits" : kind() === "jj" ? "No changes" : "No commits")}
+                    fallback={emptyRow(refsAreGit() ? t("No commits") : kind() === "jj" ? t("No changes") : t("No commits"))}
                   >
                     <Index each={historyEntries()}>
                       {(item, index) => {
@@ -1535,7 +1564,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                               wrapMode="none"
                               selectable={false}
                             >
-                              {Locale.truncateWidth(item().label, sidebarWidth() - 15)}
+                              {Locale.truncateWidth(t(item().label), sidebarWidth() - 15)}
                             </text>
                             <box flexGrow={1} />
                             <text fg={rowColor("history", index, theme.text.muted)} selectable={false}>
@@ -1562,7 +1591,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
             <box height={1} flexDirection="row" paddingLeft={1} paddingRight={1}>
               <box flexGrow={1} minWidth={0}>
                 <text fg={theme.text.base} wrapMode="none" truncate selectable={false}>
-                  {Locale.truncateWidth(previewLabel(), previewLabelWidth())}
+                  {Locale.truncateWidth(t(previewLabel()), previewLabelWidth())}
                 </text>
               </box>
               <text fg={previewDetailColor()} selectable={false}>
@@ -1586,7 +1615,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                     when={!diffLoading()}
                     fallback={
                       <box paddingLeft={1} paddingTop={1}>
-                        <text fg={theme.text.muted}>Loading…</text>
+                        <text fg={theme.text.muted}>{t("Loading…")}</text>
                       </box>
                     }
                   >
@@ -1595,7 +1624,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                       fallback={
                         <box paddingLeft={1} paddingTop={1}>
                           <text fg={theme.text.muted}>
-                            {focus() === "files" ? "No diff for this file." : "No details for this entry."}
+                            {focus() === "files" ? t("No diff for this file.") : t("No details for this entry.")}
                           </text>
                         </box>
                       }
@@ -1630,7 +1659,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                       when={kind() === "jj" && current()!.change}
                       fallback={
                         <text fg={theme.text.base} selectable={false}>
-                          {` ${current()!.label}`}
+                          {` ${t(current()!.label)}`}
                         </text>
                       }
                     >
@@ -1649,7 +1678,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                     {(bookmark) => (
                       <box height={1} flexDirection="row">
                         <text fg={theme.text.muted} selectable={false}>
-                          bookmark{" "}
+                          {t("bookmark")}{" "}
                         </text>
                         <text fg={theme.text.feedback.success.base} selectable={false}>
                           {bookmark}
@@ -1665,7 +1694,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                   <Show when={current()!.commit}>
                     <box height={1} flexDirection="row">
                       <text fg={theme.text.muted} selectable={false}>
-                        commit{" "}
+                        {t("commit")}{" "}
                       </text>
                       <text fg={theme.text.feedback.info.base} selectable={false}>
                         {current()!.commit}
@@ -1673,7 +1702,7 @@ export function VcsView(props: { onClose: () => void; controller?: VcsViewContro
                     </box>
                   </Show>
                   <text fg={theme.text.muted} selectable={false}>
-                    {current()!.detail}
+                    {t(current()!.detail)}
                   </text>
                 </box>
               </scrollbox>
