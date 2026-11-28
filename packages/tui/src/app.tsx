@@ -80,8 +80,8 @@ import { DialogAgent } from "./component/dialog-agent"
 import { DialogSessionList } from "./component/dialog-session-list"
 import { DialogOpen, DialogOpenKey, moveOpenSession } from "./component/dialog-open"
 import { SessionTabs } from "./component/session-tabs"
-import { TabBar, type WorkspaceTab } from "./component/tab-bar"
-import { ProjectDashboard } from "./component/dashboard"
+import { DashboardDock } from "./component/dashboard-dock"
+import { DashboardView } from "./component/dashboard-view"
 import { VcsDock, VCS_DOCK_MIN_TERMINAL_WIDTH, VCS_DOCK_WIDTH } from "./component/vcs-dock"
 import { TaskGraphDock } from "./component/task-graph-dock"
 import { TaskGraphView } from "./component/task-graph-view"
@@ -203,6 +203,7 @@ const appBindingCommands = [
   "taskgraph.refresh",
   "filemanager.open",
   "filemanager.refresh",
+  "dashboard.open",
   "app.debug",
   "app.console",
   "terminal.title.toggle",
@@ -210,8 +211,6 @@ const appBindingCommands = [
   "app.toggle.file_context",
   "app.toggle.diffwrap",
   "app.toggle.paste_summary",
-  "view.chat",
-  "view.dashboard",
 ] as const
 
 export type TuiInput = {
@@ -545,22 +544,32 @@ function App() {
   const [vcsOpen, setVcsOpen] = createSignal(false)
   const [taskGraphOpen, setTaskGraphOpen] = createSignal(false)
   const [filesOpen, setFilesOpen] = createSignal(false)
+  const [dashboardOpen, setDashboardOpen] = createSignal(false)
   // The full-pane views share one content area, so opening one closes the others even
   // when the click comes from the dock of the view that is already open.
   const openTaskGraph = () => {
     setVcsOpen(false)
     setFilesOpen(false)
+    setDashboardOpen(false)
     setTaskGraphOpen(true)
   }
   const openVcs = () => {
     setTaskGraphOpen(false)
     setFilesOpen(false)
+    setDashboardOpen(false)
     setVcsOpen(true)
   }
   const openFiles = () => {
     setVcsOpen(false)
     setTaskGraphOpen(false)
+    setDashboardOpen(false)
     setFilesOpen(true)
+  }
+  const openDashboard = () => {
+    setVcsOpen(false)
+    setTaskGraphOpen(false)
+    setFilesOpen(false)
+    setDashboardOpen(true)
   }
   const vcsKey = () => {
     if (route.data.type === "session") return `session:${route.data.sessionID}`
@@ -574,6 +583,7 @@ function App() {
     setVcsOpen(false)
     setTaskGraphOpen(false)
     setFilesOpen(false)
+    setDashboardOpen(false)
   })
   const panels = usePanel()
   const keymap = Keymap.use()
@@ -642,19 +652,6 @@ function App() {
       }).catch((error) => console.error("Failed to persist TUI layout", error))
     },
   })
-  const [workspace, updateWorkspace] = useStorage().store<{ tab: WorkspaceTab }>("workspace", {
-    initial: { tab: "chat" },
-  })
-  const projectDashboardEnabled = () => config.data.experimental?.["project-dashboard"] === true
-  // The dashboard is a layer above the route, so the home/session route survives while it is open.
-  const activeTab = (): WorkspaceTab =>
-    workspace.tab === "dashboard" && projectDashboardEnabled() ? "dashboard" : "chat"
-  const selectTab = (tab: WorkspaceTab) => {
-    if (workspace.tab === tab) return
-    void updateWorkspace((draft) => {
-      draft.tab = tab
-    }).catch((error) => console.error("Failed to persist TUI workspace tab", error))
-  }
   const [openSessions, setOpenSessions] = createSignal<SessionInfo[]>([])
   // Toast once when an MCP server enters a failed or needs-auth state so the user knows to act,
   // without having to open the status panel. Tracking the last alerted status avoids re-toasting
@@ -725,13 +722,6 @@ function App() {
     panels.current()?.sessionID === route.data.sessionID &&
     panels.presentation() === "fullscreen"
   const tabsVisible = () => tabsAvailable() && !fullscreenPanel()
-  // The top-level tab bar belongs to the workspace, not to the session sidebar. It stays out of the way of
-  // plugin routes, fullscreen panels, and modal dialogs, which own the whole screen.
-  const tabBarVisible = () =>
-    projectDashboardEnabled() &&
-    route.data.type !== "plugin" &&
-    !fullscreenPanel() &&
-    dialog.stack.length === 0
   const verticalTabsVisible = () => tabsVisible() && tabsVertical()
   const vcsDockEnabled = () => config.data.experimental?.["vcs-dock"] === true
   const vcsDockVisible = () => vcsDockEnabled() && tabsAvailable() && vcs.visible() && !fullscreenPanel()
@@ -741,7 +731,10 @@ function App() {
   const fileManagerDockEnabled = () => config.data.experimental?.["file-manager"] === true
   const fileManagerDockVisible = () =>
     fileManagerDockEnabled() && tabsAvailable() && fileManager.visible() && !fullscreenPanel()
-  const dockVisible = () => taskGraphDockVisible() || fileManagerDockVisible() || vcsDockVisible()
+  const dashboardDockEnabled = () => config.data.experimental?.["project-dashboard"] === true
+  const dashboardDockVisible = () => dashboardDockEnabled() && tabsAvailable() && !fullscreenPanel()
+  const dockVisible = () =>
+    taskGraphDockVisible() || fileManagerDockVisible() || vcsDockVisible() || dashboardDockVisible()
   // The VCS dock anchors the right column. Other docks join it only when it is visible,
   // so enabling them alone keeps the existing single-row below layout.
   const dockRight = () =>
@@ -1031,23 +1024,6 @@ function App() {
         enabled: sessionTabs.enabled,
         run: () => sessionTabs.selectIndex(i),
       })),
-      {
-        name: "view.chat",
-        title: "Chat",
-        category: "View",
-        palette: projectDashboardEnabled() ? (true as const) : undefined,
-        enabled: () => projectDashboardEnabled() && route.data.type !== "plugin",
-        run: () => selectTab("chat"),
-      },
-      {
-        name: "view.dashboard",
-        title: "Project dashboard",
-        category: "View",
-        palette: projectDashboardEnabled() ? (true as const) : undefined,
-        slash: projectDashboardEnabled() ? { name: "dashboard", aliases: ["stats"] } : undefined,
-        enabled: () => projectDashboardEnabled() && route.data.type !== "plugin",
-        run: () => selectTab("dashboard"),
-      },
       {
         name: "model.list",
         title: "Switch model",
@@ -1401,6 +1377,14 @@ function App() {
         run: () => void fileManager.refresh(),
       },
       {
+        name: "dashboard.open",
+        title: "Open project dashboard",
+        category: "Dashboard",
+        slash: { name: "dashboard", aliases: ["stats"] },
+        enabled: dashboardDockEnabled,
+        run: openDashboard,
+      },
+      {
         name: "app.exit",
         title: "Exit the app",
         slash: { name: "exit", aliases: ["quit", "q"] },
@@ -1664,10 +1648,14 @@ function App() {
               setVcsOpen(false)
               setTaskGraphOpen(false)
               setFilesOpen(false)
+              setDashboardOpen(false)
             }}
             footer={
-              taskGraphDockVisible() || fileManagerDockVisible() || vcsDockVisible() ? (
+              dashboardDockVisible() || taskGraphDockVisible() || fileManagerDockVisible() || vcsDockVisible() ? (
                 <box flexDirection="column">
+                  <Show when={dashboardDockVisible()}>
+                    <DashboardDock orientation="vertical" width={tabsWidth()} onOpen={openDashboard} />
+                  </Show>
                   <Show when={taskGraphDockVisible()}>
                     <TaskGraphDock
                       orientation="vertical"
@@ -1689,22 +1677,7 @@ function App() {
         <box flexGrow={1} minWidth={0} flexDirection="column">
           <Show when={plugins.ready()}>
             <box flexGrow={1} minHeight={0} flexDirection="column">
-              <Show when={tabBarVisible()}>
-                <TabBar tab={activeTab()} onSelect={selectTab} />
-              </Show>
-              <Show
-                when={activeTab() === "chat"}
-                fallback={
-                  <ProjectDashboard
-                    onOpenSession={(sessionID) => {
-                      selectTab("chat")
-                      route.navigate({ type: "session", sessionID })
-                    }}
-                    onClose={() => selectTab("chat")}
-                  />
-                }
-              >
-                <Show when={tabsVisible() && !tabsVertical()}>
+              <Show when={tabsVisible() && !tabsVertical()}>
                   <Show
                     when={dockRight()}
                     fallback={
@@ -1715,10 +1688,14 @@ function App() {
                             setVcsOpen(false)
                             setTaskGraphOpen(false)
                             setFilesOpen(false)
+                            setDashboardOpen(false)
                           }}
                         />
                         <Show when={dockBelow()}>
                           <box flexDirection="column">
+                            <Show when={dashboardDockVisible()}>
+                              <DashboardDock orientation="below" onOpen={openDashboard} />
+                            </Show>
                             <Show when={taskGraphDockVisible()}>
                               <TaskGraphDock orientation="below" onOpen={openTaskGraph} />
                             </Show>
@@ -1741,10 +1718,14 @@ function App() {
                             setVcsOpen(false)
                             setTaskGraphOpen(false)
                             setFilesOpen(false)
+                            setDashboardOpen(false)
                           }}
                         />
                       </box>
                       <box flexDirection="column">
+                        <Show when={dashboardDockVisible()}>
+                          <DashboardDock orientation="right" width={VCS_DOCK_WIDTH} onOpen={openDashboard} />
+                        </Show>
                         <Show when={taskGraphDockVisible()}>
                           <TaskGraphDock
                             orientation="right"
@@ -1761,53 +1742,59 @@ function App() {
                   </Show>
                 </Show>
                 <Show
-                  when={filesOpen() && fileManagerDockEnabled()}
+                  when={dashboardOpen() && dashboardDockEnabled()}
                   fallback={
                     <Show
-                      when={vcsOpen() && vcsDockEnabled()}
+                      when={filesOpen() && fileManagerDockEnabled()}
                       fallback={
                         <Show
-                          when={taskGraphOpen() && taskGraphDockEnabled()}
+                          when={vcsOpen() && vcsDockEnabled()}
                           fallback={
-                            <Switch>
-                              <Match when={route.data.type === "home"}>
-                                <Home />
-                              </Match>
-                              <Match when={route.data.type === "session"}>
-                                <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
-                                  {(sessionID) => (
-                                    <SessionFrame
-                                      sessionID={sessionID}
-                                      verticalTabsWidth={verticalTabsVisible() ? tabsWidth() : 0}
+                            <Show
+                              when={taskGraphOpen() && taskGraphDockEnabled()}
+                              fallback={
+                                <Switch>
+                                  <Match when={route.data.type === "home"}>
+                                    <Home />
+                                  </Match>
+                                  <Match when={route.data.type === "session"}>
+                                    <Show when={route.data.type === "session" ? route.data.sessionID : undefined} keyed>
+                                      {(sessionID) => (
+                                        <SessionFrame
+                                          sessionID={sessionID}
+                                          verticalTabsWidth={verticalTabsVisible() ? tabsWidth() : 0}
+                                        />
+                                      )}
+                                    </Show>
+                                  </Match>
+                                  <Match when={route.data.type === "plugin"}>
+                                    <PluginRoute
+                                      fallback={(id, name) => (
+                                        <PluginRouteMissing
+                                          id={id}
+                                          name={name}
+                                          onHome={() => route.navigate({ type: "home" })}
+                                        />
+                                      )}
                                     />
-                                  )}
-                                </Show>
-                              </Match>
-                              <Match when={route.data.type === "plugin"}>
-                                <PluginRoute
-                                  fallback={(id, name) => (
-                                    <PluginRouteMissing
-                                      id={id}
-                                      name={name}
-                                      onHome={() => route.navigate({ type: "home" })}
-                                    />
-                                  )}
-                                />
-                              </Match>
-                            </Switch>
+                                  </Match>
+                                </Switch>
+                              }
+                            >
+                              <TaskGraphView onClose={() => setTaskGraphOpen(false)} onOpenVcs={openVcs} />
+                            </Show>
                           }
                         >
-                          <TaskGraphView onClose={() => setTaskGraphOpen(false)} onOpenVcs={openVcs} />
+                          <VcsView onClose={() => setVcsOpen(false)} />
                         </Show>
                       }
                     >
-                      <VcsView onClose={() => setVcsOpen(false)} />
+                      <FileManagerView onClose={() => setFilesOpen(false)} />
                     </Show>
                   }
                 >
-                  <FileManagerView onClose={() => setFilesOpen(false)} />
+                  <DashboardView onClose={() => setDashboardOpen(false)} />
                 </Show>
-              </Show>
             </box>
             <Slot path="app" />
           </Show>

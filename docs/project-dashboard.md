@@ -1,18 +1,18 @@
 # Project dashboard
 
-A persistent top-level tab bar sits above the main content (not in the session
-sidebar) with two tabs: **Chat** and **Dashboard**. It stays visible across
-sessions and is hidden on plugin routes, fullscreen panels, and modal dialogs.
-The selected tab is stored in the TUI workspace store and restored on restart.
+The project dashboard is a full-pane dock in the same family as the TASKS / VCS /
+FILES docks. It is not a top-level tab: the normal session/chat surface remains
+the default, and opening the dashboard replaces that surface with the dock. The
+dashboard lives in
+`packages/tui/src/component/dashboard.tsx`.
 
-The tab bar lives in `packages/tui/src/component/tab-bar.tsx`; the dashboard
-lives in `packages/tui/src/component/dashboard.tsx`.
+## Opening and closing the dock
 
-## Switching tabs
-
-- `alt+1` selects Chat, `alt+2` selects Dashboard.
-- `/dashboard` opens Dashboard. `/stats` is an alias that opens the same tab;
+- `/dashboard` opens the dashboard dock. `/stats` is an alias for the same dock;
   the old full-screen `/stats` plugin route was removed.
+- `<leader>d` opens the dock.
+- Select the **Dashboard** launcher beside the TASKS / VCS / FILES dock launchers.
+- `esc` closes the dock and returns to the normal chat/session surface.
 
 ## Dashboard
 
@@ -26,23 +26,23 @@ All with the range selector or `1`–`4`.
 | Activity        | Calendar of daily activity.                                        |
 | Metrics         | Subagents, prompts, steps, active days, streak, and tool calls.    |
 | Top models      | Most-used models.                                                  |
-| Recent sessions | Latest sessions; select one to open it in Chat.                    |
+| Recent sessions | Latest sessions; open one to return to chat in that session.       |
 
-| Key       | Action                                                       |
-| --------- | ------------------------------------------------------------ |
-| `1`–`4`   | Select the 7d / 30d / 90d / All range.                       |
-| `↑` / `↓` | Move through the recent sessions list.                       |
-| `Enter`   | Switch to Chat and open the selected recent session.         |
-| `r`       | Refresh the dashboard data.                                  |
-| `esc`     | Return to Chat.                                              |
+| Key       | Action                                                               |
+| --------- | -------------------------------------------------------------------- |
+| `1`–`4`   | Select the 7d / 30d / 90d / All range (default 30d).                 |
+| `↑` / `↓` | Move through the recent sessions list.                               |
+| `Enter`   | Open the selected recent session in chat and close the dock.         |
+| `r`       | Refresh the dashboard data.                                          |
+| `esc`     | Close the dock and return to the normal chat/session surface.        |
 
 ## Experiment gate
 
 The feature is gated by the `project-dashboard` experiment
 (`experimental.project-dashboard`), enabled by default in the TUI. Toggle it in
 **Settings → Features** or the Experiments dialog. The registry is in
-`packages/tui/src/component/features.ts`. With the gate off, the tab bar and
-dashboard are hidden.
+`packages/tui/src/component/features.ts`. With the gate off, the Dashboard
+launcher and the opening commands are unavailable.
 
 ## Data sources
 
@@ -60,4 +60,4 @@ OPENCODE_STORY=project-dashboard bun run dev:live
 
 Story keys: `1`–`4` range, `l` loading, `e` empty, `x` error, `w` narrow/wide
 layout, `↑`/`↓` and `Enter` recent sessions, `r` refresh, `Shift+r` reset, and
-`esc` back.
+`esc` closes the dock.

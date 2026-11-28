@@ -26,6 +26,7 @@ test("exposes theia-code features as settings toggles", () => {
     "experimental.vcs-dock",
     "experimental.task-graph",
     "experimental.file-manager",
+    "experimental.project-dashboard",
     "experimental.client-mcp",
     "experimental.new-designs",
   ])

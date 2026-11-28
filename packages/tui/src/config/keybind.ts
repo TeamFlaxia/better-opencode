@@ -55,8 +55,6 @@ export const Definitions = {
   "app.toggle.diffwrap": keybind("none", "Toggle diff wrapping"),
   "app.toggle.paste_summary": keybind("none", "Toggle paste summary"),
   "command.palette.show": keybind("ctrl+p", "List available commands"),
-  "view.chat": keybind("alt+1", "Switch to the Chat tab"),
-  "view.dashboard": keybind("alt+2", "Switch to the Project dashboard tab"),
   "help.show": keybind("none", "Open help dialog"),
   "docs.open": keybind("none", "Open documentation"),
   "opencode.settings": keybind("none", "Open settings"),
@@ -96,6 +94,7 @@ export const Definitions = {
   "taskgraph.refresh": keybind("none", "Refresh task graph"),
   "filemanager.open": keybind("<leader>f", "Open file manager"),
   "filemanager.refresh": keybind("none", "Refresh file manager"),
+  "dashboard.open": keybind("<leader>d", "Open project dashboard"),
 
   "prompt.editor": keybind("<leader>e", "Open external editor"),
   "theme.switch": keybind("none", "List available themes"),
