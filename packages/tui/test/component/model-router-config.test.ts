@@ -23,7 +23,7 @@ async function home() {
   return dir
 }
 
-async function seed(dir: string, overrides: string, state?: { activePreset: string }) {
+async function seed(dir: string, overrides: string, state?: Record<string, unknown>) {
   const paths = routerPaths(dir)
   await Bun.write(paths.overrides, overrides)
   if (state) await Bun.write(paths.state, JSON.stringify(state, null, 2) + "\n")
@@ -97,6 +97,22 @@ describe("model router config", () => {
     expect(JSON.parse(await Bun.file(paths.state).text())).toEqual({ activePreset: "beta" })
   })
 
+  test("merges the active preset into state owned by the plugin", async () => {
+    const dir = await home()
+    const paths = await seed(dir, `{ "presets": { "alpha": {}, "beta": {} } }`, {
+      activePreset: "alpha",
+      activeMode: "mode-x",
+      enforcementMode: "enforce",
+    })
+
+    await writeActivePreset(dir, "beta")
+    expect(JSON.parse(await Bun.file(paths.state).text())).toEqual({
+      activePreset: "beta",
+      activeMode: "mode-x",
+      enforcementMode: "enforce",
+    })
+  })
+
   test("creates, renames, and removes presets", async () => {
     const dir = await home()
     await seed(
@@ -121,6 +137,21 @@ describe("model router config", () => {
     expect(read.overrides.presets.omega).toBeUndefined()
     expect(read.overrides.activePreset).toBe("beta")
     expect(read.state.activePreset).toBe("beta")
+  })
+
+  test("removing the last active preset keeps other state keys", async () => {
+    const dir = await home()
+    const paths = await seed(dir, `{ "presets": { "alpha": {} } }`, {
+      activePreset: "alpha",
+      activeMode: "mode-x",
+      enforcementMode: "enforce",
+    })
+
+    await removePreset(dir, "alpha")
+    expect(JSON.parse(await Bun.file(paths.state).text())).toEqual({
+      activeMode: "mode-x",
+      enforcementMode: "enforce",
+    })
   })
 
   test("validates preset names and parses whenToUse", () => {

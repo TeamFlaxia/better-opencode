@@ -129,8 +129,15 @@ export function writeDefaultPreset(home: string, preset: string | undefined) {
   return editOverrides(home, (text) => edit(text, ["activePreset"], preset))
 }
 
+async function writeState(file: string, state: Record<string, unknown>) {
+  await writeText(file, JSON.stringify(state, null, 2) + "\n")
+}
+
+// The plugin shares this file with its own runtime keys, so only activePreset is ours to change.
 export async function writeActivePreset(home: string, preset: string) {
-  await writeText(routerPaths(home).state, JSON.stringify({ activePreset: preset }, null, 2) + "\n")
+  const file = routerPaths(home).state
+  const raw = parse((await readText(file)) ?? "{}")
+  await writeState(file, { ...(isRecord(raw) ? raw : {}), activePreset: preset })
 }
 
 export async function createPreset(home: string, name: string, source?: string) {
@@ -167,7 +174,11 @@ export async function removePreset(home: string, name: string) {
   const state = parse((await readText(paths.state)) ?? "{}")
   if (isRecord(state) && state.activePreset === name) {
     if (fallback) await writeActivePreset(home, fallback)
-    else await writeText(paths.state, "{}\n")
+    else {
+      const next = { ...state }
+      delete next.activePreset
+      await writeState(paths.state, next)
+    }
   }
 }
 

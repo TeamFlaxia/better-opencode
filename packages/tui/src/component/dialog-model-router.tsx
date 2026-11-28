@@ -1,7 +1,9 @@
 import { createMemo, createSignal, Match, Switch } from "solid-js"
 import { homedir } from "node:os"
+import { useClient } from "../context/client"
 import { useData } from "../context/data"
 import { useLocation } from "../context/location"
+import { useRoute } from "../context/route"
 import { useTheme } from "../context/theme"
 import { Locale } from "../util/locale"
 import { errorMessage } from "../util/error"
@@ -57,6 +59,8 @@ export function DialogModelRouter(props: { view?: RouterView }) {
   const dialog = useDialog()
   const toast = useToast()
   const theme = useTheme()
+  const client = useClient()
+  const route = useRoute()
   const [overrides, setOverrides] = createSignal<RouterOverrides>({ presets: {} })
   const [state, setState] = createSignal<RouterState>({})
   const [project, setProject] = createSignal(false)
@@ -96,6 +100,18 @@ export function DialogModelRouter(props: { view?: RouterView }) {
       toast.error(error)
       return false
     }
+  }
+
+  async function activate(name: string) {
+    await writeActivePreset(home(), name)
+    // The plugin applies a preset only when this command invalidates its config cache.
+    const current = route.data
+    if (current.type !== "session") return
+    await client.api.session.command({
+      sessionID: current.sessionID,
+      name: "router-reload",
+      text: "",
+    })
   }
 
   function prompt(input: {
@@ -257,7 +273,7 @@ export function DialogModelRouter(props: { view?: RouterView }) {
       onSelect={(option) => {
         const value = option.value
         if (value.kind === "activate") {
-          void apply(writeActivePreset(home(), preset()), `Active preset set to ${preset()}`)
+          void apply(activate(preset()), `Active preset set to ${preset()}`)
           return
         }
         if (value.kind === "default") {
