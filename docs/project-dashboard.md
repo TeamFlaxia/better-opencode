@@ -16,16 +16,25 @@ dashboard lives in
 
 ## Dashboard
 
-By default the dashboard reports usage across **all projects**. A project
-selector in the header narrows it to one project. The default range is the last
+By default the dashboard reports usage across **all projects**. The header's
+compact project indicator shows `All projects ⇆ <current project>` and opens a
+separate picker to narrow the view to one project. The default range is the last
 **30 days**; select 7d, 30d, 90d, or All with the range selector or `1`–`4`.
 
-### Project selector
+### Project indicator and picker
 
-The header offers **All projects** (the default) followed by every known
-project. Selecting a project scopes both the statistics and the recent-session
-list to that project; selecting **All projects** restores the cross-project
-view. The list of projects comes from `project.list`.
+The top-right of the header shows a compact indicator in the form
+`All projects ⇆ <current folder project name>` — or the selected project's name
+in place of the folder name when one is selected. Whichever side is currently
+being viewed is highlighted/colored; the other is muted. **All projects** is
+the default scope.
+
+Clicking the `⇆` separator or pressing `p` opens a separate project picker
+dialog listing **All projects** followed by every known project. Selecting a
+project scopes both the statistics and the recent-session list to that project;
+selecting **All projects** restores the cross-project view. The list of
+projects comes from `project.list`. The old `[` / `]` project cycling keys have
+been removed; use the picker instead.
 
 Long model names are rendered readably instead of being cut mid-name: the
 provider is shown in a muted style followed by the model id/variant on a
@@ -46,6 +55,7 @@ separate line, or middle-truncated on narrow terminals.
 | `↑` / `↓` | Move through the recent sessions list.                               |
 | `Enter`   | Open the selected recent session in chat and close the dock.         |
 | `r`       | Refresh the dashboard data.                                          |
+| `p`       | Open the project picker dialog (also click `⇆`).                     |
 | `esc`     | Close the dock and return to the normal chat/session surface.        |
 
 ## Experiment gate
@@ -58,7 +68,7 @@ launcher and the opening commands are unavailable.
 
 ## Data sources
 
-- `project.list` supplies the project selector.
+- `project.list` supplies the project picker.
 - `experimental.session.stats` with `tools: "summary"` and an optional
   `project` filter: omitted for **All projects** so totals cover everything,
   set to the selected project otherwise. This needs no protocol change.
@@ -75,5 +85,5 @@ OPENCODE_STORY=project-dashboard bun run dev:live
 
 Story keys: `1`–`4` range, `l` loading, `e` empty, `x` error, `w` narrow/wide
 layout, `↑`/`↓` and `Enter` recent sessions, `r` refresh, `Shift+r` reset, and
-`esc` closes the dock. Use the header project selector to exercise the
-all-project and per-project scopes.
+`esc` closes the dock. Use the `⇆` separator or `p` to open the project picker
+and exercise the all-project and per-project scopes.

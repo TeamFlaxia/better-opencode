@@ -29,7 +29,7 @@ The TUI enables all of these features by default. Turn each one on or off in **S
 | File manager         | Read-only browser and preview for the current session location. Open it with `<leader>f` or `/files`.                                                                                                                                                                                                 | [docs/file-manager.md](docs/file-manager.md) |
 | TUI tools            | Lets the agent open a terminal in the running TUI (requires server support).                                                                                                                                                                                                                          | —                                            |
 | New designs          | Previews the redesigned TUI surfaces.                                                                                                                                                                                                                                                                 | —                                            |
-| Project dashboard    | Adds a full-pane dashboard dock alongside the TASKS / VCS / FILES docks (not a top-level tab). It summarizes usage with an activity calendar, metrics, readable top-model names, a per-model token usage bar chart, and recent sessions, scoped to all projects by default (30-day range) or to one project via the header selector. Open it with `/dashboard` (`/stats` alias), `<leader>d`, or the Dashboard launcher; `esc` returns to chat. | [docs/project-dashboard.md](docs/project-dashboard.md) |
+| Project dashboard    | Adds a full-pane dashboard dock alongside the TASKS / VCS / FILES docks (not a top-level tab). It summarizes usage with an activity calendar, metrics, readable top-model names, a per-model token usage bar chart, and recent sessions, scoped to all projects by default (30-day range) or to one project via a picker opened with `⇆` or `p`. Open it with `/dashboard` (`/stats` alias), `<leader>d`, or the Dashboard launcher; `esc` returns to chat. | [docs/project-dashboard.md](docs/project-dashboard.md) |
 
 Model routing is also on by default: the CLI server loads `opencode-model-router@latest`, fetches it from npm, and updates it with the existing plugin update check. Disable it with `"plugins": ["-opencode-model-router"]`. See [docs/model-router.md](docs/model-router.md).
 
@@ -145,7 +145,7 @@ Fork tags use the upstream semver core plus `-theia.N`; `N` restarts at 1 for ea
 - [docs/vcs-dock.md](docs/vcs-dock.md) — built-in version control view
 - [docs/task-graph.md](docs/task-graph.md) — task graph and `/divide`
 - [docs/file-manager.md](docs/file-manager.md) — file browser and preview
-- [docs/project-dashboard.md](docs/project-dashboard.md) — the usage dashboard dock (all projects by default, with a project selector)
+- [docs/project-dashboard.md](docs/project-dashboard.md) — the usage dashboard dock (all projects by default, with a project picker)
 - [docs/model-router.md](docs/model-router.md) — default model routing plugin, opt-out, and license notes
 - [AGENTS.md](AGENTS.md) — implementation and style rules
 - [CONTRIBUTING.md](CONTRIBUTING.md) — contribution workflow

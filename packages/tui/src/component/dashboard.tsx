@@ -7,6 +7,7 @@ import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import path from "path"
 import { createMemo, createResource, createSignal, For, Show, type JSX } from "solid-js"
 import { useClient } from "../context/client"
+import { useLocation } from "../context/location"
 import { useTheme } from "../context/theme"
 import {
   dashboardCalendar,
@@ -22,8 +23,10 @@ import {
   loadRecentSessions,
   type DashboardRange,
 } from "../feature-plugins/system/dashboard-data"
+import { useDialog } from "../ui/dialog"
 import { tint } from "../theme/color"
 import { Locale } from "../util/locale"
+import { DialogProject } from "./dialog-project"
 
 const digits: Record<string, string[]> = {
   "0": ["111", "101", "101", "101", "111"],
@@ -218,11 +221,14 @@ export type ProjectDashboardViewProps = {
   error?: unknown
   projects?: readonly Project.Info[]
   project?: Project.ID
+  currentProject?: { id: Project.ID; canonical: string; name?: string }
+  pickerOpen?: boolean
   showChart?: boolean
   onRangeChange: (range: DashboardRange) => void
   onRefresh: () => void
   onOpenSession: (sessionID: string) => void
   onProjectChange?: (project: Project.ID | undefined) => void
+  onOpenProjectPicker?: () => void
   onClose?: () => void
 }
 
@@ -232,21 +238,20 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   const wide = () => props.width >= 100
   const totals = createMemo(() => (props.stats ? dashboardTotals(props.stats) : undefined))
   const models = createMemo(() => (props.stats ? dashboardModelRows(props.stats).slice(0, 5) : []))
-  const projectOptions = createMemo<readonly (Project.Info | undefined)[]>(() => [
-    undefined,
-    ...(props.projects ?? []),
-  ])
-  const projectName = (value?: Project.Info) => (value ? (value.name ?? path.basename(value.canonical)) : "All projects")
-  const activeProjectIndex = createMemo(() => {
-    const index = projectOptions().findIndex((option) => option?.id === props.project)
-    return index < 0 ? 0 : index
+  const projectName = (value: { canonical: string; name?: string }) => value.name ?? path.basename(value.canonical)
+  const folderName = () => (props.currentProject ? projectName(props.currentProject) : "This folder")
+  // The header reserves room for the range chips and refresh hint, so the name is shortened to keep one line.
+  const displayName = createMemo(() => {
+    if (!props.project) return folderName()
+    const found = props.projects?.find((item) => item.id === props.project)
+    if (found) return projectName(found)
+    if (props.currentProject?.id === props.project) return folderName()
+    return "Project"
   })
-  const selectedProjectName = createMemo(() => projectName(projectOptions()[activeProjectIndex()]))
-  const cycleProject = (delta: number) => {
-    const options = projectOptions()
-    if (options.length <= 1) return
-    const next = options[(activeProjectIndex() + delta + options.length) % options.length]
-    props.onProjectChange?.(next?.id)
+  const shortName = createMemo(() => Locale.truncateMiddle(displayName(), Math.max(6, props.width - 52)))
+  const selectFolder = () => {
+    if (props.currentProject) props.onProjectChange?.(props.currentProject.id)
+    else props.onOpenProjectPicker?.()
   }
   const metrics = createMemo(() => {
     const value = totals()
@@ -272,6 +277,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   }
 
   useKeyboard((event) => {
+    if (props.pickerOpen) return
     if (event.ctrl || event.meta || event.option || event.super || event.hyper || event.shift) return
     const handled = () => {
       event.preventDefault()
@@ -290,14 +296,9 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
       props.onRangeChange(dashboardRanges[rangeIndex])
       return
     }
-    if (event.name === "[" || event.sequence === "[") {
+    if (event.name === "p" || event.sequence === "p") {
       handled()
-      cycleProject(-1)
-      return
-    }
-    if (event.name === "]" || event.sequence === "]") {
-      handled()
-      cycleProject(1)
+      props.onOpenProjectPicker?.()
       return
     }
     if (event.name === "r") {
@@ -323,40 +324,32 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   })
 
   const header = () => (
-    <box flexDirection="row" alignItems="center" gap={2} flexWrap="wrap">
-      <Show
-        when={wide() && projectOptions().length > 1}
-        fallback={
-          <box backgroundColor={props.theme.background.action.primary.selected} onMouseUp={() => cycleProject(1)}>
-            <text fg={props.theme.text.action.primary.selected} wrapMode="none">
-              {` ${selectedProjectName()} [ ] `}
-            </text>
-          </box>
-        }
-      >
-        <box flexDirection="row" gap={1} flexWrap="wrap">
-          <For each={projectOptions()}>
-            {(option, index) => {
-              const active = () => index() === activeProjectIndex()
-              return (
-                <box
-                  backgroundColor={
-                    active() ? props.theme.background.action.primary.selected : props.theme.background.raised.base
-                  }
-                  onMouseUp={() => props.onProjectChange?.(option?.id)}
-                >
-                  <text
-                    fg={active() ? props.theme.text.action.primary.selected : props.theme.text.muted}
-                    wrapMode="none"
-                  >
-                    {` ${projectName(option)} `}
-                  </text>
-                </box>
-              )
-            }}
-          </For>
+    <box flexDirection="row" alignItems="center" gap={2} flexWrap="no-wrap">
+      <box flexDirection="row" alignItems="center">
+        <box
+          backgroundColor={
+            props.project ? props.theme.background.raised.base : props.theme.background.action.primary.selected
+          }
+          onMouseUp={() => props.onProjectChange?.(undefined)}
+        >
+          <text fg={props.project ? props.theme.text.muted : props.theme.text.action.primary.selected} wrapMode="none">
+            {" All projects "}
+          </text>
         </box>
-      </Show>
+        <text fg={props.theme.text.muted} wrapMode="none" onMouseUp={props.onOpenProjectPicker}>
+          {" ⇆ "}
+        </text>
+        <box
+          backgroundColor={
+            props.project ? props.theme.background.action.primary.selected : props.theme.background.raised.base
+          }
+          onMouseUp={selectFolder}
+        >
+          <text fg={props.project ? props.theme.text.action.primary.selected : props.theme.text.muted} wrapMode="none">
+            {` ${shortName()} `}
+          </text>
+        </box>
+      </box>
       <box flexGrow={1} />
       <For each={dashboardRanges}>
         {(range) => (
@@ -553,8 +546,11 @@ export function ProjectDashboard(props: { onOpenSession?: (sessionID: string) =>
   const client = useClient()
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
+  const location = useLocation()
+  const dialog = useDialog()
   const [range, setRange] = createSignal<DashboardRange>(defaultDashboardRange)
   const [project, setProject] = createSignal<Project.ID | undefined>(undefined)
+  const [pickerOpen, setPickerOpen] = createSignal(false)
   const [refresh, setRefresh] = createSignal(0)
   const [projects] = createResource(() => dashboardProjects(client.api))
   const [stats, { refetch: refetchStats }] = createResource(
@@ -570,6 +566,28 @@ export function ProjectDashboard(props: { onOpenSession?: (sessionID: string) =>
     void refetchStats()
     void refetchSessions()
   }
+  // The location's project is a lightweight descriptor; reconcile it with the loaded project info when possible.
+  const folderProject = createMemo(() => {
+    const info = location.current?.project
+    if (!info) return undefined
+    const found = projects()?.find((item) => item.id === info.id)
+    if (found) return found
+    return { id: info.id as Project.ID, canonical: info.canonical }
+  })
+  const openProjectPicker = () => {
+    setPickerOpen(true)
+    dialog.replace(() => (
+      <DialogProject
+        projects={projects() ?? []}
+        project={project()}
+        onCancel={() => setPickerOpen(false)}
+        onSelect={(value) => {
+          setProject(value)
+          setPickerOpen(false)
+        }}
+      />
+    ))
+  }
 
   return (
     <ProjectDashboardView
@@ -582,7 +600,10 @@ export function ProjectDashboard(props: { onOpenSession?: (sessionID: string) =>
       error={stats.error ?? sessions.error}
       projects={projects() ?? []}
       project={project()}
+      currentProject={folderProject()}
+      pickerOpen={pickerOpen()}
       onProjectChange={setProject}
+      onOpenProjectPicker={openProjectPicker}
       onRangeChange={setRange}
       onRefresh={refreshAll}
       onOpenSession={(sessionID) => props.onOpenSession?.(sessionID)}

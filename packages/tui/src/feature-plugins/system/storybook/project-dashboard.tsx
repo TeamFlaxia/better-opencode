@@ -2,9 +2,10 @@ import type { Plugin } from "@opencode/plugin/tui"
 import type { SessionInfo, SessionStatsInfo } from "@opencode/client"
 import type { AbsolutePath } from "@opencode/schema"
 import type { Project } from "@opencode/schema/project"
-import { useTerminalDimensions } from "@opentui/solid"
+import { TextAttributes } from "@opentui/core"
+import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import path from "path"
-import { createSignal } from "solid-js"
+import { createSignal, For, Show } from "solid-js"
 import { ProjectDashboardView } from "../../../component/dashboard"
 import { type DashboardRange } from "../dashboard-data"
 import { StoryFooter } from "./footer"
@@ -118,6 +119,9 @@ function ProjectDashboardStory(props: { context: Plugin.Context }) {
   const [mode, setMode] = createSignal<StoryMode>("normal")
   const [wide, setWide] = createSignal(true)
   const [project, setProject] = createSignal<Project.ID | undefined>(undefined)
+  const [currentFolder, setCurrentFolder] = createSignal<Project.Info | undefined>(FIXTURE_PROJECTS[0])
+  const [pickerOpen, setPickerOpen] = createSignal(false)
+  const [pickerIndex, setPickerIndex] = createSignal(0)
   const [chart, setChart] = createSignal(true)
   const [message, setMessage] = createSignal("fixture data · no network requests")
 
@@ -127,28 +131,78 @@ function ProjectDashboardStory(props: { context: Plugin.Context }) {
     const found = FIXTURE_PROJECTS.find((item) => item.id === id)
     return found ? (found.name ?? path.basename(found.canonical)) : "All projects"
   }
+  const folderLabel = () => (currentFolder() ? projectLabel(currentFolder()!.id) : "none")
+  const pickerOptions = () => [undefined, ...FIXTURE_PROJECTS]
+  const openPicker = () => {
+    setPickerIndex(project() ? pickerOptions().findIndex((item) => item?.id === project()) : 0)
+    setPickerOpen(true)
+    setMessage("project picker (fixture) · ↑/↓ then enter")
+  }
+  const chooseProject = (value: Project.ID | undefined) => {
+    setProject(value)
+    setPickerOpen(false)
+    setMessage(`project ${projectLabel(value)}`)
+  }
 
   const reset = () => {
     setRange("30d")
     setMode("normal")
     setWide(true)
     setProject(undefined)
+    setCurrentFolder(FIXTURE_PROJECTS[0])
+    setPickerOpen(false)
     setChart(true)
     setMessage("reset to the default 30-day view")
   }
+
+  // The view's keyboard handler is gated while the fixture picker is open, so these keys reach the picker only.
+  useKeyboard((event) => {
+    if (!pickerOpen()) return
+    if (event.ctrl || event.meta || event.option || event.super || event.hyper || event.shift) return
+    const count = pickerOptions().length
+    if (event.name === "up" || event.name === "down") {
+      event.preventDefault()
+      event.stopPropagation()
+      setPickerIndex((index) => (index + (event.name === "down" ? 1 : count - 1)) % count)
+      return
+    }
+    if (event.name === "return") {
+      event.preventDefault()
+      event.stopPropagation()
+      chooseProject(pickerOptions()[pickerIndex()]?.id)
+      return
+    }
+    if (event.name === "escape") {
+      event.preventDefault()
+      event.stopPropagation()
+      setPickerOpen(false)
+      setMessage("project picker closed")
+    }
+  })
 
   props.context.keymap.layer(() => ({
     commands: [
       {
         bind: "p",
-        title: "Cycle selected project",
+        title: "Project picker",
         group: "Storybook",
         run() {
-          const options = [undefined, ...FIXTURE_PROJECTS]
-          const index = options.findIndex((item) => item?.id === project())
-          const next = options[(index + 1) % options.length]
-          setProject(next?.id)
-          setMessage(`project ${projectLabel(next?.id)}`)
+          if (pickerOpen()) {
+            setPickerOpen(false)
+            setMessage("project picker closed")
+            return
+          }
+          openPicker()
+        },
+      },
+      {
+        bind: "f",
+        title: "Toggle current-folder project",
+        group: "Storybook",
+        run() {
+          const next = currentFolder() ? undefined : FIXTURE_PROJECTS[0]
+          setCurrentFolder(next)
+          setMessage(`current folder ${folderLabel()}`)
         },
       },
       {
@@ -226,6 +280,9 @@ function ProjectDashboardStory(props: { context: Plugin.Context }) {
         error={mode() === "error" ? "fixture: statistics unavailable" : undefined}
         projects={FIXTURE_PROJECTS}
         project={project()}
+        currentProject={currentFolder()}
+        pickerOpen={pickerOpen()}
+        onOpenProjectPicker={openPicker}
         showChart={chart()}
         onRangeChange={(value) => {
           setRange(value)
@@ -239,6 +296,41 @@ function ProjectDashboardStory(props: { context: Plugin.Context }) {
         }}
         onClose={() => props.context.ui.router.navigate({ type: "plugin", name: "storybook" })}
       />
+      <Show when={pickerOpen()}>
+        <box
+          position="absolute"
+          left={6}
+          top={3}
+          width={44}
+          flexDirection="column"
+          paddingLeft={1}
+          paddingRight={1}
+          paddingTop={1}
+          paddingBottom={1}
+          backgroundColor={theme.background.raised.base}
+        >
+          <text fg={theme.text.muted} attributes={TextAttributes.BOLD}>
+            Project
+          </text>
+          <For each={pickerOptions()}>
+            {(option, index) => (
+              <box
+                backgroundColor={
+                  pickerIndex() === index() ? theme.background.action.primary.focused : theme.background.raised.base
+                }
+                onMouseUp={() => chooseProject(option?.id)}
+              >
+                <text
+                  fg={pickerIndex() === index() ? theme.text.action.primary.focused : theme.text.base}
+                  wrapMode="none"
+                >
+                  {` ${projectLabel(option?.id)}${project() === option?.id ? " ●" : ""}`}
+                </text>
+              </box>
+            )}
+          </For>
+        </box>
+      </Show>
       <StoryFooter
         context={props.context}
         title="storybook / project dashboard"
@@ -246,6 +338,7 @@ function ProjectDashboardStory(props: { context: Plugin.Context }) {
           `range ${range()}`,
           mode(),
           `project ${projectLabel(project())}`,
+          `folder ${folderLabel()}`,
           `chart ${chart() ? "on" : "off"}`,
           wide() ? "wide" : "narrow",
           `width ${wide() ? 120 : 76}`,
@@ -253,8 +346,8 @@ function ProjectDashboardStory(props: { context: Plugin.Context }) {
         message={message()}
         controls={[
           { shortcut: "1-4", label: "range" },
-          { shortcut: "[ / ]", label: "project" },
-          { shortcut: "p", label: "cycle project" },
+          { shortcut: "p", label: "project picker" },
+          { shortcut: "f", label: "current folder" },
           { shortcut: "c", label: "chart" },
           { shortcut: "l", label: "loading" },
           { shortcut: "e", label: "empty" },
